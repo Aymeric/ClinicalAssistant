@@ -19,3 +19,16 @@ doc/api/
 *.js_
 *.js.deps
 *.js.map
+
+# Security & Secrets
+.env
+.env.*
+!*.example
+*.key
+*.pem
+*.p12
+*.keystore
+*.jks
+android/key.properties
+google-services.json
+GoogleService-Info.plist
