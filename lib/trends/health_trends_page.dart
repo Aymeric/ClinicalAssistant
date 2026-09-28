@@ -109,13 +109,15 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                       children: [
                         _categoryChip('All', null, allSeries.length),
                         for (final category in RecordCategory.values)
-                          _categoryChip(
-                            _categoryLabel(category),
-                            category,
-                            allSeries
-                                .where((series) => series.category == category)
-                                .length,
-                          ),
+                          if (allSeries.any((series) => series.category == category) ||
+                              _category == category)
+                            _categoryChip(
+                              _categoryLabel(category),
+                              category,
+                              allSeries
+                                  .where((series) => series.category == category)
+                                  .length,
+                            ),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -1380,6 +1382,10 @@ String _categoryLabel(RecordCategory category) => switch (category) {
   RecordCategory.sleep => 'Sleep',
   RecordCategory.nutrition => 'Nutrition',
   RecordCategory.cycleTracking => 'Cycle tracking',
+  RecordCategory.medication => 'Medications',
+  RecordCategory.condition => 'Conditions',
+  RecordCategory.allergy => 'Allergies',
+  RecordCategory.immunization => 'Immunizations',
 };
 
 String _formatTrendValue(double value) => formatSensibleNumber(value);

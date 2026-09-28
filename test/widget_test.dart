@@ -120,8 +120,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: HealthHome(controller: controller)),
     );
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Recent records'));
+    await tester.scrollUntilVisible(
+      find.text('Recent records'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     expect(find.text('Glucose'), findsOneWidget);
     expect(find.text('Hemoglobin A1c'), findsOneWidget);

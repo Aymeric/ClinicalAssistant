@@ -33,4 +33,67 @@ void main() {
     expect(restored.sourceData, resource);
     expect(restored.sourceId, original.sourceId);
   });
+
+  test('handles notes serialization, copyWith, and isManual', () {
+    final record = HealthRecord(
+      id: 'manual-1',
+      name: 'Blood Pressure',
+      value: '120/80',
+      unit: 'mmHg',
+      recordedAt: DateTime.utc(2026, 9, 21, 8, 0),
+      category: RecordCategory.vital,
+      source: 'Manual Entry',
+      notes: 'Morning measurement before coffee',
+    );
+
+    expect(record.isManual, isTrue);
+    expect(record.notes, 'Morning measurement before coffee');
+
+    final json = record.toJson();
+    expect(json['notes'], 'Morning measurement before coffee');
+
+    final restored = HealthRecord.fromJson(json);
+    expect(restored.notes, 'Morning measurement before coffee');
+
+    final updated = record.copyWith(notes: 'Updated note');
+    expect(updated.notes, 'Updated note');
+    expect(updated.name, record.name);
+  });
+
+  test('backward compatibility: handles JSON without notes field', () {
+    final legacyJson = <String, Object?>{
+      'id': 'rec-1',
+      'name': 'Heart Rate',
+      'value': '72',
+      'unit': 'bpm',
+      'recordedAt': '2026-09-20T10:00:00.000Z',
+      'category': 'vital',
+      'source': 'Apple Health',
+    };
+
+    final record = HealthRecord.fromJson(legacyJson);
+    expect(record.notes, isNull);
+    expect(record.isManual, isFalse);
+    expect(record.toJson().containsKey('notes'), isFalse);
+  });
+
+  test('serializes and deserializes all RecordCategory values faithfully', () {
+    for (final cat in RecordCategory.values) {
+      final record = HealthRecord(
+        id: 'cat-${cat.name}',
+        name: 'Record in ${cat.name}',
+        value: 'Normal',
+        unit: '',
+        recordedAt: DateTime.utc(2026, 9, 28, 12, 0),
+        category: cat,
+        source: 'Test Provider',
+      );
+
+      final json = record.toJson();
+      expect(json['category'], cat.name);
+
+      final restored = HealthRecord.fromJson(json);
+      expect(restored.category, cat);
+    }
+  });
 }

@@ -1,4 +1,15 @@
-enum RecordCategory { lab, vital, activity, sleep, nutrition, cycleTracking }
+enum RecordCategory {
+  lab,
+  vital,
+  activity,
+  sleep,
+  nutrition,
+  cycleTracking,
+  medication,
+  condition,
+  allergy,
+  immunization,
+}
 
 /// Formats a numeric value with sensible rounding and decimal limits for health data.
 ///
@@ -82,6 +93,7 @@ class HealthRecord {
     this.referenceRange,
     this.status,
     this.sourceData,
+    this.notes,
   });
 
   final String id;
@@ -96,12 +108,47 @@ class HealthRecord {
   final String? referenceRange;
   final String? status;
   final Map<String, Object?>? sourceData;
+  final String? notes;
+
+  bool get isManual => source == 'Manual Entry';
 
   String get formattedValue => formatSensibleValue(value);
 
   String get displayValue {
     final formatted = formattedValue;
     return unit.isEmpty ? formatted : '$formatted $unit';
+  }
+
+  HealthRecord copyWith({
+    String? id,
+    String? name,
+    String? value,
+    String? unit,
+    DateTime? recordedAt,
+    RecordCategory? category,
+    String? source,
+    String? sourceId,
+    String? code,
+    String? referenceRange,
+    String? status,
+    Map<String, Object?>? sourceData,
+    String? notes,
+  }) {
+    return HealthRecord(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      value: value ?? this.value,
+      unit: unit ?? this.unit,
+      recordedAt: recordedAt ?? this.recordedAt,
+      category: category ?? this.category,
+      source: source ?? this.source,
+      sourceId: sourceId ?? this.sourceId,
+      code: code ?? this.code,
+      referenceRange: referenceRange ?? this.referenceRange,
+      status: status ?? this.status,
+      sourceData: sourceData ?? this.sourceData,
+      notes: notes ?? this.notes,
+    );
   }
 
   Map<String, Object?> toJson() => {
@@ -117,6 +164,7 @@ class HealthRecord {
     'referenceRange': referenceRange,
     'status': status,
     'sourceData': sourceData,
+    if (notes != null) 'notes': notes,
   };
 
   factory HealthRecord.fromJson(Map<String, Object?> json) {
@@ -133,6 +181,7 @@ class HealthRecord {
       referenceRange: json['referenceRange'] as String?,
       status: json['status'] as String?,
       sourceData: (json['sourceData'] as Map?)?.cast<String, Object?>(),
+      notes: json['notes'] as String?,
     );
   }
 }

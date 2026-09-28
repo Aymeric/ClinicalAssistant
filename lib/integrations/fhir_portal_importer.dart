@@ -33,11 +33,24 @@ class FhirPortalImporter {
 
   static const redirectUri =
       'com.aymericgrassart.clinicalassistant:/oauth2redirect';
+
+  static const clinicalResourceTypes = [
+    'Observation',
+    'MedicationRequest',
+    'Condition',
+    'AllergyIntolerance',
+    'Immunization',
+  ];
+
   static const _baseScopes = [
     'openid',
     'fhirUser',
     'launch/patient',
     'patient/Observation.read',
+    'patient/MedicationRequest.read',
+    'patient/Condition.read',
+    'patient/AllergyIntolerance.read',
+    'patient/Immunization.read',
   ];
 
   final FlutterAppAuth _appAuth;
@@ -50,11 +63,13 @@ class FhirPortalImporter {
     required String fhirBaseUrl,
     required String clientId,
     ImportProgressCallback? onProgress,
+    List<String>? resourceTypes,
   }) async {
     final result = await authorizeAndImportLabResults(
       fhirBaseUrl: fhirBaseUrl,
       clientId: clientId,
       onProgress: onProgress,
+      resourceTypes: resourceTypes,
     );
     return result.records;
   }
@@ -65,6 +80,7 @@ class FhirPortalImporter {
     bool requestRefreshToken = false,
     DateTime? since,
     ImportProgressCallback? onProgress,
+    List<String>? resourceTypes,
   }) async {
     onProgress?.call(
       const ImportProgress(
@@ -105,13 +121,20 @@ class FhirPortalImporter {
         ? _nonEmpty(tokenResponse.refreshToken)
         : null;
 
+    final typesToImport = resourceTypes ?? const ['Observation'];
     onProgress?.call(
-      const ImportProgress(fraction: 0.05, message: 'Downloading lab results'),
+      ImportProgress(
+        fraction: 0.05,
+        message: typesToImport.length > 1
+            ? 'Downloading clinical records'
+            : 'Downloading lab results',
+      ),
     );
-    final records = await _readObservations(
+    final records = await _readClinicalResources(
       base: base,
       accessToken: accessToken,
       patientId: patientId,
+      resourceTypes: typesToImport,
       since: since,
       onProgress: onProgress,
     );
@@ -134,6 +157,7 @@ class FhirPortalImporter {
     required DateTime since,
     required Future<void> Function(String refreshToken) onRefreshTokenUpdated,
     ImportProgressCallback? onProgress,
+    List<String>? resourceTypes,
   }) async {
     final base = _validatedBaseUri(fhirBaseUrl);
     _validateClientId(clientId);
@@ -159,20 +183,22 @@ class FhirPortalImporter {
         ),
       ),
     );
+
     final accessToken = _requiredValue(
       tokenResponse.accessToken,
-      'The provider did not return an access token. Reconnect the portal to continue syncing.',
+      'The provider did not return an updated access token. Reconnect the portal to resume sync.',
     );
-    final updatedRefreshToken =
-        _nonEmpty(tokenResponse.refreshToken) ?? refreshToken;
-    await onRefreshTokenUpdated(updatedRefreshToken);
-    onProgress?.call(
-      const ImportProgress(fraction: 0.05, message: 'Downloading lab results'),
-    );
-    final records = await _readObservations(
+    final nextRefreshToken = _nonEmpty(tokenResponse.refreshToken);
+    if (nextRefreshToken != null) {
+      await onRefreshTokenUpdated(nextRefreshToken);
+    }
+
+    final typesToImport = resourceTypes ?? const ['Observation'];
+    final records = await _readClinicalResources(
       base: base,
       accessToken: accessToken,
-      patientId: patientId.trim(),
+      patientId: patientId,
+      resourceTypes: typesToImport,
       since: since,
       onProgress: onProgress,
     );
@@ -181,7 +207,7 @@ class FhirPortalImporter {
       patientId: patientId.trim(),
       authorizationEndpoint: validatedAuthorizationEndpoint,
       tokenEndpoint: validatedTokenEndpoint,
-      refreshToken: updatedRefreshToken,
+      refreshToken: nextRefreshToken ?? refreshToken,
     );
   }
 
@@ -216,8 +242,69 @@ class FhirPortalImporter {
     );
   }
 
-  Future<List<HealthRecord>> _readObservations({
+  Future<List<HealthRecord>> _readClinicalResources({
     required Uri base,
+    required String accessToken,
+    required String patientId,
+    required List<String> resourceTypes,
+    DateTime? since,
+    ImportProgressCallback? onProgress,
+  }) async {
+    final isSingleObservation =
+        resourceTypes.length == 1 && resourceTypes.first == 'Observation';
+
+    if (isSingleObservation) {
+      return _readResource(
+        base: base,
+        resourceType: 'Observation',
+        accessToken: accessToken,
+        patientId: patientId,
+        since: since,
+        onProgress: onProgress,
+      );
+    }
+
+    final allRecords = <HealthRecord>[];
+    for (var i = 0; i < resourceTypes.length; i++) {
+      final resourceType = resourceTypes[i];
+      try {
+        final records = await _readResource(
+          base: base,
+          resourceType: resourceType,
+          accessToken: accessToken,
+          patientId: patientId,
+          since: since,
+          onProgress: (progress) {
+            final overallFraction =
+                0.05 + 0.85 * ((i + progress.fraction) / resourceTypes.length);
+            onProgress?.call(
+              ImportProgress(
+                fraction: overallFraction.clamp(0.05, 0.90),
+                message: '[$resourceType] ${progress.message}',
+              ),
+            );
+          },
+        );
+        allRecords.addAll(records);
+      } catch (e) {
+        if (resourceType == 'Observation' || e.toString().contains('401')) {
+          rethrow;
+        }
+      }
+    }
+    allRecords.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    onProgress?.call(
+      ImportProgress(
+        fraction: 0.9,
+        message: 'Imported ${allRecords.length} clinical records',
+      ),
+    );
+    return allRecords;
+  }
+
+  Future<List<HealthRecord>> _readResource({
+    required Uri base,
+    required String resourceType,
     required String accessToken,
     required String patientId,
     DateTime? since,
@@ -225,15 +312,16 @@ class FhirPortalImporter {
   }) async {
     final query = <String, String>{
       'patient': patientId,
-      'category': 'laboratory',
+      if (resourceType == 'Observation') 'category': 'laboratory',
       '_count': '100',
-      if (since != null) 'date': 'ge${since.toUtc().toIso8601String()}',
+      if (since != null && resourceType == 'Observation')
+        'date': 'ge${since.toUtc().toIso8601String()}',
     };
-    final observationsUri = base
-        .resolve('Observation')
+    final resourceUri = base
+        .resolve(resourceType)
         .replace(queryParameters: query);
     final records = <HealthRecord>[];
-    var nextUri = observationsUri;
+    var nextUri = resourceUri;
     final expectedOrigin = base.origin;
     final visitedPages = <Uri>{};
     var completedEntries = 0;
@@ -257,6 +345,12 @@ class FhirPortalImporter {
           'Authorization': 'Bearer $accessToken',
         },
       );
+      if (response.statusCode == 403 ||
+          response.statusCode == 404 ||
+          response.statusCode == 400 ||
+          response.statusCode == 501) {
+        if (resourceType != 'Observation') return records;
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw StateError(
           'The provider could not return lab results (HTTP ${response.statusCode}).',
@@ -294,7 +388,7 @@ class FhirPortalImporter {
         ImportProgress(
           fraction: progressFraction,
           message: totalEntries == null
-              ? 'Downloaded page $pageNumber · ${records.length} lab results'
+              ? 'Downloaded page $pageNumber · ${records.length} results'
               : 'Downloaded ${completedEntries.clamp(0, totalEntries)} of $totalEntries results',
         ),
       );

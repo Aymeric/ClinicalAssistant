@@ -381,6 +381,7 @@ class _FakeFhirImporter extends FhirPortalImporter {
     bool requestRefreshToken = false,
     DateTime? since,
     ImportProgressCallback? onProgress,
+    List<String>? resourceTypes,
   }) async {
     onProgress?.call(
       const ImportProgress(fraction: 0.6, message: 'Downloading test labs'),
@@ -408,6 +409,7 @@ class _FakeFhirImporter extends FhirPortalImporter {
     required DateTime since,
     required Future<void> Function(String refreshToken) onRefreshTokenUpdated,
     ImportProgressCallback? onProgress,
+    List<String>? resourceTypes,
   }) async {
     refreshCount++;
     lastRefreshToken = refreshToken;
