@@ -885,38 +885,49 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
           body: Row(
             children: [
               if (wide)
-                NavigationRail(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: (index) =>
-                      setState(() => _selectedIndex = index),
-                  labelType: NavigationRailLabelType.all,
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.space_dashboard_outlined),
-                      selectedIcon: Icon(Icons.space_dashboard),
-                      label: Text('Overview'),
+                LayoutBuilder(
+                  builder: (context, railConstraints) => SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: railConstraints.maxHeight,
+                      ),
+                      child: IntrinsicHeight(
+                        child: NavigationRail(
+                          selectedIndex: _selectedIndex,
+                          onDestinationSelected: (index) =>
+                              setState(() => _selectedIndex = index),
+                          labelType: NavigationRailLabelType.all,
+                          destinations: const [
+                            NavigationRailDestination(
+                              icon: Icon(Icons.space_dashboard_outlined),
+                              selectedIcon: Icon(Icons.space_dashboard),
+                              label: Text('Overview'),
+                            ),
+                            NavigationRailDestination(
+                              icon: Icon(Icons.show_chart_outlined),
+                              selectedIcon: Icon(Icons.show_chart),
+                              label: Text('Trends'),
+                            ),
+                            NavigationRailDestination(
+                              icon: Icon(Icons.list_alt_outlined),
+                              selectedIcon: Icon(Icons.list_alt),
+                              label: Text('Records'),
+                            ),
+                            NavigationRailDestination(
+                              icon: Icon(Icons.hub_outlined),
+                              selectedIcon: Icon(Icons.hub),
+                              label: Text('Sources'),
+                            ),
+                            NavigationRailDestination(
+                              icon: Icon(Icons.ios_share_outlined),
+                              selectedIcon: Icon(Icons.ios_share),
+                              label: Text('Export'),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.show_chart_outlined),
-                      selectedIcon: Icon(Icons.show_chart),
-                      label: Text('Trends'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.list_alt_outlined),
-                      selectedIcon: Icon(Icons.list_alt),
-                      label: Text('Records'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.hub_outlined),
-                      selectedIcon: Icon(Icons.hub),
-                      label: Text('Sources'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.ios_share_outlined),
-                      selectedIcon: Icon(Icons.ios_share),
-                      label: Text('Export'),
-                    ),
-                  ],
+                  ),
                 ),
               Expanded(child: pages[_selectedIndex]),
             ],
