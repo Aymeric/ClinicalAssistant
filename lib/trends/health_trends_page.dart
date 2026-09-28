@@ -10,10 +10,14 @@ class HealthTrendsPage extends StatefulWidget {
     super.key,
     required this.records,
     this.loading = false,
+    this.initialSeriesId,
+    this.onRecordTap,
   });
 
   final List<HealthRecord> records;
   final bool loading;
+  final String? initialSeriesId;
+  final ValueChanged<HealthRecord>? onRecordTap;
 
   @override
   State<HealthTrendsPage> createState() => _HealthTrendsPageState();
@@ -24,6 +28,24 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
   _TrendRange _range = _TrendRange.all;
   String? _selectedSeriesId;
   bool _showMovingAverage = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSeriesId = widget.initialSeriesId;
+  }
+
+  @override
+  void didUpdateWidget(covariant HealthTrendsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialSeriesId != null &&
+        widget.initialSeriesId != oldWidget.initialSeriesId) {
+      setState(() {
+        _selectedSeriesId = widget.initialSeriesId;
+        _category = null;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,6 +180,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                         showMovingAverage: _showMovingAverage,
                         onMovingAverageChanged: (value) =>
                             setState(() => _showMovingAverage = value),
+                        onRecordTap: widget.onRecordTap,
                       ),
                       const SizedBox(height: 16),
                       _TrendIndicators(
@@ -165,7 +188,10 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                         count: orderedPoints.length,
                       ),
                       const SizedBox(height: 24),
-                      _RecentTrendReadings(points: orderedPoints),
+                      _RecentTrendReadings(
+                        points: orderedPoints,
+                        onRecordTap: widget.onRecordTap,
+                      ),
                     ],
                   ],
                 ),
@@ -459,19 +485,53 @@ class _SelectedReadingHeading extends StatelessWidget {
   }
 }
 
-class _TrendChartPanel extends StatelessWidget {
+class _TrendChartPanel extends StatefulWidget {
   const _TrendChartPanel({
     required this.points,
     required this.showMovingAverage,
     required this.onMovingAverageChanged,
+    this.onRecordTap,
   });
 
   final List<HealthTrendPoint> points;
   final bool showMovingAverage;
   final ValueChanged<bool> onMovingAverageChanged;
+  final ValueChanged<HealthRecord>? onRecordTap;
+
+  @override
+  State<_TrendChartPanel> createState() => _TrendChartPanelState();
+}
+
+class _TrendChartPanelState extends State<_TrendChartPanel> {
+  int? _inspectedIndex;
+
+  @override
+  void didUpdateWidget(covariant _TrendChartPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_inspectedIndex != null &&
+        (_inspectedIndex! >= widget.points.length ||
+            oldWidget.points != widget.points)) {
+      _inspectedIndex = null;
+    }
+  }
+
+  void _inspectAt(double localX, double totalWidth) {
+    const left = 58.0;
+    const right = 10.0;
+    final plotWidth = totalWidth - left - right;
+    if (plotWidth <= 0 || widget.points.isEmpty) return;
+    final fraction = ((localX - left) / plotWidth).clamp(0.0, 1.0);
+    final index = (fraction * (widget.points.length - 1)).round();
+    if (index != _inspectedIndex) {
+      setState(() => _inspectedIndex = index);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final points = widget.points;
+    final showMovingAverage = widget.showMovingAverage;
+    final onMovingAverageChanged = widget.onMovingAverageChanged;
     final chartIndexes = sampleHealthTrendIndexes(points);
     final chartPoints = [for (final index in chartIndexes) points[index]];
     final referenceMarks = buildHealthTrendReferenceMarks(
@@ -489,6 +549,11 @@ class _TrendChartPanel extends StatelessWidget {
         .formatShortDate(points.first.record.recordedAt.toLocal());
     final lastDate = MaterialLocalizations.of(context)
         .formatShortDate(points.last.record.recordedAt.toLocal());
+
+    final inspectedPoint = _inspectedIndex != null &&
+            _inspectedIndex! < points.length
+        ? points[_inspectedIndex!]
+        : null;
 
     return Card(
       child: Padding(
@@ -524,23 +589,64 @@ class _TrendChartPanel extends StatelessWidget {
                 child: SizedBox(
                   height: 214,
                   width: double.infinity,
-                  child: CustomPaint(
-                    painter: _TrendChartPainter(
-                      points: chartPoints,
-                      pointIndexes: chartIndexes,
-                      referenceMarks: referenceMarks,
-                      averages: averages,
-                      totalPoints: points.length,
-                      color: Theme.of(context).colorScheme.primary,
-                      averageColor: Theme.of(context).colorScheme.secondary,
-                      referenceColor: Theme.of(context).colorScheme.tertiary,
-                      gridColor: Theme.of(context).colorScheme.outlineVariant,
-                      textColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return GestureDetector(
+                        key: const ValueKey('trend-chart-canvas'),
+                        behavior: HitTestBehavior.opaque,
+                        onTapDown: (details) => _inspectAt(
+                          details.localPosition.dx,
+                          constraints.maxWidth,
+                        ),
+                        onTapUp: (details) => _inspectAt(
+                          details.localPosition.dx,
+                          constraints.maxWidth,
+                        ),
+                        onHorizontalDragStart: (details) => _inspectAt(
+                          details.localPosition.dx,
+                          constraints.maxWidth,
+                        ),
+                        onHorizontalDragUpdate: (details) => _inspectAt(
+                          details.localPosition.dx,
+                          constraints.maxWidth,
+                        ),
+                        child: CustomPaint(
+                          painter: _TrendChartPainter(
+                            points: chartPoints,
+                            pointIndexes: chartIndexes,
+                            referenceMarks: referenceMarks,
+                            averages: averages,
+                            totalPoints: points.length,
+                            inspectedIndex: _inspectedIndex,
+                            inspectedPoint: inspectedPoint,
+                            color: Theme.of(context).colorScheme.primary,
+                            averageColor:
+                                Theme.of(context).colorScheme.secondary,
+                            referenceColor:
+                                Theme.of(context).colorScheme.tertiary,
+                            gridColor:
+                                Theme.of(context).colorScheme.outlineVariant,
+                            textColor:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
             ),
+            if (inspectedPoint != null) ...[
+              const SizedBox(height: 10),
+              _ChartInspectionBanner(
+                point: inspectedPoint,
+                onDismiss: () => setState(() => _inspectedIndex = null),
+                onViewDetails: widget.onRecordTap != null
+                    ? () => widget.onRecordTap!(inspectedPoint.record)
+                    : null,
+              ),
+            ],
+            const SizedBox(height: 4),
             Wrap(
               alignment: WrapAlignment.spaceBetween,
               runSpacing: 2,
@@ -635,6 +741,93 @@ class _TrendChartPanel extends StatelessWidget {
   }
 }
 
+class _ChartInspectionBanner extends StatelessWidget {
+  const _ChartInspectionBanner({
+    required this.point,
+    required this.onDismiss,
+    this.onViewDetails,
+  });
+
+  final HealthTrendPoint point;
+  final VoidCallback onDismiss;
+  final VoidCallback? onViewDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final record = point.record;
+    final localizations = MaterialLocalizations.of(context);
+    final dateStr = localizations.formatMediumDate(record.recordedAt.toLocal());
+    final localTime = record.recordedAt.toLocal();
+    final hour = localTime.hour % 12 == 0 ? 12 : localTime.hour % 12;
+    final minute = localTime.minute.toString().padLeft(2, '0');
+    final period = localTime.hour < 12 ? 'AM' : 'PM';
+    final timeStr = '$hour:$minute $period';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onViewDetails,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.touch_app_outlined,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${record.displayValue} · $dateStr at $timeStr',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Source: ${record.source}${record.referenceRange != null ? ' · Ref: ${record.referenceRange}' : ''}${onViewDetails != null ? ' · Tap for details' : ''}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (onViewDetails != null)
+                  IconButton(
+                    key: const ValueKey('trend-inspect-view-details'),
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    tooltip: 'View details',
+                    onPressed: onViewDetails,
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  tooltip: 'Dismiss',
+                  onPressed: onDismiss,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TrendChartPainter extends CustomPainter {
   const _TrendChartPainter({
     required this.points,
@@ -642,6 +835,8 @@ class _TrendChartPainter extends CustomPainter {
     required this.referenceMarks,
     required this.averages,
     required this.totalPoints,
+    this.inspectedIndex,
+    this.inspectedPoint,
     required this.color,
     required this.averageColor,
     required this.referenceColor,
@@ -654,6 +849,8 @@ class _TrendChartPainter extends CustomPainter {
   final List<HealthTrendReferenceMark> referenceMarks;
   final List<double> averages;
   final int totalPoints;
+  final int? inspectedIndex;
+  final HealthTrendPoint? inspectedPoint;
   final Color color;
   final Color averageColor;
   final Color referenceColor;
@@ -814,6 +1011,39 @@ class _TrendChartPainter extends CustomPainter {
           ..strokeJoin = StrokeJoin.round,
       );
     }
+
+    if (inspectedIndex != null && inspectedPoint != null) {
+      final inspectedOffset = pointOffset(
+        inspectedIndex!.toDouble(),
+        inspectedPoint!.value,
+      );
+      final guidePaint = Paint()
+        ..color = color.withValues(alpha: 0.45)
+        ..strokeWidth = 1.2;
+      canvas.drawLine(
+        Offset(inspectedOffset.dx, plot.top),
+        Offset(inspectedOffset.dx, plot.bottom),
+        guidePaint,
+      );
+      canvas.drawCircle(
+        inspectedOffset,
+        8.0,
+        Paint()..color = color.withValues(alpha: 0.22),
+      );
+      canvas.drawCircle(
+        inspectedOffset,
+        4.5,
+        Paint()..color = color,
+      );
+      canvas.drawCircle(
+        inspectedOffset,
+        4.5,
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = 1.5
+          ..style = PaintingStyle.stroke,
+      );
+    }
   }
 
   @override
@@ -823,6 +1053,8 @@ class _TrendChartPainter extends CustomPainter {
       oldDelegate.referenceMarks != referenceMarks ||
       oldDelegate.averages != averages ||
       oldDelegate.totalPoints != totalPoints ||
+      oldDelegate.inspectedIndex != inspectedIndex ||
+      oldDelegate.inspectedPoint != inspectedPoint ||
       oldDelegate.color != color ||
       oldDelegate.averageColor != averageColor ||
       oldDelegate.referenceColor != referenceColor ||
@@ -860,37 +1092,85 @@ class _TrendIndicators extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth < 500 ? 2 : 4;
-        final width = (constraints.maxWidth - (columns - 1) * 1) / columns;
+        const spacing = 6.0;
+        final width = (constraints.maxWidth - (columns - 1) * spacing) / columns;
         return Wrap(
-          spacing: 1,
-          runSpacing: 1,
+          spacing: spacing,
+          runSpacing: spacing,
           children: [
             for (var index = 0; index < fields.length; index++)
               Container(
                 width: width,
-                constraints: const BoxConstraints(minHeight: 82),
-                padding: const EdgeInsets.fromLTRB(12, 12, 8, 10),
-                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                constraints: const BoxConstraints(minHeight: 84),
+                padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant
+                        .withValues(alpha: 0.6),
+                  ),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      fields[index].$1,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            fields[index].$1,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                        if (index == 0 && change != null) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            change > 0
+                                ? Icons.trending_up
+                                : change < 0
+                                ? Icons.trending_down
+                                : Icons.trending_flat,
+                            size: 16,
+                            color: change > 0
+                                ? Theme.of(context).colorScheme.primary
+                                : change < 0
+                                ? Theme.of(context).colorScheme.secondary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 5),
                     Text(
                       fields[index].$2,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       fields[index].$3,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
                   ],
                 ),
@@ -903,13 +1183,18 @@ class _TrendIndicators extends StatelessWidget {
 }
 
 class _RecentTrendReadings extends StatelessWidget {
-  const _RecentTrendReadings({required this.points});
+  const _RecentTrendReadings({
+    required this.points,
+    this.onRecordTap,
+  });
 
   final List<HealthTrendPoint> points;
+  final ValueChanged<HealthRecord>? onRecordTap;
 
   @override
   Widget build(BuildContext context) {
     final recent = points.reversed.take(5).toList();
+    final unit = points.isNotEmpty ? points.first.record.unit : '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -919,27 +1204,54 @@ class _RecentTrendReadings extends StatelessWidget {
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
-        for (final point in recent)
-          ListTile(
-            key: ValueKey('trend-record-${point.record.id}'),
-            contentPadding: EdgeInsets.zero,
-            title: Text(point.record.displayValue),
-            subtitle: Text(
-              [
-                '${MaterialLocalizations.of(context).formatMediumDate(point.record.recordedAt.toLocal())} · ${point.record.source}',
-                if (point.record.referenceRange case final range?)
-                  'Source reference range: $range',
-              ].join('\n'),
-            ),
-            trailing: point.record.status == null
-                ? null
-                : Text(
-                    point.record.status!,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+        for (final point in recent) ...[
+          Builder(
+            builder: (context) {
+              final parsedRange = parseHealthReferenceRange(
+                point.record.referenceRange,
+                expectedUnit: unit,
+              );
+              final status = parsedRange?.evaluate(point.value);
+              return ListTile(
+                key: ValueKey('trend-record-${point.record.id}'),
+                contentPadding: EdgeInsets.zero,
+                onTap: onRecordTap != null
+                    ? () => onRecordTap!(point.record)
+                    : null,
+                title: Row(
+                  children: [
+                    Expanded(child: Text(point.record.displayValue)),
+                    if (status != null &&
+                        status != HealthReferenceStatus.unspecified)
+                      _ReferenceStatusBadge(status: status),
+                  ],
+                ),
+                subtitle: Text(
+                  [
+                    '${MaterialLocalizations.of(context).formatMediumDate(point.record.recordedAt.toLocal())} · ${point.record.source}',
+                    if (point.record.referenceRange case final range?)
+                      'Source reference range: $range',
+                  ].join('\n'),
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (point.record.status != null)
+                      Text(
+                        point.record.status!,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    if (onRecordTap != null)
+                      const Icon(Icons.chevron_right, size: 18),
+                  ],
+                ),
+              );
+            },
           ),
+        ],
         if (points.length > recent.length)
           Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -1070,14 +1382,39 @@ String _categoryLabel(RecordCategory category) => switch (category) {
   RecordCategory.cycleTracking => 'Cycle tracking',
 };
 
-String _formatTrendValue(double value) {
-  if (value == 0) return '0';
-  final formatted = value.toStringAsPrecision(4);
-  if (formatted.contains('e')) return formatted;
-  if (formatted.contains('.')) {
-    return formatted
-        .replaceFirst(RegExp(r'0+$'), '')
-        .replaceFirst(RegExp(r'\.$'), '');
+String _formatTrendValue(double value) => formatSensibleNumber(value);
+
+class _ReferenceStatusBadge extends StatelessWidget {
+  const _ReferenceStatusBadge({required this.status});
+
+  final HealthReferenceStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final (color, label) = switch (status) {
+      HealthReferenceStatus.within => (colors.primary, 'Within range'),
+      HealthReferenceStatus.above => (Colors.amber.shade800, 'Above range'),
+      HealthReferenceStatus.below => (colors.tertiary, 'Below range'),
+      HealthReferenceStatus.unspecified => (colors.outline, 'Unspecified'),
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
-  return formatted;
 }

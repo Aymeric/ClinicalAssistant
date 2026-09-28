@@ -25,8 +25,8 @@ class MeasurementSignalAnalyzer {
     final newIds = newlyImported.map((record) => record.id).toSet();
     final series = <(RecordCategory, String, String, String), List<_Reading>>{};
     for (final record in allRecords) {
-      final value = double.tryParse(record.value.trim());
-      if (value == null || !value.isFinite) continue;
+      final value = parseHealthRecordValue(record.value);
+      if (value == null) continue;
       final key = (
         record.category,
         record.name.trim().toLowerCase(),

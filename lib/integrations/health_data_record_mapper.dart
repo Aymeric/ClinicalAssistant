@@ -85,15 +85,17 @@ class HealthDataRecordMapper {
     ];
     if (value.totalEnergyBurned != null) {
       details.add(
-        '${value.totalEnergyBurned} ${_unitLabel(value.totalEnergyBurnedUnit ?? HealthDataUnit.KILOCALORIE)}',
+        '${formatSensibleNumber(value.totalEnergyBurned!)} ${_unitLabel(value.totalEnergyBurnedUnit ?? HealthDataUnit.KILOCALORIE)}',
       );
     }
     if (value.totalDistance != null) {
       details.add(
-        '${value.totalDistance} ${_unitLabel(value.totalDistanceUnit ?? HealthDataUnit.METER)}',
+        '${formatSensibleNumber(value.totalDistance!)} ${_unitLabel(value.totalDistanceUnit ?? HealthDataUnit.METER)}',
       );
     }
-    if (value.totalSteps != null) details.add('${value.totalSteps} steps');
+    if (value.totalSteps != null) {
+      details.add('${formatSensibleNumber(value.totalSteps!)} steps');
+    }
     return details.join(' · ');
   }
 
@@ -120,8 +122,7 @@ class HealthDataRecordMapper {
     return details.join(' · ');
   }
 
-  String _formatNumber(num value) =>
-      value == value.roundToDouble() ? value.toInt().toString() : '$value';
+  String _formatNumber(num value) => formatSensibleNumber(value);
 
   String _labelFor(HealthDataType type) => switch (type) {
     HealthDataType.ACTIVE_ENERGY_BURNED => 'Active energy burned',

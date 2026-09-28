@@ -59,6 +59,20 @@ class HealthPlatformImporter {
     HealthDataType.WORKOUT_ROUTE,
   ];
 
+  /// Check whether a data type is supported on the current device/platform.
+  ///
+  /// HealthKit on iOS does not support [HealthDataType.TOTAL_CALORIES_BURNED]
+  /// (Apple Health only tracks active and basal energy). Even though the health
+  /// package mistakenly lists it in its iOS data types, requesting or querying it
+  /// on iOS produces a native PlatformException(INVALID_TYPE).
+  bool isDataTypeAvailable(HealthDataType type, {bool? isIos}) {
+    final onIos = isIos ?? Platform.isIOS;
+    if (onIos && type == HealthDataType.TOTAL_CALORIES_BURNED) {
+      return false;
+    }
+    return _health.isDataTypeAvailable(type);
+  }
+
   Future<List<HealthRecord>> importRecords({
     required DateTime since,
     ImportProgressCallback? onProgress,
@@ -71,7 +85,7 @@ class HealthPlatformImporter {
     }
 
     final availableTypes = sharedDataTypes
-        .where(_health.isDataTypeAvailable)
+        .where(isDataTypeAvailable)
         .toList();
     final records = <HealthRecord>[];
     var totalSteps = Platform.isIOS || Platform.isAndroid ? 1 : 0;

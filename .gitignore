@@ -25,3 +25,12 @@ doc/api/
 *.js_
 *.js.deps
 *.js.map
+
+# Signing keys and certificates
+key.properties
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+ios/ExportOptions.plist
+

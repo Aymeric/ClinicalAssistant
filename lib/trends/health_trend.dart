@@ -17,6 +17,25 @@ class HealthReferenceRange {
   final double? lowerBound;
   final double? upperBound;
   final String sourceText;
+
+  static HealthReferenceRange? tryParse(
+    String? raw, {
+    String expectedUnit = '',
+  }) =>
+      parseHealthReferenceRange(raw, expectedUnit: expectedUnit);
+
+  HealthReferenceStatus evaluate(double value) {
+    if (upperBound != null && value > upperBound!) {
+      return HealthReferenceStatus.above;
+    }
+    if (lowerBound != null && value < lowerBound!) {
+      return HealthReferenceStatus.below;
+    }
+    if (lowerBound != null || upperBound != null) {
+      return HealthReferenceStatus.within;
+    }
+    return HealthReferenceStatus.unspecified;
+  }
 }
 
 class HealthTrendReferenceMark {
@@ -69,15 +88,17 @@ class HealthTrendSummary {
   }
 }
 
+String healthTrendSeriesId(HealthRecord record) => [
+  record.category.name,
+  record.name.trim().toLowerCase(),
+  record.unit,
+].join('\u0000');
+
 List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
   final groups = <String, List<HealthRecord>>{};
   for (final record in records) {
     if (parseHealthRecordValue(record.value) == null) continue;
-    final key = [
-      record.category.name,
-      record.name.trim().toLowerCase(),
-      record.unit,
-    ].join('\u0000');
+    final key = healthTrendSeriesId(record);
     groups.putIfAbsent(key, () => []).add(record);
   }
 
@@ -109,20 +130,10 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
   return series;
 }
 
-double? parseHealthRecordValue(String value) {
-  final trimmed = value.trim();
-  final isGroupedNumber = RegExp(
-    r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
-  ).hasMatch(trimmed);
-  final parsed = double.tryParse(
-    isGroupedNumber ? trimmed.replaceAll(',', '') : trimmed,
-  );
-  return parsed != null && parsed.isFinite ? parsed : null;
-}
 
 HealthReferenceRange? parseHealthReferenceRange(
   String? sourceText, {
-  required String expectedUnit,
+  String expectedUnit = '',
 }) {
   if (sourceText == null || sourceText.trim().isEmpty) return null;
   final text = sourceText.trim();
@@ -195,7 +206,7 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 }
 
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
-  if (rangeUnit.isEmpty) return true;
+  if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
   String normalize(String unit) => unit.trim().replaceAll(RegExp(r'\s+'), ' ');
   return normalize(rangeUnit) == normalize(expectedUnit);
 }

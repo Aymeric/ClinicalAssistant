@@ -1,14 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'data/encrypted_record_store.dart';
+import 'data/synthetic_demonstration_data.dart';
 import 'exports/export_selection.dart';
 import 'exports/health_export_service.dart';
+import 'integrations/fhir_observation_parser.dart';
 import 'integrations/fhir_portal_importer.dart';
 import 'integrations/health_platform_importer.dart';
 import 'models/health_record.dart';
@@ -16,6 +20,7 @@ import 'notifications/result_notification_manager.dart';
 import 'notifications/result_notification_settings.dart';
 import 'sync/foreground_sync_state.dart';
 import 'sync/import_progress.dart';
+import 'trends/health_trend.dart';
 import 'trends/health_trends_page.dart';
 
 void main() {
@@ -110,6 +115,8 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
   var _syncSettingsLoading = true;
   var _syncing = false;
   var _initialLoadFinished = false;
+  RecordCategory? _preselectedCategoryFilter;
+  String? _trendInitialSeriesId;
   ForegroundSyncState? _syncState;
   String? _syncStatus;
   ImportProgress? _operationProgress;
@@ -179,12 +186,85 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     if (mounted) setState(() => _selectedIndex = 2);
   }
 
+  void _openRecordsWithCategory(RecordCategory category) {
+    if (mounted) {
+      setState(() {
+        _preselectedCategoryFilter = category;
+        _selectedIndex = 2;
+      });
+    }
+  }
+
+  void _onViewInTrends(HealthRecord record) {
+    final seriesId = healthTrendSeriesId(record);
+    if (mounted) {
+      setState(() {
+        _trendInitialSeriesId = seriesId;
+        _selectedIndex = 1;
+      });
+    }
+  }
+
+  Future<void> _showRecordDetails(HealthRecord record) async {
+    final isNumeric = parseHealthRecordValue(record.value) != null;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => _RecordDetailsSheet(
+        record: record,
+        isNumeric: isNumeric,
+        onViewInTrends: isNumeric
+            ? () {
+                Navigator.pop(sheetContext);
+                _onViewInTrends(record);
+              }
+            : null,
+      ),
+    );
+  }
+
   Future<void> _importHealth() async {
     await _runAction(
       (onProgress) =>
           _controller.importHealth(since: _since, onProgress: onProgress),
     );
     await _reloadSyncState();
+  }
+
+  Future<void> _loadSyntheticDemo() async {
+    await _runAction(
+      (onProgress) =>
+          _controller.loadSyntheticDemoRecords(onProgress: onProgress),
+    );
+  }
+
+  Future<void> _clearSyntheticDemo() async {
+    try {
+      final removed = await _controller.clearSyntheticDemoRecords();
+      if (mounted) {
+        _showMessage(
+          removed > 0
+              ? 'Removed $removed demonstration records.'
+              : 'No demonstration records to remove.',
+        );
+      }
+    } catch (error) {
+      if (mounted) _showMessage('Could not remove demo records: $error');
+    }
+  }
+
+  Future<void> _importFhirJson(
+    String jsonString, {
+    String source = 'FHIR File',
+  }) async {
+    await _runAction(
+      (onProgress) => _controller.importFhirJson(
+        jsonString,
+        source: source,
+        onProgress: onProgress,
+      ),
+    );
   }
 
   Future<FhirConnectionOutcome?> _importFhir({
@@ -500,19 +580,36 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         records: _controller.records,
         loading: _controller.loading,
         error: _controller.error,
+        syncState: _syncState,
+        syncing: _syncing,
         onConnect: () => setState(() => _selectedIndex = 3),
         onSeeAll: () => setState(() => _selectedIndex = 2),
+        onSelectCategory: _openRecordsWithCategory,
+        onRecordTap: _showRecordDetails,
+        onSyncNow: _syncNow,
         onRetry: _controller.load,
+        onOpenTrends: () => setState(() => _selectedIndex = 1),
+        onOpenRecords: () => setState(() => _selectedIndex = 2),
+        onOpenExport: () => setState(() => _selectedIndex = 4),
       ),
       HealthTrendsPage(
         records: _controller.records,
         loading: _controller.loading,
+        initialSeriesId: _trendInitialSeriesId,
+        onRecordTap: _showRecordDetails,
       ),
-      _RecordsPage(records: _controller.records),
+      _RecordsPage(
+        records: _controller.records,
+        initialCategory: _preselectedCategoryFilter,
+        onViewInTrends: _onViewInTrends,
+        onRecordTap: _showRecordDetails,
+        onRefresh: _syncNow,
+      ),
       _ConnectionsPage(
         busy: _controller.busy,
         healthRecordCount: _controller.healthRecordCount,
         fhirRecordCount: _controller.fhirRecordCount,
+        syntheticRecordCount: _controller.syntheticRecordCount,
         since: _since,
         syncState: _syncState,
         syncSettingsLoading: _syncSettingsLoading,
@@ -521,6 +618,9 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onChooseDate: _chooseStartDate,
         onHealthImport: _importHealth,
         onFhirImport: _importFhir,
+        onLoadSyntheticDemo: _loadSyntheticDemo,
+        onClearSyntheticDemo: _clearSyntheticDemo,
+        onImportFhirJson: _importFhirJson,
         onHealthAutoSyncChanged: _onHealthAutoSyncChanged,
         onFhirAutoSyncDisabled: _disableFhirAutoSync,
         onSyncNow: _syncNow,
@@ -536,6 +636,16 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onFhir: (records) =>
             _shareExport(() => _exporter.createFhirBundle(records)),
         onCsv: (records) => _shareExport(() => _exporter.createCsv(records)),
+        onTextSummary: (records) =>
+            _shareExport(() => _exporter.createTextSummary(records)),
+        onCopyTextSummary: (records) async {
+          await Clipboard.setData(
+            ClipboardData(text: _exporter.buildTextSummary(records)),
+          );
+          if (mounted) {
+            _showMessage('Clinical text summary copied to clipboard');
+          }
+        },
       ),
     ];
     return LayoutBuilder(
@@ -611,9 +721,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-              Expanded(
-                child: IndexedStack(index: _selectedIndex, children: pages),
-              ),
+              Expanded(child: pages[_selectedIndex]),
             ],
           ),
           bottomNavigationBar: wide
@@ -735,6 +843,7 @@ class HealthDataController extends ChangeNotifier {
       .length;
   int get fhirRecordCount =>
       records.where((record) => record.id.startsWith('fhir:')).length;
+  int get syntheticRecordCount => records.where(isSyntheticRecord).length;
 
   Future<void> load() async {
     loading = true;
@@ -1002,6 +1111,81 @@ class HealthDataController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<List<HealthRecord>> loadSyntheticDemoRecords({
+    ImportProgressCallback? onProgress,
+  }) async {
+    return _withBusy(() async {
+      onProgress?.call(
+        const ImportProgress(
+          fraction: 0.2,
+          message: 'Preparing demonstration records',
+        ),
+      );
+      final demoRecords = generateSyntheticDemonstrationRecords();
+      onProgress?.call(
+        const ImportProgress(
+          fraction: 0.6,
+          message: 'Saving demonstration records',
+        ),
+      );
+      final newlyImported = await _mergeAndSave(demoRecords);
+      onProgress?.call(
+        const ImportProgress(
+          fraction: 1,
+          message: 'Demonstration records ready',
+        ),
+      );
+      return newlyImported;
+    });
+  }
+
+  Future<int> clearSyntheticDemoRecords() async {
+    return _withBusy(() async {
+      final initialCount = records.length;
+      final remaining = records.where((r) => !isSyntheticRecord(r)).toList();
+      final removedCount = initialCount - remaining.length;
+      if (removedCount > 0) {
+        records = remaining;
+        await _store.save(records);
+        notifyListeners();
+      }
+      return removedCount;
+    });
+  }
+
+  Future<List<HealthRecord>> importFhirJson(
+    String jsonString, {
+    String source = 'FHIR File',
+    ImportProgressCallback? onProgress,
+  }) async {
+    return _withBusy(() async {
+      onProgress?.call(
+        const ImportProgress(
+          fraction: 0.2,
+          message: 'Parsing FHIR data',
+        ),
+      );
+      const parser = FhirObservationParser();
+      final imported = parser.parseJson(jsonString, source: source);
+      if (imported.isEmpty) {
+        throw StateError(
+          'No supported laboratory Observations were found in the provided FHIR data.',
+        );
+      }
+      onProgress?.call(
+        const ImportProgress(
+          fraction: 0.7,
+          message: 'Saving imported records',
+        ),
+      );
+      final newlyImported = await _mergeAndSave(imported);
+      onProgress?.call(
+        const ImportProgress(fraction: 1, message: 'FHIR import complete'),
+      );
+      return newlyImported;
+    });
+  }
+
   Future<void> _recordSuccessfulSync(String key) =>
       _syncValueStore.write(key, DateTime.now().toUtc().toIso8601String());
 
@@ -1062,6 +1246,14 @@ class _OverviewPage extends StatelessWidget {
     required this.onConnect,
     required this.onSeeAll,
     required this.onRetry,
+    this.syncState,
+    this.syncing = false,
+    this.onSelectCategory,
+    this.onRecordTap,
+    this.onSyncNow,
+    this.onOpenTrends,
+    this.onOpenRecords,
+    this.onOpenExport,
   });
 
   final List<HealthRecord> records;
@@ -1070,6 +1262,14 @@ class _OverviewPage extends StatelessWidget {
   final VoidCallback onConnect;
   final VoidCallback onSeeAll;
   final VoidCallback onRetry;
+  final ForegroundSyncState? syncState;
+  final bool syncing;
+  final ValueChanged<RecordCategory>? onSelectCategory;
+  final ValueChanged<HealthRecord>? onRecordTap;
+  final VoidCallback? onSyncNow;
+  final VoidCallback? onOpenTrends;
+  final VoidCallback? onOpenRecords;
+  final VoidCallback? onOpenExport;
 
   @override
   Widget build(BuildContext context) {
@@ -1078,107 +1278,549 @@ class _OverviewPage extends StatelessWidget {
     );
     final latest = [...records]
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-    return _PageContent(
-      children: [
-        if (error != null)
-          _ErrorNotice(message: error.toString(), onRetry: onRetry),
-        const SizedBox(height: 8),
-        Text(
-          'Your health history,\nall together.',
-          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            height: 1.06,
-            letterSpacing: -1.1,
+    return RefreshIndicator(
+      onRefresh: () async => onSyncNow?.call(),
+      child: _PageContent(
+        children: [
+          if (error != null)
+            _ErrorNotice(message: error.toString(), onRetry: onRetry),
+          const SizedBox(height: 8),
+          Text(
+            'Your health history,\nall together.',
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              height: 1.06,
+              letterSpacing: -1.1,
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Bring records from your health platforms and care providers into one private place.',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            height: 1.45,
+          const SizedBox(height: 12),
+          Text(
+            'Bring records from your health platforms and care providers into one private place.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              height: 1.45,
+            ),
           ),
-        ),
-        const SizedBox(height: 24),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _IconStamp(
-                      icon: Icons.lock_outline,
-                      background: Theme.of(context)
-                          .colorScheme
-                          .primaryContainer,
-                      foreground: Theme.of(context)
-                          .colorScheme
-                          .onPrimaryContainer,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        'Kept on this device',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+          const SizedBox(height: 24),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _IconStamp(
+                        icon: Icons.lock_outline,
+                        background: Theme.of(context)
+                            .colorScheme
+                            .primaryContainer,
+                        foreground: Theme.of(context)
+                            .colorScheme
+                            .onPrimaryContainer,
                       ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          'Kept on this device',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    loading
+                        ? 'Opening your encrypted record vault...'
+                        : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved  ·  ${labs.length} lab ${labs.length == 1 ? 'result' : 'results'}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (syncState?.hasAutoSync == true) ...[
+                    const SizedBox(height: 14),
+                    _OverviewSyncStatusBar(
+                      syncState: syncState!,
+                      syncing: syncing,
+                      onSyncNow: onSyncNow,
                     ),
                   ],
+                  const SizedBox(height: 16),
+                  if (records.isEmpty)
+                    FilledButton.icon(
+                      onPressed: loading ? null : onConnect,
+                      icon: const Icon(Icons.add_link),
+                      label: const Text('Connect a health source'),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: onConnect,
+                      icon: const Icon(Icons.add_link),
+                      label: const Text('Add another source'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 26),
+          _SectionHeading(
+            title: 'Recent records',
+            trailing: TextButton(
+              onPressed: onSeeAll,
+              child: const Text('See all'),
+            ),
+          ),
+          if (records.isEmpty && !loading)
+            const _QuietEmptyState(
+              icon: Icons.notes_outlined,
+              title: 'Your timeline starts here',
+              message: 'Imported health records and lab results will appear here with their source and date.',
+            )
+          else
+            _RecordLedger(
+              records: latest.take(4).toList(),
+              onTapRecord: onRecordTap,
+            ),
+          if (records.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _OverviewMetricStrip(records: records),
+            const SizedBox(height: 24),
+            _OverviewCategoryBreakdown(
+              records: records,
+              onSelectCategory: onSelectCategory,
+            ),
+            const SizedBox(height: 24),
+            _SectionHeading(title: 'Quick actions'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _OverviewQuickButton(
+                    key: const ValueKey('overview-action-trends'),
+                    icon: Icons.insights_outlined,
+                    label: 'Trends',
+                    subtitle: 'Vitals & labs',
+                    onTap: onOpenTrends,
+                  ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _OverviewQuickButton(
+                    key: const ValueKey('overview-action-records'),
+                    icon: Icons.folder_outlined,
+                    label: 'Records',
+                    subtitle: 'All entries',
+                    onTap: onOpenRecords ?? onSeeAll,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _OverviewQuickButton(
+                    key: const ValueKey('overview-action-export'),
+                    icon: Icons.share_outlined,
+                    label: 'Export',
+                    subtitle: 'PDF, CSV, FHIR',
+                    onTap: onOpenExport,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatRecordsSpan(List<HealthRecord> records) {
+  if (records.isEmpty) return 'No records';
+  DateTime min = records.first.recordedAt;
+  DateTime max = records.first.recordedAt;
+  for (final r in records) {
+    if (r.recordedAt.isBefore(min)) min = r.recordedAt;
+    if (r.recordedAt.isAfter(max)) max = r.recordedAt;
+  }
+  final days = max.difference(min).inDays;
+  if (days <= 1) return '1 day';
+  if (days < 30) return '$days d';
+  if (days < 365) return '${(days / 30).round()} mos';
+  final years = (days / 365).toStringAsFixed(1).replaceAll('.0', '');
+  return '$years yrs';
+}
+
+class _OverviewMetricStrip extends StatelessWidget {
+  const _OverviewMetricStrip({required this.records});
+
+  final List<HealthRecord> records;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final categoriesCount =
+        records.map((record) => record.category).toSet().length;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _MetricItem(
+              label: 'Records',
+              value: records.length.toString(),
+              icon: Icons.receipt_long_outlined,
+            ),
+          ),
+          Container(
+            height: 22,
+            width: 1,
+            color: colors.outlineVariant.withValues(alpha: 0.4),
+          ),
+          Expanded(
+            child: _MetricItem(
+              label: 'Types',
+              value: categoriesCount.toString(),
+              icon: Icons.category_outlined,
+            ),
+          ),
+          Container(
+            height: 22,
+            width: 1,
+            color: colors.outlineVariant.withValues(alpha: 0.4),
+          ),
+          Expanded(
+            child: _MetricItem(
+              label: 'Span',
+              value: _formatRecordsSpan(records),
+              icon: Icons.history_outlined,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricItem extends StatelessWidget {
+  const _MetricItem({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 13, color: theme.colorScheme.primary),
+                const SizedBox(width: 3),
                 Text(
-                  loading
-                      ? 'Opening your encrypted record vault...'
-                      : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved  ·  ${labs.length} lab ${labs.length == 1 ? 'result' : 'results'}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  value,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 16),
-                if (records.isEmpty)
-                  FilledButton.icon(
-                    onPressed: loading ? null : onConnect,
-                    icon: const Icon(Icons.add_link),
-                    label: const Text('Connect a health source'),
-                  )
-                else
-                  OutlinedButton.icon(
-                    onPressed: onConnect,
-                    icon: const Icon(Icons.add_link),
-                    label: const Text('Add another source'),
-                  ),
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 26),
-        _SectionHeading(
-          title: 'Recent records',
-          trailing: TextButton(
-            onPressed: onSeeAll,
-            child: const Text('See all'),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 10,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewQuickButton extends StatelessWidget {
+  const _OverviewQuickButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Material(
+      color: colors.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: colors.primary),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 10,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        if (records.isEmpty && !loading)
-          const _QuietEmptyState(
-            icon: Icons.notes_outlined,
-            title: 'Your timeline starts here',
-            message: 'Imported health records and lab results will appear here with their source and date.',
-          )
-        else
-          _RecordLedger(records: latest.take(4).toList()),
-        const SizedBox(height: 20),
+      ),
+    );
+  }
+}
+
+class _OverviewCategoryBreakdown extends StatelessWidget {
+  const _OverviewCategoryBreakdown({
+    required this.records,
+    this.onSelectCategory,
+  });
+
+  final List<HealthRecord> records;
+  final ValueChanged<RecordCategory>? onSelectCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final availableCategories = RecordCategory.values
+        .where((cat) => records.any((r) => r.category == cat))
+        .toList();
+
+    if (availableCategories.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Categories',
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final category in availableCategories)
+              _CategorySummaryBadge(
+                category: category,
+                count: records.where((r) => r.category == category).length,
+                onTap: onSelectCategory == null
+                    ? null
+                    : () => onSelectCategory!(category),
+              ),
+          ],
+        ),
       ],
     );
   }
 }
 
+class _CategorySummaryBadge extends StatelessWidget {
+  const _CategorySummaryBadge({
+    required this.category,
+    required this.count,
+    this.onTap,
+  });
+
+  final RecordCategory category;
+  final int count;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final catColor = _categoryColor(category, colors);
+    final catIcon = _categoryIcon(category);
+
+    return Material(
+      color: colors.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(catIcon, size: 16, color: catColor),
+              const SizedBox(width: 6),
+              Text(
+                _categoryLabel(category),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: catColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: catColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OverviewSyncStatusBar extends StatelessWidget {
+  const _OverviewSyncStatusBar({
+    required this.syncState,
+    required this.syncing,
+    this.onSyncNow,
+  });
+
+  final ForegroundSyncState syncState;
+  final bool syncing;
+  final VoidCallback? onSyncNow;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final latestSync =
+        syncState.lastHealthSyncAt != null && syncState.lastFhirSyncAt != null
+        ? (syncState.lastHealthSyncAt!.isAfter(syncState.lastFhirSyncAt!)
+              ? syncState.lastHealthSyncAt
+              : syncState.lastFhirSyncAt)
+        : syncState.lastHealthSyncAt ?? syncState.lastFhirSyncAt;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.sync, size: 16, color: colors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Last synced: ${_formatSyncTimestamp(latestSync)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ),
+          if (onSyncNow != null)
+            TextButton.icon(
+              onPressed: syncing ? null : onSyncNow,
+              icon: syncing
+                  ? const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh, size: 14),
+              label: Text(syncing ? 'Syncing...' : 'Sync now'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+enum RecordSortOrder {
+  newestFirst('Newest first', Icons.arrow_downward),
+  oldestFirst('Oldest first', Icons.arrow_upward),
+  nameAsc('Name (A–Z)', Icons.sort_by_alpha),
+  nameDesc('Name (Z–A)', Icons.sort_by_alpha);
+
+  const RecordSortOrder(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
 class _RecordsPage extends StatefulWidget {
-  const _RecordsPage({required this.records});
+  const _RecordsPage({
+    required this.records,
+    this.initialCategory,
+    this.onViewInTrends,
+    this.onRecordTap,
+    this.onRefresh,
+  });
 
   final List<HealthRecord> records;
+  final RecordCategory? initialCategory;
+  final ValueChanged<HealthRecord>? onViewInTrends;
+  final ValueChanged<HealthRecord>? onRecordTap;
+  final Future<void> Function()? onRefresh;
 
   @override
   State<_RecordsPage> createState() => _RecordsPageState();
@@ -1189,10 +1831,21 @@ class _RecordsPageState extends State<_RecordsPage> {
   RecordCategory? _filter;
   DateTimeRange? _selectedDateRange;
   String _searchQuery = '';
+  RecordSortOrder _sortOrder = RecordSortOrder.newestFirst;
+
+  @override
+  void initState() {
+    super.initState();
+    _filter = widget.initialCategory;
+  }
 
   @override
   void didUpdateWidget(covariant _RecordsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.initialCategory != oldWidget.initialCategory &&
+        widget.initialCategory != null) {
+      _filter = widget.initialCategory;
+    }
     if (_selectedDateRange != null &&
         !widget.records.any((record) {
           final date = DateUtils.dateOnly(record.recordedAt.toLocal());
@@ -1237,163 +1890,362 @@ class _RecordsPageState extends State<_RecordsPage> {
         record.status,
       ].whereType<String>().join(' ').toLowerCase();
       return searchable.contains(query);
-    }).toList()..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 18),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    }).toList();
+
+    switch (_sortOrder) {
+      case RecordSortOrder.newestFirst:
+        filtered.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+      case RecordSortOrder.oldestFirst:
+        filtered.sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+      case RecordSortOrder.nameAsc:
+        filtered.sort((a, b) {
+          final cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          return cmp != 0 ? cmp : b.recordedAt.compareTo(a.recordedAt);
+        });
+      case RecordSortOrder.nameDesc:
+        filtered.sort((a, b) {
+          final cmp = b.name.toLowerCase().compareTo(a.name.toLowerCase());
+          return cmp != 0 ? cmp : b.recordedAt.compareTo(a.recordedAt);
+        });
+    }
+
+    final hasActiveFilter =
+        _filter != null || _selectedDateRange != null || query.isNotEmpty;
+
+    final scrollView = CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 18),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'A dated trail of what you’ve collected.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 4,
                   children: [
-                    Text(
-                      'A dated trail of what you’ve collected.',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    IconButton(
+                      tooltip: 'Older records',
+                      onPressed: _stepDateRange(availableDates, -1),
+                      icon: const Icon(Icons.chevron_left),
                     ),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 4,
-                      children: [
-                        IconButton(
-                          tooltip: 'Older records',
-                          onPressed: _stepDateRange(availableDates, -1),
-                          icon: const Icon(Icons.chevron_left),
-                        ),
-                        OutlinedButton.icon(
-                          key: const ValueKey('record-date-picker'),
-                          onPressed: availableDates.isEmpty
-                              ? null
-                              : () => _chooseDateRange(availableDates),
-                          icon: const Icon(Icons.calendar_month_outlined),
-                          label: Text(_dateRangeLabel(context)),
-                        ),
-                        IconButton(
-                          tooltip: 'Newer records',
-                          onPressed: _stepDateRange(availableDates, 1),
-                          icon: const Icon(Icons.chevron_right),
-                        ),
-                        if (_selectedDateRange != null)
-                          TextButton(
-                            key: const ValueKey('record-date-clear'),
-                            onPressed: () =>
-                                setState(() => _selectedDateRange = null),
-                            child: const Text('All dates'),
+                    OutlinedButton.icon(
+                      key: const ValueKey('record-date-picker'),
+                      onPressed: availableDates.isEmpty
+                          ? null
+                          : () => _chooseDateRange(availableDates),
+                      icon: const Icon(Icons.calendar_month_outlined),
+                      label: Text(_dateRangeLabel(context)),
+                    ),
+                    IconButton(
+                      tooltip: 'Newer records',
+                      onPressed: _stepDateRange(availableDates, 1),
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                    if (_selectedDateRange != null)
+                      TextButton(
+                        key: const ValueKey('record-date-clear'),
+                        onPressed: () =>
+                            setState(() => _selectedDateRange = null),
+                        child: const Text('All dates'),
+                      ),
+                    const SizedBox(width: 8),
+                    PopupMenuButton<RecordSortOrder>(
+                      key: const ValueKey('record-sort-button'),
+                      tooltip: 'Sort: ${_sortOrder.label}',
+                      initialValue: _sortOrder,
+                      onSelected: (order) => setState(() => _sortOrder = order),
+                      itemBuilder: (context) => [
+                        for (final order in RecordSortOrder.values)
+                          PopupMenuItem(
+                            value: order,
+                            child: Row(
+                              children: [
+                                Icon(order.icon, size: 18),
+                                const SizedBox(width: 8),
+                                Text(order.label),
+                              ],
+                            ),
                           ),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      key: const ValueKey('record-search'),
-                      controller: _searchController,
-                      textInputAction: TextInputAction.search,
-                      onChanged: (value) =>
-                          setState(() => _searchQuery = value),
-                      decoration: InputDecoration(
-                        hintText: 'Search records, values, or sources',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isEmpty
-                            ? null
-                            : IconButton(
-                                key: const ValueKey('record-search-clear'),
-                                tooltip: 'Clear search',
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _searchQuery = '');
-                                },
-                                icon: const Icon(Icons.close),
-                              ),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
+                      icon: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _FilterChip(
-                            label: 'All',
-                            selected: _filter == null,
-                            onSelected: () => setState(() => _filter = null),
-                          ),
-                          for (final category in RecordCategory.values)
-                            _FilterChip(
-                              label: _categoryLabel(category),
-                              selected: _filter == category,
-                              onSelected: () =>
-                                  setState(() => _filter = category),
-                            ),
+                          Icon(_sortOrder.icon, size: 18),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.arrow_drop_down, size: 18),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            if (filtered.isEmpty)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
-                sliver: SliverToBoxAdapter(
-                  child: widget.records.isEmpty
-                      ? const _QuietEmptyState(
-                          icon: Icons.manage_search,
-                          title: 'No records in this view',
-                          message: 'Connect Apple Health, Health Connect, or a FHIR-enabled provider portal to import records.',
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _QuietEmptyState(
-                              icon: Icons.manage_search,
-                              title: 'No matching records',
-                              message: 'Try another search term, category, or date range.',
-                            ),
-                            TextButton.icon(
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                  _searchQuery = '';
-                                  _filter = null;
-                                  _selectedDateRange = null;
-                                });
-                              },
-                              icon: const Icon(Icons.filter_alt_off_outlined),
-                              label: const Text(
-                                'Clear search, filters, and date range',
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
-                sliver: SliverList.builder(
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) => _RecordRow(
-                    key: ValueKey(filtered[index].id),
-                    record: filtered[index],
-                    isLast: index == filtered.length - 1,
-                    onTap: () => _showRecordDetails(filtered[index]),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _DatePresetChip(
+                        key: const ValueKey('record-preset-all'),
+                        label: 'All time',
+                        selected: _selectedDateRange == null,
+                        onSelected: () =>
+                            setState(() => _selectedDateRange = null),
+                      ),
+                      const SizedBox(width: 6),
+                      _DatePresetChip(
+                        key: const ValueKey('record-preset-7d'),
+                        label: '7D',
+                        selected: _isPresetSelected(7),
+                        onSelected: () => _applyDaysPreset(7),
+                      ),
+                      const SizedBox(width: 6),
+                      _DatePresetChip(
+                        key: const ValueKey('record-preset-30d'),
+                        label: '30D',
+                        selected: _isPresetSelected(30),
+                        onSelected: () => _applyDaysPreset(30),
+                      ),
+                      const SizedBox(width: 6),
+                      _DatePresetChip(
+                        key: const ValueKey('record-preset-90d'),
+                        label: '90D',
+                        selected: _isPresetSelected(90),
+                        onSelected: () => _applyDaysPreset(90),
+                      ),
+                      const SizedBox(width: 6),
+                      _DatePresetChip(
+                        key: const ValueKey('record-preset-1y'),
+                        label: '1Y',
+                        selected: _isPresetSelected(365),
+                        onSelected: () => _applyDaysPreset(365),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-          ],
+                const SizedBox(height: 12),
+                TextField(
+                  key: const ValueKey('record-search'),
+                  controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  decoration: InputDecoration(
+                    hintText: 'Search records, values, or sources',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isEmpty
+                        ? null
+                        : IconButton(
+                            key: const ValueKey('record-search-clear'),
+                            tooltip: 'Clear search',
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _FilterChip(
+                        label: 'All',
+                        selected: _filter == null,
+                        onSelected: () => setState(() => _filter = null),
+                      ),
+                      for (final category in RecordCategory.values)
+                        _FilterChip(
+                          label: _categoryLabel(category),
+                          selected: _filter == category,
+                          onSelected: () => setState(() => _filter = category),
+                        ),
+                    ],
+                  ),
+                ),
+                if (hasActiveFilter && filtered.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    children: [
+                      Text(
+                        'Showing ${filtered.length} of ${widget.records.length} records',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                            _filter = null;
+                            _selectedDateRange = null;
+                          });
+                        },
+                        child: const Text('Reset filters'),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
+        if (filtered.isEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
+            sliver: SliverToBoxAdapter(
+              child: widget.records.isEmpty
+                  ? const _QuietEmptyState(
+                      icon: Icons.manage_search,
+                      title: 'No records in this view',
+                      message: 'Connect Apple Health, Health Connect, or a FHIR-enabled provider portal to import records.',
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _QuietEmptyState(
+                          icon: Icons.manage_search,
+                          title: 'No matching records',
+                          message: 'Try another search term, category, or date range.',
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                              _filter = null;
+                              _selectedDateRange = null;
+                            });
+                          },
+                          icon: const Icon(Icons.filter_alt_off_outlined),
+                          label: const Text(
+                            'Clear search, filters, and date range',
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
+            sliver: SliverList.builder(
+              itemCount: filtered.length,
+              itemBuilder: (context, index) {
+                final current = filtered[index];
+                var isNewSection = false;
+                var sectionTitle = '';
+
+                if (_sortOrder == RecordSortOrder.newestFirst ||
+                    _sortOrder == RecordSortOrder.oldestFirst) {
+                  final curDate = current.recordedAt.toLocal();
+                  if (index == 0) {
+                    isNewSection = true;
+                  } else {
+                    final prevDate = filtered[index - 1].recordedAt.toLocal();
+                    if (curDate.year != prevDate.year ||
+                        curDate.month != prevDate.month) {
+                      isNewSection = true;
+                    }
+                  }
+                  if (isNewSection) {
+                    sectionTitle = _formatSectionMonthYear(curDate);
+                  }
+                } else {
+                  final curLetter = current.name.isNotEmpty
+                      ? current.name[0].toUpperCase()
+                      : '#';
+                  if (index == 0) {
+                    isNewSection = true;
+                  } else {
+                    final prevLetter = filtered[index - 1].name.isNotEmpty
+                        ? filtered[index - 1].name[0].toUpperCase()
+                        : '#';
+                    if (curLetter != prevLetter) {
+                      isNewSection = true;
+                    }
+                  }
+                  if (isNewSection) {
+                    sectionTitle = curLetter;
+                  }
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isNewSection)
+                      _DateSectionHeader(
+                        title: sectionTitle,
+                        isFirst: index == 0,
+                      ),
+                    _RecordRow(
+                      key: ValueKey(filtered[index].id),
+                      record: filtered[index],
+                      isLast: index == filtered.length - 1,
+                      onTap: () {
+                        if (widget.onRecordTap != null) {
+                          widget.onRecordTap!(filtered[index]);
+                        } else {
+                          _showRecordDetails(filtered[index]);
+                        }
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+      ],
+    );
+
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: widget.onRefresh != null
+            ? RefreshIndicator(onRefresh: widget.onRefresh!, child: scrollView)
+            : scrollView,
       ),
     );
+  }
+
+  void _applyDaysPreset(int days) {
+    final now = DateTime.now();
+    final end = DateUtils.dateOnly(now);
+    final start = end.subtract(Duration(days: days));
+    setState(() {
+      _selectedDateRange = DateTimeRange(start: start, end: end);
+    });
+  }
+
+  bool _isPresetSelected(int days) {
+    if (_selectedDateRange == null) return false;
+    final now = DateTime.now();
+    final end = DateUtils.dateOnly(now);
+    final start = end.subtract(Duration(days: days));
+    return DateUtils.isSameDay(_selectedDateRange!.start, start) &&
+        DateUtils.isSameDay(_selectedDateRange!.end, end);
   }
 
   String _dateRangeLabel(BuildContext context) {
@@ -1429,9 +2281,18 @@ class _RecordsPageState extends State<_RecordsPage> {
   }
 
   Future<void> _chooseDateRange(List<DateTime> availableDates) async {
+    DateTimeRange? validInitialRange = _selectedDateRange;
+    if (validInitialRange != null) {
+      if (validInitialRange.start.isBefore(availableDates.last) ||
+          validInitialRange.start.isAfter(availableDates.first) ||
+          validInitialRange.end.isBefore(availableDates.last) ||
+          validInitialRange.end.isAfter(availableDates.first)) {
+        validInitialRange = null;
+      }
+    }
     final selectedRange = await showDateRangePicker(
       context: context,
-      initialDateRange: _selectedDateRange,
+      initialDateRange: validInitialRange,
       firstDate: availableDates.last,
       lastDate: availableDates.first,
       helpText: 'Choose a date range',
@@ -1460,43 +2321,492 @@ class _RecordsPageState extends State<_RecordsPage> {
   }
 
   Future<void> _showRecordDetails(HealthRecord record) async {
+    final isNumeric = parseHealthRecordValue(record.value) != null;
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => _RecordDetailsSheet(
+        record: record,
+        isNumeric: isNumeric,
+        onViewInTrends: isNumeric && widget.onViewInTrends != null
+            ? () {
+                Navigator.pop(sheetContext);
+                widget.onViewInTrends!(record);
+              }
+            : null,
+      ),
+    );
+  }
+}
+
+String _formatSectionMonthYear(DateTime dt) {
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  return '${months[dt.month - 1]} ${dt.year}';
+}
+
+class _DatePresetChip extends StatelessWidget {
+  const _DatePresetChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Material(
+      color: selected ? colors.primaryContainer : colors.surface,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: selected
+              ? colors.primary
+              : colors.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: InkWell(
+        onTap: onSelected,
+        customBorder: const StadiumBorder(),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                record.name,
-                style: Theme.of(context).textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 18),
-              _DetailLine(label: 'Value', value: record.displayValue),
-              _DetailLine(
-                label: 'Recorded',
-                value: record.recordedAt.toLocal().toString().split('.').first,
-              ),
-              _DetailLine(label: 'Source', value: record.source),
-              _DetailLine(
-                label: 'Category',
-                value: _categoryLabel(record.category),
-              ),
-              if (record.referenceRange != null)
-                _DetailLine(
-                  label: 'Reference range',
-                  value: record.referenceRange!,
-                ),
-              if (record.status != null)
-                _DetailLine(label: 'Source status', value: record.status!),
-              if (record.code != null)
-                _DetailLine(label: 'Code', value: record.code!),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected
+                  ? colors.onPrimaryContainer
+                  : colors.onSurfaceVariant,
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateSectionHeader extends StatelessWidget {
+  const _DateSectionHeader({
+    required this.title,
+    this.isFirst = false,
+  });
+
+  final String title;
+  final bool isFirst;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Padding(
+      padding: EdgeInsets.only(top: isFirst ? 4 : 20, bottom: 8),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: colors.primary,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Divider(
+              color: colors.outlineVariant.withValues(alpha: 0.4),
+              thickness: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecordDetailsSheet extends StatefulWidget {
+  const _RecordDetailsSheet({
+    required this.record,
+    required this.isNumeric,
+    this.onViewInTrends,
+  });
+
+  final HealthRecord record;
+  final bool isNumeric;
+  final VoidCallback? onViewInTrends;
+
+  @override
+  State<_RecordDetailsSheet> createState() => _RecordDetailsSheetState();
+}
+
+class _RecordDetailsSheetState extends State<_RecordDetailsSheet> {
+  bool _showRawData = false;
+
+  void _copyValue(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: widget.record.displayValue));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Value copied to clipboard'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+  }
+
+  void _copyAllDetails(BuildContext context) {
+    final r = widget.record;
+    final lines = [
+      'Measurement: ${r.name}',
+      'Value: ${r.displayValue}',
+      'Recorded: ${r.recordedAt.toLocal().toString().split('.').first}',
+      'Source: ${r.source}',
+      'Category: ${_categoryLabel(r.category)}',
+      if (r.referenceRange != null) 'Reference range: ${r.referenceRange}',
+      if (r.status != null) 'Status: ${r.status}',
+      if (r.code != null) 'Code: ${r.code}',
+      if (r.sourceId != null) 'Source ID: ${r.sourceId}',
+    ];
+    Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Details copied to clipboard'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final record = widget.record;
+    final categoryColor = _categoryColor(record.category, colors);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) => SingleChildScrollView(
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: categoryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _categoryIcon(record.category),
+                        size: 14,
+                        color: categoryColor,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _categoryLabel(record.category),
+                        style: TextStyle(
+                          color: categoryColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Copy all details',
+                  icon: const Icon(Icons.copy_all, size: 20),
+                  onPressed: () => _copyAllDetails(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              record.name,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (isSyntheticRecord(record)) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.amber.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.science_outlined,
+                      size: 14,
+                      color: Colors.amber.shade800,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Demonstration record (Synthetic)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerHighest.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      record.displayValue,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: colors.primary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Copy value',
+                    icon: const Icon(Icons.copy_rounded, size: 18),
+                    onPressed: () => _copyValue(context),
+                  ),
+                ],
+              ),
+            ),
+            Builder(
+              builder: (context) {
+                if (record.referenceRange == null) {
+                  return const SizedBox.shrink();
+                }
+                final numeric = parseHealthRecordValue(record.value);
+                if (numeric == null) return const SizedBox.shrink();
+                final range =
+                    HealthReferenceRange.tryParse(record.referenceRange!);
+                if (range == null) return const SizedBox.shrink();
+                final status = range.evaluate(numeric);
+                if (status == HealthReferenceStatus.unspecified) {
+                  return const SizedBox.shrink();
+                }
+                final (Color badgeColor, String statusText, IconData statusIcon) =
+                    switch (status) {
+                  HealthReferenceStatus.within => (
+                    Colors.teal,
+                    'Within range (${record.referenceRange})',
+                    Icons.check_circle_outline,
+                  ),
+                  HealthReferenceStatus.above => (
+                    Colors.deepOrange,
+                    'Above range (${record.referenceRange})',
+                    Icons.arrow_upward,
+                  ),
+                  HealthReferenceStatus.below => (
+                    Colors.blueGrey,
+                    'Below range (${record.referenceRange})',
+                    Icons.arrow_downward,
+                  ),
+                  HealthReferenceStatus.unspecified => (
+                    Colors.grey,
+                    '',
+                    Icons.help_outline,
+                  ),
+                };
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: badgeColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: badgeColor.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 2,
+                      children: [
+                        Icon(statusIcon, size: 14, color: badgeColor),
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: badgeColor,
+                          ),
+                        ),
+                        Text(
+                          '· Source-reported',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            if (widget.onViewInTrends != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: FilledButton.tonalIcon(
+                  onPressed: widget.onViewInTrends,
+                  icon: const Icon(Icons.show_chart, size: 18),
+                  label: const Text('View in Trends'),
+                ),
+              ),
+            const Divider(),
+            const SizedBox(height: 8),
+            _DetailLine(label: 'Value', value: record.displayValue),
+            _DetailLine(
+              label: 'Recorded',
+              value: record.recordedAt.toLocal().toString().split('.').first,
+            ),
+            _DetailLine(label: 'Source', value: record.source),
+            _DetailLine(
+              label: 'Category',
+              value: _categoryLabel(record.category),
+            ),
+            if (record.referenceRange != null)
+              _DetailLine(
+                label: 'Reference range',
+                value: record.referenceRange!,
+              ),
+            if (record.status != null)
+              _DetailLine(label: 'Source status', value: record.status!),
+            if (record.code != null)
+              _DetailLine(label: 'Code', value: record.code!),
+            if (record.sourceId != null)
+              _DetailLine(label: 'Source ID', value: record.sourceId!),
+            if (record.sourceData != null && record.sourceData!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => setState(() => _showRawData = !_showRawData),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _showRawData
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              color: colors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Raw Source / FHIR Data',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('record-copy-json-button'),
+                    onPressed: () {
+                      final jsonStr = const JsonEncoder.withIndent('  ')
+                          .convert(record.sourceData);
+                      Clipboard.setData(ClipboardData(text: jsonStr));
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(
+                          const SnackBar(
+                            content: Text('Raw JSON copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                    },
+                    icon: const Icon(Icons.copy, size: 14),
+                    label: const Text('Copy JSON'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ),
+              if (_showRawData)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: colors.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: SelectableText(
+                    const JsonEncoder.withIndent('  ')
+                        .convert(record.sourceData),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ],
         ),
       ),
     );
@@ -1523,11 +2833,16 @@ class _ConnectionsPage extends StatelessWidget {
     required this.notificationManager,
     required this.syncValueStore,
     required this.onProgress,
+    this.syntheticRecordCount = 0,
+    this.onLoadSyntheticDemo,
+    this.onClearSyntheticDemo,
+    this.onImportFhirJson,
   });
 
   final bool busy;
   final int healthRecordCount;
   final int fhirRecordCount;
+  final int syntheticRecordCount;
   final DateTime since;
   final ForegroundSyncState? syncState;
   final bool syncSettingsLoading;
@@ -1543,6 +2858,9 @@ class _ConnectionsPage extends StatelessWidget {
   final ResultNotificationManager notificationManager;
   final SyncValueStore syncValueStore;
   final ImportProgressCallback onProgress;
+  final VoidCallback? onLoadSyntheticDemo;
+  final VoidCallback? onClearSyntheticDemo;
+  final Future<void> Function(String json, {String source})? onImportFhirJson;
 
   @override
   Widget build(BuildContext context) {
@@ -1584,8 +2902,7 @@ class _ConnectionsPage extends StatelessWidget {
           _SourcePanel(
             icon: Icons.favorite_outline,
             title: 'Health Connect',
-            description:
-                'Read supported health and available lab records from Health Connect. Steps are summarized by day.',
+            description: 'Read supported health and available lab records from Health Connect. Steps are summarized by day.',
             count: healthRecordCount,
             connected:
                 healthRecordCount > 0 ||
@@ -1656,6 +2973,18 @@ class _ConnectionsPage extends StatelessWidget {
           onProgress: onProgress,
           onDisableAutoSync: onFhirAutoSyncDisabled,
         ),
+        const SizedBox(height: 14),
+        _FhirJsonImportCard(
+          busy: busy,
+          onImport: onImportFhirJson,
+        ),
+        const SizedBox(height: 14),
+        _SyntheticDemoCard(
+          busy: busy,
+          count: syntheticRecordCount,
+          onLoad: onLoadSyntheticDemo,
+          onClear: onClearSyntheticDemo,
+        ),
         const SizedBox(height: 24),
         Card(
           child: Padding(
@@ -1683,6 +3012,346 @@ class _ConnectionsPage extends StatelessWidget {
         ),
         const SizedBox(height: 20),
       ],
+    );
+  }
+}
+
+class _FhirJsonImportCard extends StatelessWidget {
+  const _FhirJsonImportCard({
+    required this.busy,
+    this.onImport,
+  });
+
+  final bool busy;
+  final Future<void> Function(String json, {String source})? onImport;
+
+  void _openImportSheet(BuildContext context) {
+    if (onImport == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => _FhirJsonImportSheet(
+        onImport: (json, source) async {
+          Navigator.pop(sheetContext);
+          await onImport!(json, source: source);
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _IconStamp(
+                  icon: Icons.code,
+                  background: theme.colorScheme.secondaryContainer,
+                  foreground: theme.colorScheme.onSecondaryContainer,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Direct FHIR JSON import',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        'Paste Observations or Bundles directly',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Import clinical records from a file or sandbox by pasting raw FHIR Observation or Bundle JSON into your local vault.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.tonalIcon(
+              key: const ValueKey('connection-import-fhir-json-button'),
+              onPressed: busy || onImport == null
+                  ? null
+                  : () => _openImportSheet(context),
+              icon: const Icon(Icons.paste_outlined, size: 18),
+              label: const Text('Paste FHIR JSON'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FhirJsonImportSheet extends StatefulWidget {
+  const _FhirJsonImportSheet({required this.onImport});
+
+  final Future<void> Function(String json, String source) onImport;
+
+  @override
+  State<_FhirJsonImportSheet> createState() => _FhirJsonImportSheetState();
+}
+
+class _FhirJsonImportSheetState extends State<_FhirJsonImportSheet> {
+  final _jsonController = TextEditingController();
+  final _sourceController = TextEditingController(text: 'FHIR Import');
+  bool _importing = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _jsonController.dispose();
+    _sourceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final text = _jsonController.text.trim();
+    if (text.isEmpty) {
+      setState(() => _error = 'Please paste FHIR JSON content.');
+      return;
+    }
+    final source = _sourceController.text.trim().isEmpty
+        ? 'FHIR Import'
+        : _sourceController.text.trim();
+    setState(() {
+      _importing = true;
+      _error = null;
+    });
+    try {
+      await widget.onImport(text, source);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _importing = false;
+          _error = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 8,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Paste FHIR JSON',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Paste an Observation resource or a Bundle containing Observations.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              key: const ValueKey('fhir-json-source-field'),
+              controller: _sourceController,
+              decoration: const InputDecoration(
+                labelText: 'Source label',
+                hintText: 'e.g. Hospital Lab, Sandbox FHIR',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('fhir-json-input-field'),
+              controller: _jsonController,
+              maxLines: 8,
+              decoration: InputDecoration(
+                labelText: 'JSON payload',
+                hintText: '{\n  "resourceType": "Observation",\n  ...\n}',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  tooltip: 'Paste from clipboard',
+                  icon: const Icon(Icons.content_paste),
+                  onPressed: () async {
+                    final data = await Clipboard.getData('text/plain');
+                    if (data?.text != null) {
+                      _jsonController.text = data!.text!;
+                    }
+                  },
+                ),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _error!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _importing ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  key: const ValueKey('fhir-json-submit-button'),
+                  onPressed: _importing ? null : _submit,
+                  child: _importing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Import records'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SyntheticDemoCard extends StatelessWidget {
+  const _SyntheticDemoCard({
+    required this.busy,
+    required this.count,
+    this.onLoad,
+    this.onClear,
+  });
+
+  final bool busy;
+  final int count;
+  final VoidCallback? onLoad;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasRecords = count > 0;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _IconStamp(
+                  icon: Icons.science_outlined,
+                  background: theme.colorScheme.tertiaryContainer,
+                  foreground: theme.colorScheme.onTertiaryContainer,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Demonstration records',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        hasRecords
+                            ? '$count demonstration records loaded'
+                            : 'Explore without real health data',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (hasRecords)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Synthetic',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onTertiaryContainer,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Load synthetic demonstration records (HbA1c, Cholesterol, Glucose, Creatinine, Heart Rate, Blood Pressure, and Daily Steps) spanning recent months to explore trends, charts, and exports.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                if (!hasRecords)
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('load-synthetic-demo-button'),
+                    onPressed: busy ? null : onLoad,
+                    icon: const Icon(Icons.download_outlined, size: 18),
+                    label: const Text('Load demonstration records'),
+                  )
+                else ...[
+                  OutlinedButton.icon(
+                    key: const ValueKey('reload-synthetic-demo-button'),
+                    onPressed: busy ? null : onLoad,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Reload demo records'),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('clear-synthetic-demo-button'),
+                    onPressed: busy ? null : onClear,
+                    icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+                    label: const Text('Remove demo records'),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -2141,6 +3810,8 @@ class _ExportPage extends StatefulWidget {
     required this.onPdf,
     required this.onFhir,
     required this.onCsv,
+    this.onTextSummary,
+    this.onCopyTextSummary,
   });
 
   final List<HealthRecord> records;
@@ -2148,16 +3819,60 @@ class _ExportPage extends StatefulWidget {
   final ValueChanged<List<HealthRecord>> onPdf;
   final ValueChanged<List<HealthRecord>> onFhir;
   final ValueChanged<List<HealthRecord>> onCsv;
+  final ValueChanged<List<HealthRecord>>? onTextSummary;
+  final ValueChanged<List<HealthRecord>>? onCopyTextSummary;
 
   @override
   State<_ExportPage> createState() => _ExportPageState();
 }
 
+enum _ExportDatePreset {
+  all('All time'),
+  days30('30D'),
+  days90('90D'),
+  year1('1Y'),
+  custom('Custom');
+
+  const _ExportDatePreset(this.label);
+  final String label;
+}
+
 class _ExportPageState extends State<_ExportPage> {
   final _selectedCategories = RecordCategory.values.toSet();
+  _ExportDatePreset _datePreset = _ExportDatePreset.all;
+  DateTimeRange? _customDateRange;
 
-  List<HealthRecord> get _selectedRecords =>
-      selectRecordsForExport(widget.records, _selectedCategories);
+  DateTimeRange? get _effectiveDateRange {
+    final now = DateTime.now();
+    final today = DateUtils.dateOnly(now);
+    switch (_datePreset) {
+      case _ExportDatePreset.all:
+        return null;
+      case _ExportDatePreset.days30:
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 30)),
+          end: today,
+        );
+      case _ExportDatePreset.days90:
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 90)),
+          end: today,
+        );
+      case _ExportDatePreset.year1:
+        return DateTimeRange(
+          start: today.subtract(const Duration(days: 365)),
+          end: today,
+        );
+      case _ExportDatePreset.custom:
+        return _customDateRange;
+    }
+  }
+
+  List<HealthRecord> get _selectedRecords => selectRecordsForExport(
+        widget.records,
+        _selectedCategories,
+        dateRange: _effectiveDateRange,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -2180,7 +3895,45 @@ class _ExportPageState extends State<_ExportPage> {
             message: 'Connect a source and import records first. You can choose the destination when the system share sheet opens.',
           )
         else ...[
-          _SectionHeading(title: 'Include in export'),
+          _SectionHeading(
+            title: 'Include in export',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  key: const ValueKey('export-select-all'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  onPressed: _selectedCategories.containsAll(availableCategories)
+                      ? null
+                      : () {
+                          setState(() {
+                            _selectedCategories.addAll(availableCategories);
+                          });
+                        },
+                  child: const Text('Select all'),
+                ),
+                const SizedBox(width: 4),
+                TextButton(
+                  key: const ValueKey('export-deselect-all'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  onPressed: _selectedCategories.isEmpty
+                      ? null
+                      : () {
+                          setState(() {
+                            _selectedCategories.clear();
+                          });
+                        },
+                  child: const Text('Clear'),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -2205,13 +3958,89 @@ class _ExportPageState extends State<_ExportPage> {
                   ),
             ],
           ),
-          const SizedBox(height: 4),
+          if (_selectedCategories.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _SectionHeading(
+              title: 'Date range',
+              trailing: _datePreset != _ExportDatePreset.all
+                  ? TextButton(
+                      key: const ValueKey('export-date-reset'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _datePreset = _ExportDatePreset.all;
+                          _customDateRange = null;
+                        });
+                      },
+                      child: const Text('All dates'),
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final preset in _ExportDatePreset.values)
+                  ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    key: ValueKey('export-date-preset-${preset.name}'),
+                    label: Text(
+                      preset == _ExportDatePreset.custom && _customDateRange != null
+                          ? '${_formatRecordDate(_customDateRange!.start)} – ${_formatRecordDate(_customDateRange!.end)}'
+                          : preset.label,
+                    ),
+                    selected: _datePreset == preset,
+                    onSelected: (selected) async {
+                      if (!selected) return;
+                      if (preset == _ExportDatePreset.custom) {
+                        final availableDates = widget.records
+                            .map((r) => DateUtils.dateOnly(r.recordedAt.toLocal()))
+                            .toSet()
+                            .toList()
+                          ..sort((a, b) => b.compareTo(a));
+                        final first = availableDates.isEmpty
+                            ? DateTime(2000)
+                            : availableDates.last;
+                        final last = availableDates.isEmpty
+                            ? DateTime.now().add(const Duration(days: 365))
+                            : availableDates.first;
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          firstDate: first.isBefore(DateTime(2000)) ? first : DateTime(2000),
+                          lastDate: last.isAfter(DateTime(2050)) ? last : DateTime(2050),
+                          initialDateRange: _customDateRange,
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _customDateRange = picked;
+                            _datePreset = _ExportDatePreset.custom;
+                          });
+                        }
+                      } else {
+                        setState(() {
+                          _datePreset = preset;
+                        });
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
           Text(
             '${selectedRecords.length} of ${widget.records.length} ${widget.records.length == 1 ? 'record' : 'records'} selected',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
+          if (selectedRecords.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _ExportCategoryBreakdownCard(records: selectedRecords),
+          ],
           if (selectedRecords.isEmpty) ...[
             const SizedBox(height: 12),
             const _QuietEmptyState(
@@ -2230,6 +4059,28 @@ class _ExportPageState extends State<_ExportPage> {
                 ? null
                 : () => widget.onPdf(selectedRecords),
           ),
+          if (widget.onTextSummary != null ||
+              widget.onCopyTextSummary != null) ...[
+            const SizedBox(height: 12),
+            _ExportAction(
+              icon: Icons.article_outlined,
+              title: 'Clinical text summary',
+              detail:
+                  'Formatted plain-text document ideal for clinician notes or secure messages',
+              buttonText: 'Share TXT',
+              onPressed: widget.exporting ||
+                      selectedRecords.isEmpty ||
+                      widget.onTextSummary == null
+                  ? null
+                  : () => widget.onTextSummary!(selectedRecords),
+              secondaryButtonText: 'Copy text',
+              onSecondaryPressed: widget.exporting ||
+                      selectedRecords.isEmpty ||
+                      widget.onCopyTextSummary == null
+                  ? null
+                  : () => widget.onCopyTextSummary!(selectedRecords),
+            ),
+          ],
           const SizedBox(height: 12),
           _ExportAction(
             icon: Icons.data_object,
@@ -2252,10 +4103,59 @@ class _ExportPageState extends State<_ExportPage> {
           ),
           const SizedBox(height: 16),
           const _PrivacyNote(
-            text: 'Exports are created temporarily on this device. They leave the app only if you choose a destination in the system share sheet.',
+            text:
+                'Exports are created temporarily on this device. They leave the app only if you choose a destination in the system share sheet.',
           ),
         ],
       ],
+    );
+  }
+}
+
+class _ExportCategoryBreakdownCard extends StatelessWidget {
+  const _ExportCategoryBreakdownCard({required this.records});
+
+  final List<HealthRecord> records;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final counts = <RecordCategory, int>{};
+    for (final record in records) {
+      counts[record.category] = (counts[record.category] ?? 0) + 1;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 4,
+        children: [
+          for (final entry in counts.entries)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _categoryIcon(entry.key),
+                  size: 13,
+                  color: _categoryColor(entry.key, colors),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${_categoryLabel(entry.key)}: ${entry.value}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -2267,6 +4167,8 @@ class _ExportAction extends StatelessWidget {
     required this.detail,
     required this.buttonText,
     required this.onPressed,
+    this.secondaryButtonText,
+    this.onSecondaryPressed,
   });
 
   final IconData icon;
@@ -2274,6 +4176,8 @@ class _ExportAction extends StatelessWidget {
   final String detail;
   final String buttonText;
   final VoidCallback? onPressed;
+  final String? secondaryButtonText;
+  final VoidCallback? onSecondaryPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -2287,16 +4191,29 @@ class _ExportAction extends StatelessWidget {
               children: [
                 Icon(icon, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(detail, style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 12),
-            OutlinedButton(onPressed: onPressed, child: Text(buttonText)),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(onPressed: onPressed, child: Text(buttonText)),
+                if (secondaryButtonText != null)
+                  FilledButton.tonal(
+                    onPressed: onSecondaryPressed,
+                    child: Text(secondaryButtonText!),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -2414,9 +4331,10 @@ class _ConnectionStatusPill extends StatelessWidget {
 }
 
 class _RecordLedger extends StatelessWidget {
-  const _RecordLedger({required this.records});
+  const _RecordLedger({required this.records, this.onTapRecord});
 
   final List<HealthRecord> records;
+  final ValueChanged<HealthRecord>? onTapRecord;
 
   @override
   Widget build(BuildContext context) {
@@ -2433,6 +4351,9 @@ class _RecordLedger extends StatelessWidget {
           _RecordRow(
             record: records[index],
             isLast: index == records.length - 1,
+            onTap: onTapRecord != null
+                ? () => onTapRecord!(records[index])
+                : null,
           ),
       ],
     );
@@ -2454,9 +4375,7 @@ class _RecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final color = record.category == RecordCategory.lab
-        ? colors.tertiary
-        : colors.primary;
+    final color = _categoryColor(record.category, colors);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -2781,4 +4700,24 @@ String _displayError(Object error) {
   if (error is StateError) return error.message.toString();
   if (error is FormatException) return error.message;
   return error.toString().replaceFirst('Exception: ', '');
+}
+
+IconData _categoryIcon(RecordCategory category) => switch (category) {
+  RecordCategory.lab => Icons.science_outlined,
+  RecordCategory.vital => Icons.monitor_heart_outlined,
+  RecordCategory.activity => Icons.directions_walk_outlined,
+  RecordCategory.sleep => Icons.bedtime_outlined,
+  RecordCategory.nutrition => Icons.restaurant_outlined,
+  RecordCategory.cycleTracking => Icons.water_drop_outlined,
+};
+
+Color _categoryColor(RecordCategory category, ColorScheme colors) {
+  return switch (category) {
+    RecordCategory.lab => colors.tertiary,
+    RecordCategory.vital => colors.primary,
+    RecordCategory.activity => Colors.orange.shade700,
+    RecordCategory.sleep => Colors.indigo.shade600,
+    RecordCategory.nutrition => Colors.teal.shade700,
+    RecordCategory.cycleTracking => Colors.pink.shade600,
+  };
 }

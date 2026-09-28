@@ -1,5 +1,73 @@
 enum RecordCategory { lab, vital, activity, sleep, nutrition, cycleTracking }
 
+/// Formats a numeric value with sensible rounding and decimal limits for health data.
+///
+/// - Integers / whole numbers are formatted without decimal points (e.g. `72`, `10000`).
+/// - Standard numbers use at most [maxDecimals] decimal places (default 2, e.g. `98.6`, `120.25`).
+/// - Small decimal values (< 0.1) allow up to 3 or 4 decimals so values like `0.005` aren't rounded to 0.
+/// - Trailing zeros after the decimal point are trimmed (e.g. `4.10` -> `4.1`).
+/// - Floating-point noise like `98.60000000000001` or `72.00000000001` is eliminated.
+String formatSensibleNumber(num value, {int maxDecimals = 2}) {
+  if (!value.isFinite) return value.toString();
+  if (value == 0) return '0';
+
+  final rounded = value.roundToDouble();
+  if ((value - rounded).abs() < 1e-9) {
+    return rounded.toInt().toString();
+  }
+
+  final absVal = value.abs();
+  final decimals = absVal < 0.01
+      ? 4
+      : (absVal < 0.1 ? 3 : maxDecimals);
+
+  var fixed = value.toStringAsFixed(decimals);
+  if (fixed.contains('.')) {
+    fixed = fixed
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
+  }
+
+  if (fixed == '-0') return '0';
+  return fixed;
+}
+
+/// Parses a numeric string value, safely handling commas in grouped numbers
+/// (e.g. "10,000") and scientific notation. Returns null if non-numeric or non-finite.
+double? parseHealthRecordValue(String value) {
+  final trimmed = value.trim();
+  final isGroupedNumber = RegExp(
+    r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
+  ).hasMatch(trimmed);
+  final parsed = double.tryParse(
+    isGroupedNumber ? trimmed.replaceAll(',', '') : trimmed,
+  );
+  return parsed != null && parsed.isFinite ? parsed : null;
+}
+
+/// Evaluates whether a measurement value is within, above, or below a reference range.
+enum HealthReferenceStatus {
+  within('Within reference range'),
+  above('Above reference range'),
+  below('Below reference range'),
+  unspecified('Reference range unspecified');
+
+  const HealthReferenceStatus(this.label);
+  final String label;
+}
+
+/// Formats a raw record value string with sensible rounding if it represents a numeric value.
+/// If non-numeric (e.g. "Negative", "Yes", "Normal"), the original string is returned.
+String formatSensibleValue(String rawValue, {int maxDecimals = 2}) {
+  final trimmed = rawValue.trim();
+  if (trimmed.isEmpty) return trimmed;
+  final numVal = parseHealthRecordValue(trimmed);
+  if (numVal != null && numVal.isFinite) {
+    return formatSensibleNumber(numVal, maxDecimals: maxDecimals);
+  }
+  return trimmed;
+}
+
 class HealthRecord {
   const HealthRecord({
     required this.id,
@@ -29,7 +97,12 @@ class HealthRecord {
   final String? status;
   final Map<String, Object?>? sourceData;
 
-  String get displayValue => unit.isEmpty ? value : '$value $unit';
+  String get formattedValue => formatSensibleValue(value);
+
+  String get displayValue {
+    final formatted = formattedValue;
+    return unit.isEmpty ? formatted : '$formatted $unit';
+  }
 
   Map<String, Object?> toJson() => {
     'id': id,

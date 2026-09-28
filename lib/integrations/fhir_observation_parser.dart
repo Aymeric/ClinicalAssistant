@@ -1,7 +1,59 @@
+import 'dart:convert';
+
 import '../models/health_record.dart';
 
 class FhirObservationParser {
   const FhirObservationParser();
+
+  /// Parses a FHIR JSON string representing either a FHIR Bundle, an Observation,
+  /// or a list of Observations.
+  List<HealthRecord> parseJson(
+    String jsonString, {
+    String source = 'FHIR File',
+    String? sourceId,
+    String idPrefix = 'fhir-file',
+  }) {
+    final dynamic decoded = jsonDecode(jsonString);
+    if (decoded is Map) {
+      final map = Map<String, dynamic>.from(decoded);
+      if (map['resourceType'] == 'Bundle') {
+        return parseBundle(
+          map,
+          source: source,
+          sourceId: sourceId,
+          idPrefix: idPrefix,
+        );
+      } else if (map['resourceType'] == 'Observation') {
+        final record = _parseObservation(
+          map,
+          source: source,
+          sourceId: sourceId ?? source,
+          idPrefix: idPrefix,
+        );
+        return record == null ? const [] : [record];
+      }
+    } else if (decoded is List) {
+      final records = <HealthRecord>[];
+      for (final item in decoded) {
+        if (item is Map) {
+          final map = Map<String, dynamic>.from(item);
+          if (map['resourceType'] == 'Observation') {
+            final record = _parseObservation(
+              map,
+              source: source,
+              sourceId: sourceId ?? source,
+              idPrefix: idPrefix,
+            );
+            if (record != null) records.add(record);
+          }
+        }
+      }
+      return records;
+    }
+    throw const FormatException(
+      'The provided JSON is not a recognized FHIR Bundle or Observation.',
+    );
+  }
 
   List<HealthRecord> parseBundle(
     Map<String, dynamic> bundle, {
@@ -76,7 +128,11 @@ class FhirObservationParser {
     if (quantity is Map) {
       final rawValue = quantity['value'];
       if (rawValue == null) return null;
-      value = rawValue.toString();
+      if (rawValue is num) {
+        value = formatSensibleNumber(rawValue);
+      } else {
+        value = formatSensibleValue(rawValue.toString());
+      }
       unit = (quantity['unit'] ?? quantity['code'] ?? '').toString();
     } else if (observation['valueString'] != null) {
       value = observation['valueString'].toString();
@@ -171,6 +227,8 @@ class FhirObservationParser {
 
   String? _quantityText(Object? quantity) {
     if (quantity is! Map || quantity['value'] == null) return null;
-    return quantity['value'].toString();
+    final val = quantity['value'];
+    if (val is num) return formatSensibleNumber(val);
+    return formatSensibleValue(val.toString());
   }
 }

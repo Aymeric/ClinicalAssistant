@@ -66,14 +66,88 @@ class HealthExportService {
     return _writeExport('health-records.csv', buildCsv(records));
   }
 
+  String buildTextSummary(List<HealthRecord> records) {
+    final buffer = StringBuffer();
+    buffer.writeln('ClinicalAssistant Health Records Summary');
+    buffer.writeln('Exported (UTC): ${DateTime.now().toUtc().toIso8601String().split('T').first}');
+    buffer.writeln('Total records: ${records.length}');
+
+    if (records.isEmpty) {
+      buffer.writeln('\nNo records available to export.');
+      return buffer.toString();
+    }
+
+    final dates = records.map((r) => r.recordedAt).toList()..sort();
+    final firstDate = _formatDate(dates.first);
+    final lastDate = _formatDate(dates.last);
+    buffer.writeln('Date span: $firstDate to $lastDate');
+
+    final sources = records.map((r) => r.source).toSet().join(', ');
+    buffer.writeln('Sources: $sources');
+    buffer.writeln('\nNotice: This summary contains health records imported from the listed sources. '
+        'It is not a medical interpretation or a substitute for advice from a clinician.\n');
+
+    final byCategory = <RecordCategory, List<HealthRecord>>{};
+    for (final record in records) {
+      byCategory.putIfAbsent(record.category, () => []).add(record);
+    }
+
+    for (final category in RecordCategory.values) {
+      final categoryRecords = byCategory[category];
+      if (categoryRecords == null || categoryRecords.isEmpty) continue;
+      categoryRecords.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+
+      final categoryTitle = switch (category) {
+        RecordCategory.lab => 'Laboratory Results',
+        RecordCategory.vital => 'Vital Signs',
+        RecordCategory.activity => 'Activity & Fitness',
+        RecordCategory.sleep => 'Sleep',
+        RecordCategory.nutrition => 'Nutrition',
+        RecordCategory.cycleTracking => 'Cycle Tracking',
+      };
+
+      buffer.writeln('--- $categoryTitle (${categoryRecords.length}) ---');
+      for (final r in categoryRecords) {
+        final date = _formatDate(r.recordedAt);
+        final ref = r.referenceRange != null ? ' [Ref: ${r.referenceRange}]' : '';
+        buffer.writeln('• $date: ${r.name} = ${r.displayValue}$ref (${r.source})');
+      }
+      buffer.writeln();
+    }
+
+    return buffer.toString();
+  }
+
+  Future<File> createTextSummary(List<HealthRecord> records) async {
+    return _writeExport('health-records-summary.txt', buildTextSummary(records));
+  }
+
   Future<File> createPdf(List<HealthRecord> records) async {
     final pdf = pw.Document();
     final ordered = [...records]
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    final sources = ordered.map((r) => r.source).toSet().join(', ');
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(36),
+        footer: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 10),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'ClinicalAssistant • Personal health record copy',
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+              ),
+              pw.Text(
+                'Page ${context.pageNumber} of ${context.pagesCount}',
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+              ),
+            ],
+          ),
+        ),
         build: (_) => [
           pw.Text(
             'Your health records',
@@ -83,18 +157,18 @@ class HealthExportService {
               color: PdfColor.fromHex('#183F46'),
             ),
           ),
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 6),
           pw.Text(
-            'Exported ${DateTime.now().toUtc().toIso8601String()}',
-            style: const pw.TextStyle(fontSize: 9),
+            'Exported ${DateTime.now().toUtc().toIso8601String().split('.').first} UTC · ${records.length} ${records.length == 1 ? 'record' : 'records'}${sources.isNotEmpty ? ' · Sources: $sources' : ''}',
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
           ),
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 10),
           pw.Text(
             'This summary contains records imported from the sources listed below. '
             'It is not a medical interpretation or a substitute for advice from a clinician.',
             style: const pw.TextStyle(fontSize: 10),
           ),
-          pw.SizedBox(height: 22),
+          pw.SizedBox(height: 20),
           if (ordered.isEmpty)
             pw.Text('No records were available to export.')
           else
