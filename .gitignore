@@ -4,9 +4,15 @@
 .dart_tool/
 .packages
 build/
-# If you're building an application, you may want to check-in your pubspec.lock
-pubspec.lock
-
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+*.iml
+/android/.gradle/
+/android/local.properties
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/ios/Pods/
 # Directory created by dartdoc
 # If you don't generate documentation locally you can remove this line.
 doc/api/
@@ -20,6 +26,16 @@ doc/api/
 *.js.deps
 *.js.map
 
+<<<<<<< HEAD
+# Signing keys and certificates
+key.properties
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+ios/ExportOptions.plist
+
+=======
 # Security & Secrets
 .env
 .env.*
@@ -32,3 +48,4 @@ doc/api/
 android/key.properties
 google-services.json
 GoogleService-Info.plist
+>>>>>>> cde9aae (🛡️ Sentinel: Add security exclusions to .gitignore)
