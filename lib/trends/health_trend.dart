@@ -21,8 +21,7 @@ class HealthReferenceRange {
   static HealthReferenceRange? tryParse(
     String? raw, {
     String expectedUnit = '',
-  }) =>
-      parseHealthReferenceRange(raw, expectedUnit: expectedUnit);
+  }) => parseHealthReferenceRange(raw, expectedUnit: expectedUnit);
 
   HealthReferenceStatus evaluate(double value) {
     if (upperBound != null && value > upperBound!) {
@@ -130,7 +129,6 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
   return series;
 }
 
-
 const _referenceNumberPattern =
     r'[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?';
 
@@ -215,7 +213,8 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
   if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
-  String normalize(String unit) => unit.trim().replaceAll(_whitespaceRegExp, ' ');
+  String normalize(String unit) =>
+      unit.trim().replaceAll(_whitespaceRegExp, ' ');
   return normalize(rangeUnit) == normalize(expectedUnit);
 }
 
