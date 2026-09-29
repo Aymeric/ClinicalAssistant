@@ -18,8 +18,10 @@ import 'integrations/fhir_observation_parser.dart';
 import 'integrations/fhir_portal_importer.dart';
 import 'integrations/health_platform_importer.dart';
 import 'models/health_record.dart';
+import 'models/manual_medication_details.dart';
 import 'notifications/result_notification_manager.dart';
 import 'notifications/result_notification_settings.dart';
+import 'records/manual_record_edit_sheet.dart';
 import 'records/manual_record_entry_sheet.dart';
 import 'sync/foreground_sync_state.dart';
 import 'sync/import_progress.dart';
@@ -237,7 +239,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     final seriesId = healthTrendSeriesId(record);
     final isPinned = _pinnedSeries.contains(seriesId);
 
-    await showModalBottomSheet<void>(
+    final editRequested = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -275,12 +277,56 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
                 }
               }
             : null,
+        onEdit: record.isManual
+            ? () => Navigator.pop(sheetContext, true)
+            : null,
         onViewInTrends: isNumeric
             ? () {
                 Navigator.pop(sheetContext);
                 _onViewInTrends(record);
               }
             : null,
+      ),
+    );
+    if (editRequested == true && mounted) {
+      await _editManualRecords(record);
+    }
+  }
+
+  Future<void> _editManualRecords(HealthRecord record) async {
+    final recordsToEdit = <HealthRecord>[record];
+    final match = RegExp(r'^manual:(sys|dia):(.+)$').firstMatch(record.id);
+    if (match != null) {
+      final siblingType = match[1] == 'sys' ? 'dia' : 'sys';
+      final siblingId = 'manual:$siblingType:${match[2]}';
+      HealthRecord? sibling;
+      for (final candidate in _controller.records) {
+        if (candidate.id == siblingId && candidate.isManual) {
+          sibling = candidate;
+          break;
+        }
+      }
+      if (sibling != null) {
+        recordsToEdit
+          ..add(sibling)
+          ..sort((a, b) {
+            if (a.name == 'Systolic Blood Pressure') return -1;
+            if (b.name == 'Systolic Blood Pressure') return 1;
+            return 0;
+          });
+      }
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => ManualRecordEditSheet(
+        records: recordsToEdit,
+        onSave: (editedRecords) async {
+          await _controller.updateManualRecords(editedRecords);
+          if (mounted) _showMessage('Manual measurement updated.');
+        },
       ),
     );
   }
@@ -1336,6 +1382,13 @@ class HealthDataController extends ChangeNotifier {
       }
       return record;
     }).toList();
+    await _store.save(updated);
+    records = updated;
+    notifyListeners();
+  }
+
+  Future<void> updateManualRecords(List<HealthRecord> editedRecords) async {
+    final updated = applyManualRecordEdits(records, editedRecords);
     await _store.save(updated);
     records = updated;
     notifyListeners();
@@ -2932,6 +2985,7 @@ class _RecordDetailsSheet extends StatefulWidget {
     this.onTogglePin,
     this.onSaveNotes,
     this.onDelete,
+    this.onEdit,
     this.onViewInTrends,
   });
 
@@ -2941,6 +2995,7 @@ class _RecordDetailsSheet extends StatefulWidget {
   final VoidCallback? onTogglePin;
   final ValueChanged<String?>? onSaveNotes;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
   final VoidCallback? onViewInTrends;
 
   @override
@@ -3048,6 +3103,10 @@ class _RecordDetailsSheetState extends State<_RecordDetailsSheet> {
     final colors = theme.colorScheme;
     final record = widget.record;
     final categoryColor = _categoryColor(record.category, colors);
+    final medicationDetails = record.isManual &&
+            record.category == RecordCategory.medication
+        ? ManualMedicationDetails.fromRecord(record)
+        : null;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
@@ -3101,6 +3160,12 @@ class _RecordDetailsSheetState extends State<_RecordDetailsSheet> {
                       color: widget.isPinned ? colors.primary : null,
                     ),
                     onPressed: widget.onTogglePin,
+                  ),
+                if (widget.onEdit != null)
+                  IconButton(
+                    tooltip: 'Edit manual record',
+                    icon: const Icon(Icons.edit_outlined, size: 20),
+                    onPressed: widget.onEdit,
                   ),
                 if (widget.onDelete != null)
                   IconButton(
@@ -3297,7 +3362,9 @@ class _RecordDetailsSheetState extends State<_RecordDetailsSheet> {
             const SizedBox(height: 8),
             _DetailLine(label: 'Value', value: record.displayValue),
             _DetailLine(
-              label: 'Recorded',
+              label: record.category == RecordCategory.medication
+                  ? 'Started'
+                  : 'Recorded',
               value: record.recordedAt.toLocal().toString().split('.').first,
             ),
             _DetailLine(label: 'Source', value: record.source),
@@ -3311,7 +3378,29 @@ class _RecordDetailsSheetState extends State<_RecordDetailsSheet> {
                 value: record.referenceRange!,
               ),
             if (record.status != null)
-              _DetailLine(label: 'Source status', value: record.status!),
+              _DetailLine(
+                label: record.isManual &&
+                        record.category == RecordCategory.medication
+                    ? 'Medication status'
+                    : 'Source status',
+                value: record.status!.replaceAll('-', ' '),
+              ),
+            if (medicationDetails?.frequency.isNotEmpty == true)
+              _DetailLine(
+                label: 'Frequency',
+                value: medicationDetails!.frequency,
+              ),
+            if (medicationDetails?.route != null)
+              _DetailLine(label: 'Route', value: medicationDetails!.route!),
+            if (medicationDetails?.endDate != null)
+              _DetailLine(
+                label: 'Ended',
+                value: medicationDetails!.endDate!
+                    .toLocal()
+                    .toString()
+                    .split('.')
+                    .first,
+              ),
             if (record.code != null)
               _DetailLine(label: 'Code', value: record.code!),
             if (record.sourceId != null)

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:clinical_assistant/exports/health_export_service.dart';
 import 'package:clinical_assistant/exports/export_selection.dart';
 import 'package:clinical_assistant/models/health_record.dart';
+import 'package:clinical_assistant/models/manual_medication_details.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -124,5 +125,46 @@ void main() {
     expect((fhirSourceData['value'] as Map)['locations'], isNotEmpty);
     expect(csv, contains('longitude'));
     expect(csv, contains('37.3'));
+  });
+
+  test('exports manually entered medication as a FHIR MedicationStatement', () {
+    final medication = HealthRecord(
+      id: 'manual:medication:123',
+      name: 'Example Medicine',
+      value: '10 mg',
+      unit: '',
+      recordedAt: DateTime.utc(2026, 9, 10, 14),
+      category: RecordCategory.medication,
+      source: 'Manual Entry',
+      status: 'stopped',
+      sourceData: ManualMedicationDetails(
+        frequency: 'once daily',
+        route: 'oral',
+        endDate: DateTime.utc(2026, 9, 12),
+      ).withSourceData(null),
+      notes: 'As reported by patient',
+    );
+
+    final bundle = exporter.buildFhirBundle([medication]);
+    final resource =
+        ((bundle['entry']! as List).single as Map)['resource'] as Map;
+    final effectivePeriod = resource['effectivePeriod'] as Map;
+    final dosage = (resource['dosage'] as List).single as Map;
+    final timing = dosage['timing'] as Map;
+    final route = dosage['route'] as Map;
+    final csv = exporter.buildCsv([medication]);
+    final summary = exporter.buildTextSummary([medication]);
+
+    expect(resource['resourceType'], 'MedicationStatement');
+    expect(resource['status'], 'stopped');
+    expect((resource['medicationCodeableConcept'] as Map)['text'], 'Example Medicine');
+    expect(effectivePeriod['start'], '2026-09-10T14:00:00.000Z');
+    expect(effectivePeriod['end'], '2026-09-12');
+    expect(dosage['text'], '10 mg');
+    expect((timing['code'] as Map)['text'], 'once daily');
+    expect(route['text'], 'oral');
+    expect((resource['note'] as List).single['text'], 'As reported by patient');
+    expect(csv, contains('once daily'));
+    expect(summary, contains('10 mg · once daily · oral · stopped'));
   });
 }

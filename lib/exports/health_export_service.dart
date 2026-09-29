@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../models/health_record.dart';
+import '../models/manual_medication_details.dart';
 import '../trends/health_trend.dart';
 
 class HealthExportService {
@@ -86,7 +87,7 @@ class HealthExportService {
 
     final sources = records.map((r) => r.source).toSet().join(', ');
     buffer.writeln('Sources: $sources');
-    buffer.writeln('\nNotice: This summary contains health records imported from the listed sources. '
+    buffer.writeln('\nNotice: This summary contains health records from the listed sources and manually entered records. '
         'It is not a medical interpretation or a substitute for advice from a clinician.\n');
 
     final byCategory = <RecordCategory, List<HealthRecord>>{};
@@ -116,7 +117,9 @@ class HealthExportService {
       for (final r in categoryRecords) {
         final date = _formatDate(r.recordedAt);
         final ref = r.referenceRange != null ? ' [Ref: ${r.referenceRange}]' : '';
-        buffer.writeln('• $date: ${r.name} = ${r.displayValue}$ref (${r.source})');
+        buffer.writeln(
+          '• $date: ${r.name} = ${_medicationInstructions(r)}$ref (${r.source})',
+        );
       }
       buffer.writeln();
     }
@@ -487,7 +490,7 @@ class HealthExportService {
               headers: const ['Medication', 'Instructions / Status', 'Date', 'Source'],
               data: medications.take(10).map((record) => [
                 record.name,
-                record.displayValue,
+                _medicationInstructions(record),
                 _formatDate(record.recordedAt),
                 record.source,
               ]).toList(),
@@ -693,11 +696,62 @@ class HealthExportService {
   }
 
   Map<String, Object?> _resourceForRecord(HealthRecord record) {
+    if (record.isManual && record.category == RecordCategory.medication) {
+      return _manualMedicationStatement(record);
+    }
     final resourceType = record.sourceData?['resourceType'];
     if (resourceType is String && resourceType.isNotEmpty) {
       return record.sourceData!;
     }
     return _observationFromRecord(record);
+  }
+
+  Map<String, Object?> _manualMedicationStatement(HealthRecord record) {
+    final details = ManualMedicationDetails.fromRecord(record);
+    final id = record.id.replaceAll(RegExp(r'[^A-Za-z0-9.-]'), '-');
+    return {
+      'resourceType': 'MedicationStatement',
+      'id': id.isEmpty ? 'medication' : id,
+      'status': record.status ?? 'unknown',
+      'medicationCodeableConcept': {'text': record.name},
+      'effectivePeriod': {
+        'start': record.recordedAt.toUtc().toIso8601String(),
+        if (details.endDate != null)
+          'end': _formatDate(details.endDate!),
+      },
+      'dosage': [
+        {
+          'text': record.value,
+          'timing': {
+            'code': {'text': details.frequency},
+          },
+          if (details.route != null) 'route': {'text': details.route},
+        },
+      ],
+      if (record.notes != null && record.notes!.isNotEmpty)
+        'note': [
+          {'text': record.notes},
+        ],
+      'extension': [
+        {
+          'url': 'urn:clinical-assistant:source',
+          'valueString': record.source,
+        },
+      ],
+    };
+  }
+
+  String _medicationInstructions(HealthRecord record) {
+    if (!record.isManual || record.category != RecordCategory.medication) {
+      return record.displayValue;
+    }
+    final details = ManualMedicationDetails.fromRecord(record);
+    return [
+      record.value,
+      if (details.frequency.isNotEmpty) details.frequency,
+      if (details.route != null) details.route,
+      if (record.status != null) record.status,
+    ].join(' · ');
   }
 
   Future<File> createVaultBackup(String backupJson) async {

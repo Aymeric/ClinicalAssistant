@@ -15,6 +15,13 @@ or CSV.
   laboratory `Observation` resources, including result panels.
 - Preserves the source, date, units, status, and original FHIR resource where
   available. The app does not interpret results or provide medical advice.
+- Lets users log measurements manually and correct their values or recorded
+  date/time later. Blood-pressure readings are edited as a systolic/diastolic
+  pair; imported health-platform and provider records remain source-preserving
+  and read-only.
+- Lets users record medication name, dose or instructions, frequency, route,
+  status, start date, optional end date, and personal notes. Manual medication
+  entries remain on-device and export as FHIR `MedicationStatement` resources.
 - Charts numeric lab results, vital measurements, sleep durations, nutrition
   measures, and daily activity totals by measurement and time range, with
   source-provided reference ranges marked at the associated readings when they
