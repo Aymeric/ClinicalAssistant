@@ -316,8 +316,14 @@ jobs:
           echo "TestFlight notes:"
           cat ios/TestFlight/WhatToTest.en-US.txt
 
+      - name: Check Apple Deployment Credentials
+        id: apple_creds
+        run: |
+          echo "has_api_key=${{ secrets.APP_STORE_CONNECT_API_KEY_ID != '' && secrets.APP_STORE_CONNECT_API_ISSUER_ID != '' }}" >> "$GITHUB_OUTPUT"
+          echo "has_password=${{ secrets.APP_STORE_CONNECT_USERNAME != '' && secrets.APP_STORE_CONNECT_PASSWORD != '' }}" >> "$GITHUB_OUTPUT"
+
       - name: Upload to Apple TestFlight / App Store (API Key)
-        if: ${{ (github.event.inputs.deploy_apple != 'false') && (secrets.APP_STORE_CONNECT_API_KEY_ID != '') && (secrets.APP_STORE_CONNECT_API_ISSUER_ID != '') }}
+        if: ${{ (github.event.inputs.deploy_apple != 'false') && (steps.apple_creds.outputs.has_api_key == 'true') }}
         uses: apple-actions/upload-testflight-build@v5
         with:
           app-path: build/ios/ipa/*.ipa
@@ -326,7 +332,7 @@ jobs:
           api-private-key: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
 
       - name: Upload to Apple TestFlight (App-Specific Password Fallback)
-        if: ${{ (github.event.inputs.deploy_apple != 'false') && (secrets.APP_STORE_CONNECT_API_KEY_ID == '') && (secrets.APP_STORE_CONNECT_USERNAME != '') && (secrets.APP_STORE_CONNECT_PASSWORD != '') }}
+        if: ${{ (github.event.inputs.deploy_apple != 'false') && (steps.apple_creds.outputs.has_api_key != 'true') && (steps.apple_creds.outputs.has_password == 'true') }}
         run: |
           IPA_FILE=$(ls build/ios/ipa/*.ipa | head -n 1)
           xcrun altool --upload-app --type ios -f "$IPA_FILE" \
