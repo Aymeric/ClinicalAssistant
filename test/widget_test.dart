@@ -40,9 +40,8 @@ void main() {
     expect(app.theme?.brightness, Brightness.light);
     expect(app.darkTheme?.brightness, Brightness.dark);
     expect(
-      Theme.of(
-        tester.element(find.text('Your health history,\nall together.')),
-      ).brightness,
+      Theme.of(tester.element(find.text('Your health history,\nall together.')))
+          .brightness,
       Brightness.dark,
     );
   });

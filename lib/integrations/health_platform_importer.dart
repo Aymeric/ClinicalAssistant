@@ -84,7 +84,9 @@ class HealthPlatformImporter {
       );
     }
 
-    final availableTypes = sharedDataTypes.where(isDataTypeAvailable).toList();
+    final availableTypes = sharedDataTypes
+        .where(isDataTypeAvailable)
+        .toList();
     final records = <HealthRecord>[];
     var totalSteps = Platform.isIOS || Platform.isAndroid ? 1 : 0;
     var completedSteps = 0;
@@ -97,7 +99,9 @@ class HealthPlatformImporter {
       );
     }
 
-    if (availableTypes.isEmpty && !Platform.isIOS && !Platform.isAndroid) {
+    if (availableTypes.isEmpty &&
+        !Platform.isIOS &&
+        !Platform.isAndroid) {
       throw StateError(
         'No supported health-data types are available on this device.',
       );

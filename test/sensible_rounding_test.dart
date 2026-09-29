@@ -19,15 +19,12 @@ void main() {
       expect(formatSensibleNumber(2500.0), '2500');
     });
 
-    test(
-      'rounds whole numbers with floating point noise to clean integers',
-      () {
-        expect(formatSensibleNumber(72.0), '72');
-        expect(formatSensibleNumber(14.999999999999998), '15');
-        expect(formatSensibleNumber(72.00000000001), '72');
-        expect(formatSensibleNumber(100.000000000), '100');
-      },
-    );
+    test('rounds whole numbers with floating point noise to clean integers', () {
+      expect(formatSensibleNumber(72.0), '72');
+      expect(formatSensibleNumber(14.999999999999998), '15');
+      expect(formatSensibleNumber(72.00000000001), '72');
+      expect(formatSensibleNumber(100.000000000), '100');
+    });
 
     test('limits standard decimals to 2 places and trims trailing zeros', () {
       expect(formatSensibleNumber(98.60000000000001), '98.6');
@@ -38,15 +35,12 @@ void main() {
       expect(formatSensibleNumber(6.1), '6.1');
     });
 
-    test(
-      'preserves precision for small fractions without rounding to zero',
-      () {
-        expect(formatSensibleNumber(0.05), '0.05');
-        expect(formatSensibleNumber(0.005), '0.005');
-        expect(formatSensibleNumber(0.0004), '0.0004');
-        expect(formatSensibleNumber(0.025), '0.025');
-      },
-    );
+    test('preserves precision for small fractions without rounding to zero', () {
+      expect(formatSensibleNumber(0.05), '0.05');
+      expect(formatSensibleNumber(0.005), '0.005');
+      expect(formatSensibleNumber(0.0004), '0.0004');
+      expect(formatSensibleNumber(0.025), '0.025');
+    });
 
     test('handles negative values and prevents negative zero', () {
       expect(formatSensibleNumber(-1.50000001), '-1.5');
@@ -161,7 +155,10 @@ void main() {
               'status': 'final',
               'code': {'text': 'Serum Potassium'},
               'effectiveDateTime': '2026-09-20T14:30:00Z',
-              'valueQuantity': {'value': 4.1000000000000005, 'unit': 'mmol/L'},
+              'valueQuantity': {
+                'value': 4.1000000000000005,
+                'unit': 'mmol/L',
+              },
               'referenceRange': [
                 {
                   'low': {'value': 3.50000000001, 'unit': 'mmol/L'},

@@ -28,7 +28,9 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
   }
 
   final absVal = value.abs();
-  final decimals = absVal < 0.01 ? 4 : (absVal < 0.1 ? 3 : maxDecimals);
+  final decimals = absVal < 0.01
+      ? 4
+      : (absVal < 0.1 ? 3 : maxDecimals);
 
   var fixed = value.toStringAsFixed(decimals);
   if (fixed.contains('.')) {
