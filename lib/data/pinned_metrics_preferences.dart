@@ -6,10 +6,11 @@ class PinnedMetricsPreferences {
   PinnedMetricsPreferences({
     SyncValueStore? storage,
     FlutterSecureStorage? secureStorage,
-  }) : _storage = storage ??
-            SecureSyncValueStore(
-              storage: secureStorage ?? const FlutterSecureStorage(),
-            );
+  }) : _storage =
+           storage ??
+           SecureSyncValueStore(
+             storage: secureStorage ?? const FlutterSecureStorage(),
+           );
 
   static const _keyName = 'clinical_assistant_pinned_metrics_v1';
   final SyncValueStore _storage;
@@ -26,10 +27,7 @@ class PinnedMetricsPreferences {
   }
 
   Future<void> setPinnedSeries(Set<String> seriesIds) async {
-    await _storage.write(
-      _keyName,
-      jsonEncode(seriesIds.toList()),
-    );
+    await _storage.write(_keyName, jsonEncode(seriesIds.toList()));
   }
 
   Future<bool> isPinned(String seriesId) async {

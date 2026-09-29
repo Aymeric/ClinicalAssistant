@@ -37,43 +37,58 @@ void main() {
       ),
     ];
 
-    test('exports encrypted backup and restores with exact data preservation', () async {
-      const password = 'my-secret-vault-passphrase';
-      final backupJson = await service.exportEncryptedBackup(sampleRecords, password);
+    test(
+      'exports encrypted backup and restores with exact data preservation',
+      () async {
+        const password = 'my-secret-vault-passphrase';
+        final backupJson = await service.exportEncryptedBackup(
+          sampleRecords,
+          password,
+        );
 
-      expect(backupJson, isNotEmpty);
-      final decodedEnvelope = jsonDecode(backupJson) as Map<String, dynamic>;
-      expect(decodedEnvelope['format'], 'clinical_assistant_vault_backup_v1');
-      expect(decodedEnvelope['recordCount'], 2);
-      expect(decodedEnvelope['kdf']['algorithm'], 'PBKDF2-HMAC-SHA256');
-      expect(decodedEnvelope['cipher']['algorithm'], 'AES-256-GCM');
-      expect(decodedEnvelope['cipher']['ciphertext'], isNotEmpty);
-      expect(decodedEnvelope['cipher']['nonce'], isNotEmpty);
-      expect(decodedEnvelope['cipher']['mac'], isNotEmpty);
+        expect(backupJson, isNotEmpty);
+        final decodedEnvelope = jsonDecode(backupJson) as Map<String, dynamic>;
+        expect(decodedEnvelope['format'], 'clinical_assistant_vault_backup_v1');
+        expect(decodedEnvelope['recordCount'], 2);
+        expect(decodedEnvelope['kdf']['algorithm'], 'PBKDF2-HMAC-SHA256');
+        expect(decodedEnvelope['cipher']['algorithm'], 'AES-256-GCM');
+        expect(decodedEnvelope['cipher']['ciphertext'], isNotEmpty);
+        expect(decodedEnvelope['cipher']['nonce'], isNotEmpty);
+        expect(decodedEnvelope['cipher']['mac'], isNotEmpty);
 
-      // Plaintext record content should NOT appear unencrypted in backupJson
-      expect(backupJson.contains('Morning measurement before coffee'), isFalse);
-      expect(backupJson.contains('Systolic blood pressure'), isFalse);
+        // Plaintext record content should NOT appear unencrypted in backupJson
+        expect(
+          backupJson.contains('Morning measurement before coffee'),
+          isFalse,
+        );
+        expect(backupJson.contains('Systolic blood pressure'), isFalse);
 
-      final restored = await service.restoreEncryptedBackup(backupJson, password);
-      expect(restored.length, 2);
-      expect(restored[0].id, 'vital:bp:sys');
-      expect(restored[0].name, 'Systolic blood pressure');
-      expect(restored[0].value, '122');
-      expect(restored[0].isManual, isTrue);
-      expect(restored[0].notes, 'Morning measurement before coffee');
+        final restored = await service.restoreEncryptedBackup(
+          backupJson,
+          password,
+        );
+        expect(restored.length, 2);
+        expect(restored[0].id, 'vital:bp:sys');
+        expect(restored[0].name, 'Systolic blood pressure');
+        expect(restored[0].value, '122');
+        expect(restored[0].isManual, isTrue);
+        expect(restored[0].notes, 'Morning measurement before coffee');
 
-      expect(restored[1].id, 'lab:glucose');
-      expect(restored[1].referenceRange, '70 - 99 mg/dL');
-      expect(restored[1].status, 'final');
-      expect(restored[1].code, '1558-6');
-    });
+        expect(restored[1].id, 'lab:glucose');
+        expect(restored[1].referenceRange, '70 - 99 mg/dL');
+        expect(restored[1].status, 'final');
+        expect(restored[1].code, '1558-6');
+      },
+    );
 
     test('fails decryption when given incorrect passphrase', () async {
       const correctPass = 'correct-vault-password';
       const wrongPass = 'wrong-vault-password';
 
-      final backupJson = await service.exportEncryptedBackup(sampleRecords, correctPass);
+      final backupJson = await service.exportEncryptedBackup(
+        sampleRecords,
+        correctPass,
+      );
 
       expect(
         () => service.restoreEncryptedBackup(backupJson, wrongPass),
@@ -83,7 +98,10 @@ void main() {
 
     test('fails restore on corrupted ciphertext', () async {
       const password = 'my-vault-password';
-      final backupJson = await service.exportEncryptedBackup(sampleRecords, password);
+      final backupJson = await service.exportEncryptedBackup(
+        sampleRecords,
+        password,
+      );
       final decoded = jsonDecode(backupJson) as Map<String, dynamic>;
 
       // Corrupt ciphertext
