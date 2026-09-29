@@ -941,4 +941,5 @@ class HealthExportService {
   };
 }
 
+// Pre-compiled RegExp instance to avoid repeated pattern compilation overhead in hot FHIR ID sanitization paths.
 final _invalidFhirIdRegExp = RegExp(r'[^A-Za-z0-9.-]');

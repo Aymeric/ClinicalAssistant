@@ -53,11 +53,14 @@ class ClinicalAssistantApp extends StatelessWidget {
 
   ThemeData _buildTheme(Brightness brightness) {
     final isLight = brightness == Brightness.light;
+    final surfaceColor = isLight
+        ? const Color(0xFFFAFBFA)
+        : const Color(0xFF17211F);
     final colorScheme =
         ColorScheme.fromSeed(
           seedColor: _teal,
           brightness: brightness,
-          surface: isLight ? const Color(0xFFFAFBFA) : const Color(0xFF17211F),
+          surface: surfaceColor,
         ).copyWith(
           onSurface: isLight ? _ink : null,
           onSurfaceVariant: isLight ? _mutedInk : null,
@@ -1016,21 +1019,26 @@ class HealthDataController extends ChangeNotifier {
   }) : _store = store ?? EncryptedRecordStore(),
        _healthImporter = healthImporter ?? HealthPlatformImporter(),
        _fhirImporter = fhirImporter ?? FhirPortalImporter(),
-       _syncValueStore =
-           syncValueStore ??
-           SecureSyncValueStore(
-             storage: secureStorage ?? const FlutterSecureStorage(),
-           ),
+       _syncValueStore = syncValueStore ?? _createSyncStore(secureStorage),
        _pinnedPreferences =
            pinnedPreferences ??
-           PinnedMetricsPreferences(
-             storage:
-                 syncValueStore ??
-                 SecureSyncValueStore(
-                   storage: secureStorage ?? const FlutterSecureStorage(),
-                 ),
-           ),
+           _createPinnedPrefs(syncValueStore, secureStorage),
        _vaultBackupService = vaultBackupService ?? VaultBackupService();
+
+  static SyncValueStore _createSyncStore(FlutterSecureStorage? secureStorage) {
+    return SecureSyncValueStore(
+      storage: secureStorage ?? const FlutterSecureStorage(),
+    );
+  }
+
+  static PinnedMetricsPreferences _createPinnedPrefs(
+    SyncValueStore? syncValueStore,
+    FlutterSecureStorage? secureStorage,
+  ) {
+    return PinnedMetricsPreferences(
+      storage: syncValueStore ?? _createSyncStore(secureStorage),
+    );
+  }
 
   static const _fhirBaseKey = 'fhir_base_url_v1';
   static const _fhirClientKey = 'fhir_client_id_v1';

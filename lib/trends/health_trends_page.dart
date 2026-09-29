@@ -1412,12 +1412,14 @@ class _ReferenceStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final (color, label) = switch (status) {
+    final info = switch (status) {
       HealthReferenceStatus.within => (colors.primary, 'Within range'),
       HealthReferenceStatus.above => (Colors.amber.shade800, 'Above range'),
       HealthReferenceStatus.below => (colors.tertiary, 'Below range'),
       HealthReferenceStatus.unspecified => (colors.outline, 'Unspecified'),
     };
+    final color = info.$1;
+    final label = info.$2;
 
     return Container(
       margin: const EdgeInsets.only(left: 6),

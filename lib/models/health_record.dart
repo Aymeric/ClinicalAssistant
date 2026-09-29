@@ -41,6 +41,7 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
   return fixed;
 }
 
+// Pre-compiled RegExp instances to avoid repeated pattern compilation overhead in hot paths.
 final _trailingZerosRegExp = RegExp(r'0+$');
 final _trailingDotRegExp = RegExp(r'\.$');
 final _groupedNumberRegExp = RegExp(

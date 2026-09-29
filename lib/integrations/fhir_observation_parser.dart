@@ -607,6 +607,7 @@ class FhirObservationParser {
     return null;
   }
 
+  // Pre-compiled RegExp instance to avoid repeated pattern compilation overhead in hot date parsing paths.
   static final _ymdDateRegExp = RegExp(r'^\d{4}-\d{2}-\d{2}$');
 
   DateTime? _parseFhirDate(Object? value) {

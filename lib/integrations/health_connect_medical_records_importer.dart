@@ -12,12 +12,12 @@ class HealthConnectMedicalRecordsImporter {
   HealthConnectMedicalRecordsImporter({
     MethodChannel? channel,
     FhirObservationParser? parser,
-  }) : _channel =
-           channel ??
-           const MethodChannel(
-             'clinical_assistant/health_connect_medical_records',
-           ),
+  }) : _channel = channel ?? _defaultChannel,
        _parser = parser ?? const FhirObservationParser();
+
+  static const _defaultChannel = MethodChannel(
+    'clinical_assistant/health_connect_medical_records',
+  );
 
   final MethodChannel _channel;
   final FhirObservationParser _parser;

@@ -129,6 +129,7 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
   return series;
 }
 
+// Pre-compiled RegExp instances to avoid repeated pattern compilation overhead in hot paths.
 const _referenceNumberPattern =
     r'[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?';
 

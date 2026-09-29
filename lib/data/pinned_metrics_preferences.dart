@@ -6,11 +6,13 @@ class PinnedMetricsPreferences {
   PinnedMetricsPreferences({
     SyncValueStore? storage,
     FlutterSecureStorage? secureStorage,
-  }) : _storage =
-           storage ??
-           SecureSyncValueStore(
-             storage: secureStorage ?? const FlutterSecureStorage(),
-           );
+  }) : _storage = storage ?? _defaultStorage(secureStorage);
+
+  static SyncValueStore _defaultStorage(FlutterSecureStorage? secureStorage) {
+    return SecureSyncValueStore(
+      storage: secureStorage ?? const FlutterSecureStorage(),
+    );
+  }
 
   static const _keyName = 'clinical_assistant_pinned_metrics_v1';
   final SyncValueStore _storage;
