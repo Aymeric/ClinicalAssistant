@@ -43,33 +43,30 @@ void main() {
     });
   });
 
-  test(
-    'excludes TOTAL_CALORIES_BURNED on iOS due to Apple HealthKit incompatibility',
-    () {
-      final importer = HealthPlatformImporter();
-      expect(
-        importer.isDataTypeAvailable(
-          HealthDataType.TOTAL_CALORIES_BURNED,
-          isIos: true,
-        ),
-        isFalse,
-      );
-      expect(
-        importer.isDataTypeAvailable(
-          HealthDataType.TOTAL_CALORIES_BURNED,
-          isIos: false,
-        ),
-        isTrue,
-      );
-      expect(
-        importer.isDataTypeAvailable(
-          HealthDataType.ACTIVE_ENERGY_BURNED,
-          isIos: true,
-        ),
-        isTrue,
-      );
-    },
-  );
+  test('excludes TOTAL_CALORIES_BURNED on iOS due to Apple HealthKit incompatibility', () {
+    final importer = HealthPlatformImporter();
+    expect(
+      importer.isDataTypeAvailable(
+        HealthDataType.TOTAL_CALORIES_BURNED,
+        isIos: true,
+      ),
+      isFalse,
+    );
+    expect(
+      importer.isDataTypeAvailable(
+        HealthDataType.TOTAL_CALORIES_BURNED,
+        isIos: false,
+      ),
+      isTrue,
+    );
+    expect(
+      importer.isDataTypeAvailable(
+        HealthDataType.ACTIVE_ENERGY_BURNED,
+        isIos: true,
+      ),
+      isTrue,
+    );
+  });
 
   test('maps sleep durations into their own category', () {
     final record = mapper.mapPoint(

@@ -108,7 +108,10 @@ void main() {
 
     final records = await HealthConnectMedicalRecordsImporter(
       channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026), onStatus: statuses.add);
+    ).importLabRecords(
+      since: DateTime.utc(2026),
+      onStatus: statuses.add,
+    );
 
     expect(records, isEmpty);
     expect(methods, ['isMedicalRecordsAvailable', 'requestLabReadPermission']);
@@ -126,7 +129,10 @@ void main() {
 
     final records = await HealthConnectMedicalRecordsImporter(
       channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026), onStatus: statuses.add);
+    ).importLabRecords(
+      since: DateTime.utc(2026),
+      onStatus: statuses.add,
+    );
 
     expect(records, isEmpty);
     expect(methods, ['isMedicalRecordsAvailable']);
@@ -140,16 +146,17 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           return switch (call.method) {
-            'isMedicalRecordsAvailable' || 'requestLabReadPermission' => true,
+            'isMedicalRecordsAvailable' ||
+            'requestLabReadPermission' => true,
             'readLabRecords' => ['not a record'],
             _ => fail('Unexpected method ${call.method}'),
           };
         });
 
     await expectLater(
-      HealthConnectMedicalRecordsImporter(
-        channel: channel,
-      ).importLabRecords(since: DateTime.utc(2026)),
+      HealthConnectMedicalRecordsImporter(channel: channel).importLabRecords(
+        since: DateTime.utc(2026),
+      ),
       throwsFormatException,
     );
   });

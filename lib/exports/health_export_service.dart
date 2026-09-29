@@ -71,9 +71,7 @@ class HealthExportService {
   String buildTextSummary(List<HealthRecord> records) {
     final buffer = StringBuffer();
     buffer.writeln('ClinicalAssistant Health Records Summary');
-    buffer.writeln(
-      'Exported (UTC): ${DateTime.now().toUtc().toIso8601String().split('T').first}',
-    );
+    buffer.writeln('Exported (UTC): ${DateTime.now().toUtc().toIso8601String().split('T').first}');
     buffer.writeln('Total records: ${records.length}');
 
     if (records.isEmpty) {
@@ -88,10 +86,8 @@ class HealthExportService {
 
     final sources = records.map((r) => r.source).toSet().join(', ');
     buffer.writeln('Sources: $sources');
-    buffer.writeln(
-      '\nNotice: This summary contains health records imported from the listed sources. '
-      'It is not a medical interpretation or a substitute for advice from a clinician.\n',
-    );
+    buffer.writeln('\nNotice: This summary contains health records imported from the listed sources. '
+        'It is not a medical interpretation or a substitute for advice from a clinician.\n');
 
     final byCategory = <RecordCategory, List<HealthRecord>>{};
     for (final record in records) {
@@ -119,12 +115,8 @@ class HealthExportService {
       buffer.writeln('--- $categoryTitle (${categoryRecords.length}) ---');
       for (final r in categoryRecords) {
         final date = _formatDate(r.recordedAt);
-        final ref = r.referenceRange != null
-            ? ' [Ref: ${r.referenceRange}]'
-            : '';
-        buffer.writeln(
-          '• $date: ${r.name} = ${r.displayValue}$ref (${r.source})',
-        );
+        final ref = r.referenceRange != null ? ' [Ref: ${r.referenceRange}]' : '';
+        buffer.writeln('• $date: ${r.name} = ${r.displayValue}$ref (${r.source})');
       }
       buffer.writeln();
     }
@@ -133,10 +125,7 @@ class HealthExportService {
   }
 
   Future<File> createTextSummary(List<HealthRecord> records) async {
-    return _writeExport(
-      'health-records-summary.txt',
-      buildTextSummary(records),
-    );
+    return _writeExport('health-records-summary.txt', buildTextSummary(records));
   }
 
   Future<File> createPdf(List<HealthRecord> records) async {
@@ -156,17 +145,11 @@ class HealthExportService {
             children: [
               pw.Text(
                 'ClinicalAssistant • Personal health record copy',
-                style: const pw.TextStyle(
-                  fontSize: 8,
-                  color: PdfColors.grey700,
-                ),
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
               ),
               pw.Text(
                 'Page ${context.pageNumber} of ${context.pagesCount}',
-                style: const pw.TextStyle(
-                  fontSize: 8,
-                  color: PdfColors.grey700,
-                ),
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
               ),
             ],
           ),
@@ -257,14 +240,11 @@ class HealthExportService {
         return !d.isBefore(dateRange.start) && !d.isAfter(dateRange.end);
       }).toList();
     }
-    final ordered = [...filtered]
-      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    final ordered = [...filtered]..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     final sources = ordered.map((r) => r.source).toSet().join(', ');
 
     // Group vitals
-    final vitals = ordered
-        .where((r) => r.category == RecordCategory.vital)
-        .toList();
+    final vitals = ordered.where((r) => r.category == RecordCategory.vital).toList();
     final vitalSeries = <String, List<HealthRecord>>{};
     for (final v in vitals) {
       vitalSeries.putIfAbsent(v.name, () => []).add(v);
@@ -276,14 +256,9 @@ class HealthExportService {
     for (final r in ordered.where((r) => r.category == RecordCategory.lab)) {
       final numVal = parseHealthRecordValue(r.value);
       if (numVal != null && r.referenceRange != null) {
-        final range = HealthReferenceRange.tryParse(
-          r.referenceRange,
-          expectedUnit: r.unit,
-        );
-        final status =
-            range?.evaluate(numVal) ?? HealthReferenceStatus.unspecified;
-        if (status == HealthReferenceStatus.above ||
-            status == HealthReferenceStatus.below) {
+        final range = HealthReferenceRange.tryParse(r.referenceRange, expectedUnit: r.unit);
+        final status = range?.evaluate(numVal) ?? HealthReferenceStatus.unspecified;
+        if (status == HealthReferenceStatus.above || status == HealthReferenceStatus.below) {
           outOfRangeLabs.add((r, status));
           continue;
         }
@@ -291,15 +266,9 @@ class HealthExportService {
       otherLabs.add(r);
     }
 
-    final medications = ordered
-        .where((r) => r.category == RecordCategory.medication)
-        .toList();
-    final conditions = ordered
-        .where((r) => r.category == RecordCategory.condition)
-        .toList();
-    final allergies = ordered
-        .where((r) => r.category == RecordCategory.allergy)
-        .toList();
+    final medications = ordered.where((r) => r.category == RecordCategory.medication).toList();
+    final conditions = ordered.where((r) => r.category == RecordCategory.condition).toList();
+    final allergies = ordered.where((r) => r.category == RecordCategory.allergy).toList();
 
     pdf.addPage(
       pw.MultiPage(
@@ -313,17 +282,11 @@ class HealthExportService {
             children: [
               pw.Text(
                 'ClinicalAssistant | Doctor Visit Summary | Self-Collected Patient Records',
-                style: const pw.TextStyle(
-                  fontSize: 8,
-                  color: PdfColors.grey700,
-                ),
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
               ),
               pw.Text(
                 'Page ${context.pageNumber} of ${context.pagesCount}',
-                style: const pw.TextStyle(
-                  fontSize: 8,
-                  color: PdfColors.grey700,
-                ),
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
               ),
             ],
           ),
@@ -362,17 +325,11 @@ class HealthExportService {
                 children: [
                   pw.Text(
                     'Generated: ${DateTime.now().toUtc().toIso8601String().split('T').first}',
-                    style: const pw.TextStyle(
-                      fontSize: 9,
-                      color: PdfColors.grey700,
-                    ),
+                    style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
                   ),
                   pw.Text(
                     '${ordered.length} total records',
-                    style: const pw.TextStyle(
-                      fontSize: 9,
-                      color: PdfColors.grey700,
-                    ),
+                    style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
                   ),
                 ],
               ),
@@ -389,17 +346,11 @@ class HealthExportService {
             decoration: pw.BoxDecoration(
               color: PdfColor.fromHex('#F4F7F6'),
               borderRadius: pw.BorderRadius.circular(4),
-              border: pw.Border.all(
-                color: PdfColor.fromHex('#D8E2E1'),
-                width: 0.5,
-              ),
+              border: pw.Border.all(color: PdfColor.fromHex('#D8E2E1'), width: 0.5),
             ),
             child: pw.Text(
               'Notice for Clinician: These health measurements and observations were aggregated on-device from patient-authorized health platforms and provider portals. They are presented for descriptive informational review and do not constitute automated clinical diagnosis.',
-              style: const pw.TextStyle(
-                fontSize: 7.5,
-                color: PdfColors.grey800,
-              ),
+              style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey800),
             ),
           ),
           pw.SizedBox(height: 14),
@@ -416,19 +367,10 @@ class HealthExportService {
             ),
             pw.SizedBox(height: 6),
             pw.TableHelper.fromTextArray(
-              headers: const [
-                'Date',
-                'Lab Test',
-                'Result',
-                'Flag',
-                'Reference Range',
-                'Source',
-              ],
+              headers: const ['Date', 'Lab Test', 'Result', 'Flag', 'Reference Range', 'Source'],
               data: outOfRangeLabs.map((item) {
                 final (record, status) = item;
-                final flag = status == HealthReferenceStatus.above
-                    ? 'HIGH'
-                    : 'LOW';
+                final flag = status == HealthReferenceStatus.above ? 'HIGH' : 'LOW';
                 return [
                   _formatDate(record.recordedAt),
                   record.name,
@@ -438,24 +380,12 @@ class HealthExportService {
                   record.source,
                 ];
               }).toList(),
-              headerStyle: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.white,
-                fontSize: 8,
-              ),
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFB71C1C),
-              ),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 8),
+              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFB71C1C)),
               cellStyle: const pw.TextStyle(fontSize: 8),
-              cellPadding: const pw.EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 4,
-              ),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
               border: pw.TableBorder(
-                horizontalInside: pw.BorderSide(
-                  color: PdfColor.fromHex('#E0E0E0'),
-                  width: 0.5,
-                ),
+                horizontalInside: pw.BorderSide(color: PdfColor.fromHex('#E0E0E0'), width: 0.5),
               ),
             ),
             pw.SizedBox(height: 14),
@@ -473,23 +403,13 @@ class HealthExportService {
             ),
             pw.SizedBox(height: 6),
             pw.TableHelper.fromTextArray(
-              headers: const [
-                'Vital Sign',
-                'Latest Reading',
-                'Date',
-                'Readings',
-                'Average',
-                'Min - Max',
-              ],
+              headers: const ['Vital Sign', 'Latest Reading', 'Date', 'Readings', 'Average', 'Min - Max'],
               data: vitalSeries.entries.map((entry) {
                 final name = entry.key;
                 final list = entry.value;
                 final latestRec = list.first;
                 final unit = latestRec.unit;
-                final numericValues = list
-                    .map((r) => parseHealthRecordValue(r.value))
-                    .whereType<double>()
-                    .toList();
+                final numericValues = list.map((r) => parseHealthRecordValue(r.value)).whereType<double>().toList();
 
                 String avgStr = '-';
                 String minMaxStr = '-';
@@ -498,9 +418,7 @@ class HealthExportService {
                   final avg = sum / numericValues.length;
                   avgStr = '${formatSensibleNumber(avg)} $unit'.trim();
                   numericValues.sort();
-                  minMaxStr =
-                      '${formatSensibleNumber(numericValues.first)} - ${formatSensibleNumber(numericValues.last)} $unit'
-                          .trim();
+                  minMaxStr = '${formatSensibleNumber(numericValues.first)} - ${formatSensibleNumber(numericValues.last)} $unit'.trim();
                 }
 
                 return [
@@ -512,24 +430,12 @@ class HealthExportService {
                   minMaxStr,
                 ];
               }).toList(),
-              headerStyle: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.white,
-                fontSize: 8,
-              ),
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFF183F46),
-              ),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 8),
+              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF183F46)),
               cellStyle: const pw.TextStyle(fontSize: 8),
-              cellPadding: const pw.EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 4,
-              ),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
               border: pw.TableBorder(
-                horizontalInside: pw.BorderSide(
-                  color: PdfColor.fromHex('#D8E2E1'),
-                  width: 0.5,
-                ),
+                horizontalInside: pw.BorderSide(color: PdfColor.fromHex('#D8E2E1'), width: 0.5),
               ),
             ),
             pw.SizedBox(height: 14),
@@ -547,43 +453,20 @@ class HealthExportService {
             ),
             pw.SizedBox(height: 6),
             pw.TableHelper.fromTextArray(
-              headers: const [
-                'Date',
-                'Lab Test',
-                'Result',
-                'Reference Range',
-                'Source',
-              ],
-              data: otherLabs
-                  .take(12)
-                  .map(
-                    (record) => [
-                      _formatDate(record.recordedAt),
-                      record.name,
-                      record.displayValue,
-                      (record.referenceRange ?? '-').replaceAll('–', '-'),
-                      record.source,
-                    ],
-                  )
-                  .toList(),
-              headerStyle: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.white,
-                fontSize: 8,
-              ),
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFF37474F),
-              ),
+              headers: const ['Date', 'Lab Test', 'Result', 'Reference Range', 'Source'],
+              data: otherLabs.take(12).map((record) => [
+                _formatDate(record.recordedAt),
+                record.name,
+                record.displayValue,
+                (record.referenceRange ?? '-').replaceAll('–', '-'),
+                record.source,
+              ]).toList(),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 8),
+              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF37474F)),
               cellStyle: const pw.TextStyle(fontSize: 8),
-              cellPadding: const pw.EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 4,
-              ),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
               border: pw.TableBorder(
-                horizontalInside: pw.BorderSide(
-                  color: PdfColor.fromHex('#E0E0E0'),
-                  width: 0.5,
-                ),
+                horizontalInside: pw.BorderSide(color: PdfColor.fromHex('#E0E0E0'), width: 0.5),
               ),
             ),
             pw.SizedBox(height: 14),
@@ -601,41 +484,19 @@ class HealthExportService {
             ),
             pw.SizedBox(height: 6),
             pw.TableHelper.fromTextArray(
-              headers: const [
-                'Medication',
-                'Instructions / Status',
-                'Date',
-                'Source',
-              ],
-              data: medications
-                  .take(10)
-                  .map(
-                    (record) => [
-                      record.name,
-                      record.displayValue,
-                      _formatDate(record.recordedAt),
-                      record.source,
-                    ],
-                  )
-                  .toList(),
-              headerStyle: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.white,
-                fontSize: 8,
-              ),
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFF4A148C),
-              ),
+              headers: const ['Medication', 'Instructions / Status', 'Date', 'Source'],
+              data: medications.take(10).map((record) => [
+                record.name,
+                record.displayValue,
+                _formatDate(record.recordedAt),
+                record.source,
+              ]).toList(),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 8),
+              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF4A148C)),
               cellStyle: const pw.TextStyle(fontSize: 8),
-              cellPadding: const pw.EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 4,
-              ),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
               border: pw.TableBorder(
-                horizontalInside: pw.BorderSide(
-                  color: PdfColor.fromHex('#E0E0E0'),
-                  width: 0.5,
-                ),
+                horizontalInside: pw.BorderSide(color: PdfColor.fromHex('#E0E0E0'), width: 0.5),
               ),
             ),
             pw.SizedBox(height: 14),
@@ -653,41 +514,19 @@ class HealthExportService {
             ),
             pw.SizedBox(height: 6),
             pw.TableHelper.fromTextArray(
-              headers: const [
-                'Condition / Diagnosis',
-                'Status',
-                'Date',
-                'Source',
-              ],
-              data: conditions
-                  .take(10)
-                  .map(
-                    (record) => [
-                      record.name,
-                      record.displayValue,
-                      _formatDate(record.recordedAt),
-                      record.source,
-                    ],
-                  )
-                  .toList(),
-              headerStyle: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.white,
-                fontSize: 8,
-              ),
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFE65100),
-              ),
+              headers: const ['Condition / Diagnosis', 'Status', 'Date', 'Source'],
+              data: conditions.take(10).map((record) => [
+                record.name,
+                record.displayValue,
+                _formatDate(record.recordedAt),
+                record.source,
+              ]).toList(),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 8),
+              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFE65100)),
               cellStyle: const pw.TextStyle(fontSize: 8),
-              cellPadding: const pw.EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 4,
-              ),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
               border: pw.TableBorder(
-                horizontalInside: pw.BorderSide(
-                  color: PdfColor.fromHex('#E0E0E0'),
-                  width: 0.5,
-                ),
+                horizontalInside: pw.BorderSide(color: PdfColor.fromHex('#E0E0E0'), width: 0.5),
               ),
             ),
             pw.SizedBox(height: 14),
@@ -705,41 +544,19 @@ class HealthExportService {
             ),
             pw.SizedBox(height: 6),
             pw.TableHelper.fromTextArray(
-              headers: const [
-                'Allergen / Substance',
-                'Reaction / Severity',
-                'Date',
-                'Source',
-              ],
-              data: allergies
-                  .take(10)
-                  .map(
-                    (record) => [
-                      record.name,
-                      record.displayValue,
-                      _formatDate(record.recordedAt),
-                      record.source,
-                    ],
-                  )
-                  .toList(),
-              headerStyle: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.white,
-                fontSize: 8,
-              ),
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFC2185B),
-              ),
+              headers: const ['Allergen / Substance', 'Reaction / Severity', 'Date', 'Source'],
+              data: allergies.take(10).map((record) => [
+                record.name,
+                record.displayValue,
+                _formatDate(record.recordedAt),
+                record.source,
+              ]).toList(),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 8),
+              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFC2185B)),
               cellStyle: const pw.TextStyle(fontSize: 8),
-              cellPadding: const pw.EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 4,
-              ),
+              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
               border: pw.TableBorder(
-                horizontalInside: pw.BorderSide(
-                  color: PdfColor.fromHex('#E0E0E0'),
-                  width: 0.5,
-                ),
+                horizontalInside: pw.BorderSide(color: PdfColor.fromHex('#E0E0E0'), width: 0.5),
               ),
             ),
             pw.SizedBox(height: 14),
@@ -759,14 +576,10 @@ class HealthExportService {
             width: double.infinity,
             padding: const pw.EdgeInsets.all(10),
             decoration: pw.BoxDecoration(
-              border: pw.Border.all(
-                color: PdfColor.fromHex('#9E9E9E'),
-                width: 0.8,
-              ),
+              border: pw.Border.all(color: PdfColor.fromHex('#9E9E9E'), width: 0.8),
               borderRadius: pw.BorderRadius.circular(4),
             ),
-            child:
-                patientQuestions != null && patientQuestions.trim().isNotEmpty
+            child: patientQuestions != null && patientQuestions.trim().isNotEmpty
                 ? pw.Text(
                     patientQuestions.trim(),
                     style: const pw.TextStyle(fontSize: 9, lineSpacing: 2),
@@ -776,26 +589,17 @@ class HealthExportService {
                     children: [
                       pw.Text(
                         '1. __________________________________________________________________________',
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
-                        ),
+                        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
                       ),
                       pw.SizedBox(height: 8),
                       pw.Text(
                         '2. __________________________________________________________________________',
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
-                        ),
+                        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
                       ),
                       pw.SizedBox(height: 8),
                       pw.Text(
                         '3. __________________________________________________________________________',
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
-                        ),
+                        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
                       ),
                     ],
                   ),

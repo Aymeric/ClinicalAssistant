@@ -5,8 +5,9 @@ import 'package:flutter/services.dart';
 import '../models/health_record.dart';
 import 'fhir_observation_parser.dart';
 
-typedef HealthConnectMedicalRecordsStatusCallback =
-    void Function(String message);
+typedef HealthConnectMedicalRecordsStatusCallback = void Function(
+  String message,
+);
 
 class HealthConnectMedicalRecordsImporter {
   HealthConnectMedicalRecordsImporter({
@@ -39,7 +40,9 @@ class HealthConnectMedicalRecordsImporter {
       return const [];
     }
 
-    final response = await _channel.invokeListMethod<Object?>('readLabRecords');
+    final response = await _channel.invokeListMethod<Object?>(
+      'readLabRecords',
+    );
     if (response == null) {
       throw const FormatException(
         'Health Connect returned no laboratory-record response.',

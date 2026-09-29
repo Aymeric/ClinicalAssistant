@@ -7,91 +7,87 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
-  test(
-    'imports every FHIR page with determinate progress and patient-scoped token',
-    () async {
-      final requests = <http.Request>[];
-      final progress = <double>[];
-      final importer = FhirPortalImporter(
-        client: MockClient((request) async {
-          requests.add(request);
-          if (request.url.path.endsWith('/.well-known/smart-configuration')) {
-            return http.Response(
-              jsonEncode({
-                'authorization_endpoint':
-                    'https://login.portal.example/authorize',
-                'token_endpoint': 'https://login.portal.example/token',
-              }),
-              200,
-            );
-          }
-          expect(request.headers['Authorization'], 'Bearer temporary-token');
-          if (request.url.queryParameters['cursor'] == 'page-2') {
-            return http.Response(
-              jsonEncode({
-                'resourceType': 'Bundle',
-                'entry': [
-                  {
-                    'resource': {
-                      'resourceType': 'Observation',
-                      'id': 'lab-2',
-                      'status': 'final',
-                      'code': {'text': 'Glucose'},
-                      'effectiveDateTime': '2025-04-12T00:00:00Z',
-                      'valueQuantity': {'value': 98, 'unit': 'mg/dL'},
-                    },
-                  },
-                ],
-              }),
-              200,
-            );
-          }
-          expect(request.url.queryParameters['patient'], 'patient-7');
-          expect(request.url.queryParameters['category'], 'laboratory');
+  test('imports every FHIR page with determinate progress and patient-scoped token', () async {
+    final requests = <http.Request>[];
+    final progress = <double>[];
+    final importer = FhirPortalImporter(
+      client: MockClient((request) async {
+        requests.add(request);
+        if (request.url.path.endsWith('/.well-known/smart-configuration')) {
+          return http.Response(
+            jsonEncode({
+              'authorization_endpoint':
+                  'https://login.portal.example/authorize',
+              'token_endpoint': 'https://login.portal.example/token',
+            }),
+            200,
+          );
+        }
+        expect(request.headers['Authorization'], 'Bearer temporary-token');
+        if (request.url.queryParameters['cursor'] == 'page-2') {
           return http.Response(
             jsonEncode({
               'resourceType': 'Bundle',
-              'total': 2,
               'entry': [
                 {
                   'resource': {
                     'resourceType': 'Observation',
-                    'id': 'lab-1',
+                    'id': 'lab-2',
                     'status': 'final',
                     'code': {'text': 'Glucose'},
-                    'effectiveDateTime': '2025-04-11T00:00:00Z',
-                    'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
+                    'effectiveDateTime': '2025-04-12T00:00:00Z',
+                    'valueQuantity': {'value': 98, 'unit': 'mg/dL'},
                   },
-                },
-              ],
-              'link': [
-                {
-                  'relation': 'next',
-                  'url':
-                      'https://portal.example/fhir/Observation?cursor=page-2',
                 },
               ],
             }),
             200,
           );
-        }),
-        appAuth: _FakeAppAuth(),
-      );
+        }
+        expect(request.url.queryParameters['patient'], 'patient-7');
+        expect(request.url.queryParameters['category'], 'laboratory');
+        return http.Response(
+          jsonEncode({
+            'resourceType': 'Bundle',
+            'total': 2,
+            'entry': [
+              {
+                'resource': {
+                  'resourceType': 'Observation',
+                  'id': 'lab-1',
+                  'status': 'final',
+                  'code': {'text': 'Glucose'},
+                  'effectiveDateTime': '2025-04-11T00:00:00Z',
+                  'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
+                },
+              },
+            ],
+            'link': [
+              {
+                'relation': 'next',
+                'url': 'https://portal.example/fhir/Observation?cursor=page-2',
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+      appAuth: _FakeAppAuth(),
+    );
 
-      final records = await importer.importLabResults(
-        fhirBaseUrl: 'https://portal.example/fhir',
-        clientId: 'registered-client',
-        onProgress: (value) => progress.add(value.fraction),
-      );
+    final records = await importer.importLabResults(
+      fhirBaseUrl: 'https://portal.example/fhir',
+      clientId: 'registered-client',
+      onProgress: (value) => progress.add(value.fraction),
+    );
 
-      expect(records, hasLength(2));
-      expect(requests, hasLength(3));
-      expect(requests.last.url.queryParameters['cursor'], 'page-2');
-      expect(progress, contains(0.45));
-      expect(progress, contains(0.85));
-      expect(progress.last, 0.9);
-    },
-  );
+    expect(records, hasLength(2));
+    expect(requests, hasLength(3));
+    expect(requests.last.url.queryParameters['cursor'], 'page-2');
+    expect(progress, contains(0.45));
+    expect(progress, contains(0.85));
+    expect(progress.last, 0.9);
+  });
 
   test('rejects non-HTTPS FHIR endpoints before making a request', () async {
     var requestCount = 0;
