@@ -20,7 +20,9 @@ List<HealthRecord> selectRecordsForExport(
       }
     }
     if (query.isNotEmpty) {
-      final searchable = '${record.name} ${record.displayValue} ${record.source} ${record.code ?? ''}'.toLowerCase();
+      final searchable =
+          '${record.name} ${record.displayValue} ${record.source} ${record.code ?? ''}'
+              .toLowerCase();
       if (!searchable.contains(query)) return false;
     }
     return true;

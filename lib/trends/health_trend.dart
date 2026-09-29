@@ -21,8 +21,7 @@ class HealthReferenceRange {
   static HealthReferenceRange? tryParse(
     String? raw, {
     String expectedUnit = '',
-  }) =>
-      parseHealthReferenceRange(raw, expectedUnit: expectedUnit);
+  }) => parseHealthReferenceRange(raw, expectedUnit: expectedUnit);
 
   HealthReferenceStatus evaluate(double value) {
     if (upperBound != null && value > upperBound!) {
@@ -129,7 +128,6 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
   });
   return series;
 }
-
 
 HealthReferenceRange? parseHealthReferenceRange(
   String? sourceText, {

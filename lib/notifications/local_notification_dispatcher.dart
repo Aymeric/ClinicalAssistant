@@ -99,7 +99,8 @@ class FlutterLocalNotificationDispatcher
         android: AndroidNotificationDetails(
           'health_record_updates',
           'Health record updates',
-          channelDescription: 'Private alerts about newly imported records and measurement patterns.',
+          channelDescription:
+              'Private alerts about newly imported records and measurement patterns.',
           icon: 'ic_notification',
           visibility: NotificationVisibility.private,
         ),
