@@ -632,7 +632,7 @@ class HealthExportService {
   Map<String, Object?> _observationFromRecord(HealthRecord record) {
     final numericValue = num.tryParse(record.value);
     final unitCode = _ucumCode(record.unit);
-    final id = record.id.replaceAll(RegExp(r'[^A-Za-z0-9.-]'), '-');
+    final id = record.id.replaceAll(_invalidFhirIdRegExp, '-');
     return {
       'resourceType': 'Observation',
       'id': id.isEmpty ? 'record' : id,
@@ -744,3 +744,5 @@ class HealthExportService {
     _ => null,
   };
 }
+
+final _invalidFhirIdRegExp = RegExp(r'[^A-Za-z0-9.-]');

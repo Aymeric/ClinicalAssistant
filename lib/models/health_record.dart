@@ -35,21 +35,25 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
   var fixed = value.toStringAsFixed(decimals);
   if (fixed.contains('.')) {
     fixed = fixed
-        .replaceFirst(RegExp(r'0+$'), '')
-        .replaceFirst(RegExp(r'\.$'), '');
+        .replaceFirst(_trailingZerosRegExp, '')
+        .replaceFirst(_trailingDotRegExp, '');
   }
 
   if (fixed == '-0') return '0';
   return fixed;
 }
 
+final _trailingZerosRegExp = RegExp(r'0+$');
+final _trailingDotRegExp = RegExp(r'\.$');
+final _groupedNumberRegExp = RegExp(
+  r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
+);
+
 /// Parses a numeric string value, safely handling commas in grouped numbers
 /// (e.g. "10,000") and scientific notation. Returns null if non-numeric or non-finite.
 double? parseHealthRecordValue(String value) {
   final trimmed = value.trim();
-  final isGroupedNumber = RegExp(
-    r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
-  ).hasMatch(trimmed);
+  final isGroupedNumber = _groupedNumberRegExp.hasMatch(trimmed);
   final parsed = double.tryParse(
     isGroupedNumber ? trimmed.replaceAll(',', '') : trimmed,
   );

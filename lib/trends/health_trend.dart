@@ -131,18 +131,29 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
 }
 
 
+const _referenceNumberPattern =
+    r'[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?';
+
+final _referenceRangeRegExp = RegExp(
+  '^\\s*(?<lower>$_referenceNumberPattern|[—–])\\s*(?:–|—|-|to)\\s*'
+  '(?<upper>$_referenceNumberPattern|[—–])\\s*(?<unit>.*?)\\s*\$',
+  caseSensitive: false,
+);
+
+final _referenceThresholdRegExp = RegExp(
+  '^\\s*(?<operator><=|>=|<|>)\\s*(?<value>$_referenceNumberPattern)\\s*'
+  '(?<unit>.*?)\\s*\$',
+);
+
+final _whitespaceRegExp = RegExp(r'\s+');
+
 HealthReferenceRange? parseHealthReferenceRange(
   String? sourceText, {
   String expectedUnit = '',
 }) {
   if (sourceText == null || sourceText.trim().isEmpty) return null;
   final text = sourceText.trim();
-  const number = r'[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?';
-  final range = RegExp(
-    '^\\s*(?<lower>$number|[—–])\\s*(?:–|—|-|to)\\s*'
-    '(?<upper>$number|[—–])\\s*(?<unit>.*?)\\s*\$',
-    caseSensitive: false,
-  ).firstMatch(text);
+  final range = _referenceRangeRegExp.firstMatch(text);
   if (range != null) {
     final unit = range.namedGroup('unit')!.trim();
     if (!_referenceUnitsMatch(unit, expectedUnit)) return null;
@@ -167,10 +178,7 @@ HealthReferenceRange? parseHealthReferenceRange(
     );
   }
 
-  final threshold = RegExp(
-    '^\\s*(?<operator><=|>=|<|>)\\s*(?<value>$number)\\s*'
-    '(?<unit>.*?)\\s*\$',
-  ).firstMatch(text);
+  final threshold = _referenceThresholdRegExp.firstMatch(text);
   if (threshold == null ||
       !_referenceUnitsMatch(
         threshold.namedGroup('unit')!.trim(),
@@ -207,7 +215,7 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
   if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
-  String normalize(String unit) => unit.trim().replaceAll(RegExp(r'\s+'), ' ');
+  String normalize(String unit) => unit.trim().replaceAll(_whitespaceRegExp, ' ');
   return normalize(rangeUnit) == normalize(expectedUnit);
 }
 
