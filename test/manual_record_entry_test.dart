@@ -1,4 +1,5 @@
 import 'package:clinical_assistant/models/health_record.dart';
+import 'package:clinical_assistant/models/manual_medication_details.dart';
 import 'package:clinical_assistant/records/manual_record_entry_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,5 +91,87 @@ void main() {
     expect(glucose.category, RecordCategory.lab);
     expect(glucose.notes, contains('Context: Fasting'));
     expect(glucose.isManual, isTrue);
+  });
+
+  testWidgets('logs a medication with structured dose, frequency, and route', (
+    tester,
+  ) async {
+    List<HealthRecord>? savedRecords;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ManualRecordEntrySheet(
+            onSave: (records) => savedRecords = records,
+          ),
+        ),
+      ),
+    );
+
+    await tester.ensureVisible(find.text('Medication'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Medication'));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('manual-medication-name')),
+      'Example Medicine',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('manual-medication-dose')),
+      '10 mg',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('manual-medication-frequency')),
+      'once daily',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('manual-medication-route')),
+      'oral',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('manual-medication-status')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Stopped').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save Medication to Vault'));
+    await tester.tap(find.text('Save Medication to Vault'));
+    await tester.pump();
+    expect(savedRecords, isNull);
+    expect(find.text('Choose an end date'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('manual-medication-end-date')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('manual-medication-end-date')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save Medication to Vault'));
+    await tester.tap(find.text('Save Medication to Vault'));
+    await tester.pump();
+
+    expect(savedRecords, hasLength(1));
+    final medication = savedRecords!.single;
+    expect(medication.name, 'Example Medicine');
+    expect(medication.value, '10 mg');
+    expect(medication.unit, isEmpty);
+    expect(medication.category, RecordCategory.medication);
+    expect(medication.status, 'stopped');
+    expect(medication.isManual, isTrue);
+
+    final details = ManualMedicationDetails.fromRecord(medication);
+    expect(details.frequency, 'once daily');
+    expect(details.route, 'oral');
+    expect(details.endDate, isNotNull);
+
+    final restored = HealthRecord.fromJson(medication.toJson());
+    expect(
+      ManualMedicationDetails.fromRecord(restored).frequency,
+      'once daily',
+    );
+    expect(ManualMedicationDetails.fromRecord(restored).route, 'oral');
+    expect(ManualMedicationDetails.fromRecord(restored).endDate, isNotNull);
+    expect(restored.status, 'stopped');
   });
 }

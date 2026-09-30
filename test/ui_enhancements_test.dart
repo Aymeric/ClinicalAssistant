@@ -649,6 +649,105 @@ void main() {
       expect(find.text('R'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'manual record detail can edit a pair; imported detail is read-only',
+    (tester) async {
+      tester.view.physicalSize = const Size(420, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final timestamp = DateTime.now().subtract(const Duration(days: 1));
+      final systolic = HealthRecord(
+        id: 'manual:sys:123',
+        name: 'Systolic Blood Pressure',
+        value: '120',
+        unit: 'mmHg',
+        recordedAt: timestamp,
+        category: RecordCategory.vital,
+        source: 'Manual Entry',
+      );
+      final diastolic = HealthRecord(
+        id: 'manual:dia:123',
+        name: 'Diastolic Blood Pressure',
+        value: '80',
+        unit: 'mmHg',
+        recordedAt: timestamp,
+        category: RecordCategory.vital,
+        source: 'Manual Entry',
+      );
+      final imported = HealthRecord(
+        id: 'health:hr:123',
+        name: 'Resting Heart Rate',
+        value: '64',
+        unit: 'bpm',
+        recordedAt: timestamp,
+        category: RecordCategory.vital,
+        source: 'Apple Health',
+      );
+      final store = _RecordingRecordStore([systolic, diastolic, imported]);
+      final controller = HealthDataController(
+        store: store,
+        fhirImporter: FhirPortalImporter(
+          client: MockClient((_) async => throw StateError('No net')),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: HealthHome(controller: controller)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.list_alt_outlined));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Systolic Blood Pressure'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Edit manual record'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-systolic-value')),
+        '125',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-diastolic-value')),
+        '82',
+      );
+      await tester.tap(find.byKey(const ValueKey('save-manual-record-edit')));
+      await tester.pumpAndSettle();
+
+      expect(
+        controller.records
+            .where((record) => record.id == systolic.id)
+            .single
+            .value,
+        '125',
+      );
+      expect(
+        controller.records
+            .where((record) => record.id == diastolic.id)
+            .single
+            .value,
+        '82',
+      );
+      expect(store.records.map((record) => record.id).toSet(), {
+        systolic.id,
+        diastolic.id,
+        imported.id,
+      });
+      expect(
+        controller.records
+            .where((record) => record.id == imported.id)
+            .single
+            .value,
+        '64',
+      );
+
+      await tester.tap(find.text('Resting Heart Rate'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Edit manual record'), findsNothing);
+    },
+  );
 }
 
 class _MemoryRecordStore extends EncryptedRecordStore {
@@ -665,4 +764,21 @@ class _MemoryRecordStore extends EncryptedRecordStore {
 
   @override
   Future<void> clear() async {}
+}
+
+class _RecordingRecordStore extends EncryptedRecordStore {
+  _RecordingRecordStore(this.records) : super(directory: Directory.systemTemp);
+
+  List<HealthRecord> records;
+
+  @override
+  Future<List<HealthRecord>> load() async => records;
+
+  @override
+  Future<void> save(List<HealthRecord> records) async {
+    this.records = List.of(records);
+  }
+
+  @override
+  Future<void> clear() async => records = [];
 }

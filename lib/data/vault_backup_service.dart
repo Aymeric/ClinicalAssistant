@@ -145,9 +145,9 @@ class VaultBackupService {
       throw const VaultBackupAuthException(
         'Incorrect passphrase or corrupted backup file.',
       );
-    } catch (e) {
-      throw VaultBackupAuthException(
-        'Decryption failed: could not authenticate backup. $e',
+    } catch (_) {
+      throw const VaultBackupAuthException(
+        'Decryption failed: could not authenticate backup.',
       );
     }
 

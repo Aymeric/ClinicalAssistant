@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../models/health_record.dart';
+import '../models/manual_medication_details.dart';
 import '../trends/health_trend.dart';
 
 class HealthExportService {
@@ -89,7 +90,11 @@ class HealthExportService {
     final sources = records.map((r) => r.source).toSet().join(', ');
     buffer.writeln('Sources: $sources');
     buffer.writeln(
+<<<<<<< Updated upstream
+      '\nNotice: This summary contains health records from the listed sources and manually entered records. '
+=======
       '\nNotice: This summary contains health records imported from the listed sources. '
+>>>>>>> Stashed changes
       'It is not a medical interpretation or a substitute for advice from a clinician.\n',
     );
 
@@ -123,7 +128,11 @@ class HealthExportService {
             ? ' [Ref: ${r.referenceRange}]'
             : '';
         buffer.writeln(
+<<<<<<< Updated upstream
+          '• $date: ${r.name} = ${_medicationInstructions(r)}$ref (${r.source})',
+=======
           '• $date: ${r.name} = ${r.displayValue}$ref (${r.source})',
+>>>>>>> Stashed changes
         );
       }
       buffer.writeln();
@@ -270,6 +279,31 @@ class HealthExportService {
       vitalSeries.putIfAbsent(v.name, () => []).add(v);
     }
 
+<<<<<<< Updated upstream
+    final latestLabSummaries = buildLatestLabResultSummaries(
+      records,
+      candidates: ordered.where(
+        (record) => record.category == RecordCategory.lab,
+      ),
+    );
+    final outOfRangeLabs = latestLabSummaries
+        .where(
+          (summary) =>
+              summary.latestStatus == HealthReferenceStatus.above ||
+              summary.latestStatus == HealthReferenceStatus.below,
+        )
+        .toList();
+    final flaggedSeriesIds = outOfRangeLabs
+        .map((summary) => healthTrendSeriesId(summary.latest.record))
+        .toSet();
+    final otherLabs = ordered
+        .where(
+          (record) =>
+              record.category == RecordCategory.lab &&
+              !flaggedSeriesIds.contains(healthTrendSeriesId(record)),
+        )
+        .toList();
+=======
     // Identify out-of-range labs
     final outOfRangeLabs = <(HealthRecord, HealthReferenceStatus)>[];
     final otherLabs = <HealthRecord>[];
@@ -290,6 +324,7 @@ class HealthExportService {
       }
       otherLabs.add(r);
     }
+>>>>>>> Stashed changes
 
     final medications = ordered
         .where((r) => r.category == RecordCategory.medication)
@@ -407,7 +442,7 @@ class HealthExportService {
           // Out-of-Range Lab Highlights Section
           if (outOfRangeLabs.isNotEmpty) ...[
             pw.Text(
-              'Flagged Out-of-Range Lab Observations (${outOfRangeLabs.length})',
+              'Currently Out-of-Range Lab Results (${outOfRangeLabs.length})',
               style: pw.TextStyle(
                 fontSize: 12,
                 fontWeight: pw.FontWeight.bold,
@@ -419,6 +454,26 @@ class HealthExportService {
               headers: const [
                 'Date',
                 'Lab Test',
+<<<<<<< Updated upstream
+                'Result / flag',
+                'Reference range',
+                'Previous result / trend',
+                'Source',
+              ],
+              data: outOfRangeLabs.map((summary) {
+                final record = summary.latest.record;
+                final previous = summary.previous;
+                final flag = summary.latestStatus == HealthReferenceStatus.above
+                    ? 'HIGH'
+                    : 'LOW';
+                final previousContext = previous == null
+                    ? 'No earlier comparable result'
+                    : [
+                        '${_formatDate(previous.record.recordedAt)}: ${previous.record.displayValue}',
+                        'Ref: ${summary.previousRange?.sourceText ?? "unavailable"}',
+                        summary.direction.label,
+                      ].join('\n');
+=======
                 'Result',
                 'Flag',
                 'Reference Range',
@@ -429,12 +484,13 @@ class HealthExportService {
                 final flag = status == HealthReferenceStatus.above
                     ? 'HIGH'
                     : 'LOW';
+>>>>>>> Stashed changes
                 return [
                   _formatDate(record.recordedAt),
                   record.name,
-                  record.displayValue,
-                  flag,
+                  '${record.displayValue} ($flag)',
                   (record.referenceRange ?? '-').replaceAll('–', '-'),
+                  previousContext,
                   record.source,
                 ];
               }).toList(),
@@ -612,7 +668,11 @@ class HealthExportService {
                   .map(
                     (record) => [
                       record.name,
+<<<<<<< Updated upstream
+                      _medicationInstructions(record),
+=======
                       record.displayValue,
+>>>>>>> Stashed changes
                       _formatDate(record.recordedAt),
                       record.source,
                     ],
@@ -889,11 +949,58 @@ class HealthExportService {
   }
 
   Map<String, Object?> _resourceForRecord(HealthRecord record) {
+    if (record.isManual && record.category == RecordCategory.medication) {
+      return _manualMedicationStatement(record);
+    }
     final resourceType = record.sourceData?['resourceType'];
     if (resourceType is String && resourceType.isNotEmpty) {
       return record.sourceData!;
     }
     return _observationFromRecord(record);
+  }
+
+  Map<String, Object?> _manualMedicationStatement(HealthRecord record) {
+    final details = ManualMedicationDetails.fromRecord(record);
+    final id = record.id.replaceAll(RegExp(r'[^A-Za-z0-9.-]'), '-');
+    return {
+      'resourceType': 'MedicationStatement',
+      'id': id.isEmpty ? 'medication' : id,
+      'status': record.status ?? 'unknown',
+      'medicationCodeableConcept': {'text': record.name},
+      'effectivePeriod': {
+        'start': record.recordedAt.toUtc().toIso8601String(),
+        if (details.endDate != null) 'end': _formatDate(details.endDate!),
+      },
+      'dosage': [
+        {
+          'text': record.value,
+          'timing': {
+            'code': {'text': details.frequency},
+          },
+          if (details.route != null) 'route': {'text': details.route},
+        },
+      ],
+      if (record.notes != null && record.notes!.isNotEmpty)
+        'note': [
+          {'text': record.notes},
+        ],
+      'extension': [
+        {'url': 'urn:clinical-assistant:source', 'valueString': record.source},
+      ],
+    };
+  }
+
+  String _medicationInstructions(HealthRecord record) {
+    if (!record.isManual || record.category != RecordCategory.medication) {
+      return record.displayValue;
+    }
+    final details = ManualMedicationDetails.fromRecord(record);
+    return [
+      record.value,
+      if (details.frequency.isNotEmpty) details.frequency,
+      if (details.route != null) details.route,
+      if (record.status != null) record.status,
+    ].join(' · ');
   }
 
   Future<File> createVaultBackup(String backupJson) async {

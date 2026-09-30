@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/health_record.dart';
+import '../models/manual_medication_details.dart';
 
 enum ManualEntryType {
   bloodPressure('Blood Pressure', Icons.favorite_border),
@@ -9,6 +10,7 @@ enum ManualEntryType {
   weight('Body Weight', Icons.scale_outlined),
   temperature('Temperature', Icons.thermostat_outlined),
   oxygen('Oxygen (SpO2)', Icons.air_outlined),
+  medication('Medication', Icons.medication_outlined),
   custom('Custom Measurement', Icons.tune_outlined);
 
   const ManualEntryType(this.label, this.icon);
@@ -36,12 +38,16 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   final _customNameController = TextEditingController();
   final _customUnitController = TextEditingController();
   final _refRangeController = TextEditingController();
+  final _medicationFrequencyController = TextEditingController();
+  final _medicationRouteController = TextEditingController();
   final _notesController = TextEditingController();
 
   var _customCategory = RecordCategory.vital;
   var _glucoseContext = 'Fasting';
   var _weightUnit = 'lbs';
   var _tempUnit = '°F';
+  var _medicationStatus = 'active';
+  DateTime? _medicationEndDate;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -53,6 +59,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
     _customNameController.dispose();
     _customUnitController.dispose();
     _refRangeController.dispose();
+    _medicationFrequencyController.dispose();
+    _medicationRouteController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -61,7 +69,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
     setState(() {
       _selectedType = type;
       _valueController.clear();
+      _customNameController.clear();
       _refRangeController.clear();
+      _medicationFrequencyController.clear();
+      _medicationRouteController.clear();
       switch (type) {
         case ManualEntryType.glucose:
           _refRangeController.text = '70 – 99 mg/dL';
@@ -76,6 +87,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
           _refRangeController.text = _tempUnit == '°F'
               ? '97.0 – 99.0 °F'
               : '36.1 – 37.2 °C';
+          break;
+        case ManualEntryType.medication:
+          _medicationStatus = 'active';
+          _medicationEndDate = null;
           break;
         default:
           break;
@@ -108,6 +123,19 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         pickedTime.minute,
       );
     });
+  }
+
+  Future<void> _pickMedicationEndDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _medicationEndDate ?? now,
+      firstDate: DateUtils.dateOnly(_recordedAt),
+      lastDate: now,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _medicationEndDate = picked);
+    _formKey.currentState?.validate();
   }
 
   void _submit() {
@@ -240,6 +268,29 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         );
         break;
 
+      case ManualEntryType.medication:
+        final route = _medicationRouteController.text.trim();
+        final details = ManualMedicationDetails(
+          frequency: _medicationFrequencyController.text.trim(),
+          route: route.isEmpty ? null : route,
+          endDate: _medicationEndDate,
+        );
+        records.add(
+          HealthRecord(
+            id: 'manual:medication:$nowMs',
+            name: _customNameController.text.trim(),
+            value: _valueController.text.trim(),
+            unit: '',
+            recordedAt: timestamp,
+            category: RecordCategory.medication,
+            source: 'Manual Entry',
+            status: _medicationStatus,
+            sourceData: details.withSourceData(null),
+            notes: userNote,
+          ),
+        );
+        break;
+
       case ManualEntryType.custom:
         final ref = _refRangeController.text.trim();
         records.add(
@@ -265,12 +316,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dateStr = MaterialLocalizations.of(
-      context,
-    ).formatMediumDate(_recordedAt);
-    final timeStr = MaterialLocalizations.of(
-      context,
-    ).formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
+    final dateStr = MaterialLocalizations.of(context)
+        .formatMediumDate(_recordedAt);
+    final timeStr = MaterialLocalizations.of(context)
+        .formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
 
     return Padding(
       padding: EdgeInsets.only(
@@ -295,7 +344,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Log Health Measurement',
+                    _selectedType == ManualEntryType.medication
+                        ? 'Log Medication'
+                        : 'Log Health Measurement',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -350,7 +401,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Recorded at: $dateStr, $timeStr',
+                        _selectedType == ManualEntryType.medication
+                            ? 'Started: $dateStr, $timeStr'
+                            : 'Recorded at: $dateStr, $timeStr',
                         style: theme.textTheme.bodyMedium,
                       ),
                       const Spacer(),
@@ -409,6 +462,103 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                       ),
                     ),
                   ],
+                ),
+              ] else if (_selectedType == ManualEntryType.medication) ...[
+                TextFormField(
+                  key: const ValueKey('manual-medication-name'),
+                  controller: _customNameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Medication name',
+                    hintText: 'e.g. Medication name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter a medication name'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('manual-medication-dose'),
+                  controller: _valueController,
+                  decoration: const InputDecoration(
+                    labelText: 'Dose / instructions',
+                    hintText: 'e.g. 10 mg or 1 tablet',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter the dose or instructions'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('manual-medication-frequency'),
+                  controller: _medicationFrequencyController,
+                  decoration: const InputDecoration(
+                    labelText: 'Frequency',
+                    hintText: 'e.g. once daily or as needed',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter the reported frequency'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('manual-medication-route'),
+                  controller: _medicationRouteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Route (optional)',
+                    hintText: 'e.g. oral, topical, inhaled',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  key: const ValueKey('manual-medication-status'),
+                  initialValue: _medicationStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'active', child: Text('Active')),
+                    DropdownMenuItem(value: 'stopped', child: Text('Stopped')),
+                    DropdownMenuItem(value: 'on-hold', child: Text('On hold')),
+                    DropdownMenuItem(
+                      value: 'completed',
+                      child: Text('Completed'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _medicationStatus = value;
+                      if (value == 'active' || value == 'on-hold') {
+                        _medicationEndDate = null;
+                      }
+                    });
+                  },
+                  validator: (value) =>
+                      (value == 'stopped' || value == 'completed') &&
+                          _medicationEndDate == null
+                      ? 'Choose an end date'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  key: const ValueKey('manual-medication-end-date'),
+                  onPressed:
+                      _medicationStatus == 'active' ||
+                          _medicationStatus == 'on-hold'
+                      ? null
+                      : _pickMedicationEndDate,
+                  icon: const Icon(Icons.event_outlined),
+                  label: Text(
+                    _medicationEndDate == null
+                        ? 'Choose end date'
+                        : 'Ended: ${MaterialLocalizations.of(context).formatMediumDate(_medicationEndDate!)}',
+                  ),
                 ),
               ] else if (_selectedType == ManualEntryType.custom) ...[
                 TextFormField(
@@ -536,18 +686,18 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                 ),
                 if (_selectedType == ManualEntryType.glucose) ...[
                   const SizedBox(height: 12),
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Text('Context: '),
+                      const Text('Context:'),
                       for (final ctx in ['Fasting', 'Random', 'Postprandial'])
-                        Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: ChoiceChip(
-                            label: Text(ctx),
-                            selected: _glucoseContext == ctx,
-                            onSelected: (_) =>
-                                setState(() => _glucoseContext = ctx),
-                          ),
+                        ChoiceChip(
+                          label: Text(ctx),
+                          selected: _glucoseContext == ctx,
+                          onSelected: (_) =>
+                              setState(() => _glucoseContext = ctx),
                         ),
                     ],
                   ),
@@ -579,7 +729,11 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
               const SizedBox(height: 20),
               FilledButton.icon(
                 icon: const Icon(Icons.check),
-                label: const Text('Save Measurement to Vault'),
+                label: Text(
+                  _selectedType == ManualEntryType.medication
+                      ? 'Save Medication to Vault'
+                      : 'Save Measurement to Vault',
+                ),
                 onPressed: _submit,
               ),
             ],

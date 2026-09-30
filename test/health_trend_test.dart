@@ -119,6 +119,110 @@ void main() {
     },
   );
 
+  test('summarizes the latest flagged lab against its earlier result', () {
+    final records = [
+      _record(
+        'glucose-old',
+        'Blood glucose',
+        '150',
+        'mg/dL',
+        RecordCategory.lab,
+        at: DateTime.utc(2026, 9, 1),
+        referenceRange: '70–99 mg/dL',
+      ),
+      _record(
+        'glucose-latest',
+        'blood glucose',
+        '120',
+        'mg/dL',
+        RecordCategory.lab,
+        at: DateTime.utc(2026, 9, 10),
+        referenceRange: '70–99 mg/dL',
+      ),
+      _record(
+        'glucose-other-unit',
+        'Blood glucose',
+        '7',
+        'mmol/L',
+        RecordCategory.lab,
+        at: DateTime.utc(2026, 9, 11),
+        referenceRange: '3–6 mmol/L',
+      ),
+    ];
+
+    final summaries = buildLatestLabResultSummaries(records);
+    final mgSummary = summaries.singleWhere(
+      (summary) => summary.latest.record.unit == 'mg/dL',
+    );
+
+    expect(summaries, hasLength(2));
+    expect(mgSummary.latest.record.id, 'glucose-latest');
+    expect(mgSummary.previous?.record.id, 'glucose-old');
+    expect(mgSummary.latestStatus, HealthReferenceStatus.above);
+    expect(mgSummary.direction, HealthLabTrendDirection.closerToRange);
+  });
+
+  test(
+    'uses earlier history outside candidates and reports range transitions',
+    () {
+      final earlier = _record(
+        'potassium-low',
+        'Potassium',
+        '3.1',
+        'mmol/L',
+        RecordCategory.lab,
+        at: DateTime.utc(2026, 8, 1),
+        referenceRange: '3.5–5 mmol/L',
+      );
+      final inRange = _record(
+        'potassium-current',
+        'Potassium',
+        '3.8',
+        'mmol/L',
+        RecordCategory.lab,
+        at: DateTime.utc(2026, 9, 1),
+        referenceRange: '3.5–5 mmol/L',
+      );
+
+      final summary = buildLatestLabResultSummaries(
+        [earlier, inRange],
+        candidates: [inRange],
+      ).single;
+
+      expect(summary.latest.record.id, 'potassium-current');
+      expect(summary.previous?.record.id, 'potassium-low');
+      expect(summary.latestStatus, HealthReferenceStatus.within);
+      expect(summary.direction, HealthLabTrendDirection.enteredRange);
+      expect(
+        buildLatestLabResultSummaries([earlier]).single.direction,
+        HealthLabTrendDirection.unavailable,
+      );
+    },
+  );
+
+  test('does not retain an older numeric flag after a newer text result', () {
+    final numeric = _record(
+      'lab-numeric',
+      'Test result',
+      '150',
+      'mg/dL',
+      RecordCategory.lab,
+      at: DateTime.utc(2026, 9, 1),
+      referenceRange: '70–99 mg/dL',
+    );
+    final newerText = _record(
+      'lab-text',
+      'Test result',
+      'Not detected',
+      'mg/dL',
+      RecordCategory.lab,
+      at: DateTime.utc(2026, 9, 10),
+      referenceRange: '70–99 mg/dL',
+    );
+
+    expect(buildLatestLabResultSummaries([numeric, newerText]), isEmpty);
+  });
+
   test('calculates descriptive summary and a three-reading moving average', () {
     final points = [
       _point('first', 10, 0),
