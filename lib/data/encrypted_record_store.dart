@@ -8,9 +8,12 @@ import 'local_vault_directory.dart';
 import '../models/health_record.dart';
 
 class EncryptedRecordStore {
-  EncryptedRecordStore({FlutterSecureStorage? secureStorage, this._directory})
-    : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-      _algorithm = AesGcm.with256bits();
+  EncryptedRecordStore({
+    FlutterSecureStorage? secureStorage,
+    Directory? directory,
+  })  : _directory = directory,
+        _secureStorage = secureStorage ?? const FlutterSecureStorage(),
+        _algorithm = AesGcm.with256bits();
 
   static const _keyName = 'clinical_assistant_vault_key_v1';
   static const _fileName = 'records.enc';

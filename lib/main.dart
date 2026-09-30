@@ -56,18 +56,16 @@ class ClinicalAssistantApp extends StatelessWidget {
 
   ThemeData _buildTheme(Brightness brightness) {
     final isLight = brightness == Brightness.light;
-    final colorScheme =
-        ColorScheme.fromSeed(
-          seedColor: _teal,
-          brightness: brightness,
-          surface: isLight ? const Color(0xFFFAFBFA) : const Color(0xFF17211F),
-        ).copyWith(
-          onSurface: isLight ? _ink : null,
-          onSurfaceVariant: isLight ? _mutedInk : null,
-        );
-    final scaffoldBackgroundColor = isLight
-        ? const Color(0xFFF4F7F6)
-        : const Color(0xFF101816);
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: _teal,
+      brightness: brightness,
+      surface: isLight ? const Color(0xFFFAFBFA) : const Color(0xFF17211F),
+    ).copyWith(
+      onSurface: isLight ? _ink : null,
+      onSurfaceVariant: isLight ? _mutedInk : null,
+    );
+    final scaffoldBackgroundColor =
+        isLight ? const Color(0xFFF4F7F6) : const Color(0xFF101816);
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -111,8 +109,7 @@ class HealthHome extends StatefulWidget {
 
 class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
   late final _controller = widget.controller ?? HealthDataController();
-  late final _notificationManager =
-      widget.notificationManager ??
+  late final _notificationManager = widget.notificationManager ??
       LocalResultNotificationManager(onNotificationTap: _openRecords);
   final _exporter = HealthExportService();
   var _selectedIndex = 0;
@@ -288,9 +285,8 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
                 }
               }
             : null,
-        onEdit: record.isManual
-            ? () => Navigator.pop(sheetContext, true)
-            : null,
+        onEdit:
+            record.isManual ? () => Navigator.pop(sheetContext, true) : null,
         onViewInTrends: isNumeric
             ? () {
                 Navigator.pop(sheetContext);
@@ -557,8 +553,8 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     if (!mounted) return;
     final status = failures.isEmpty
         ? newRecords.isEmpty
-              ? 'Sync complete. No new records were found.'
-              : 'Sync complete. ${newRecords.length} new ${newRecords.length == 1 ? 'record' : 'records'} found.'
+            ? 'Sync complete. No new records were found.'
+            : 'Sync complete. ${newRecords.length} new ${newRecords.length == 1 ? 'record' : 'records'} found.'
         : 'Sync needs attention: ${failures.join(' · ')}';
     setState(() {
       _syncing = false;
@@ -574,7 +570,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
 
   Future<void> _runAction(
     Future<List<HealthRecord>> Function(ImportProgressCallback onProgress)
-    action,
+        action,
   ) async {
     _reportProgress(
       const ImportProgress(fraction: 0, message: 'Starting import'),
@@ -995,65 +991,65 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
           bottomNavigationBar: wide
               ? null
               : Platform.isIOS
-              ? CupertinoTabBar(
-                  currentIndex: _selectedIndex,
-                  activeColor: Theme.of(context).colorScheme.primary,
-                  onTap: (index) => setState(() => _selectedIndex = index),
-                  items: const [
-                    BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.square_grid_2x2),
-                      label: 'Overview',
+                  ? CupertinoTabBar(
+                      currentIndex: _selectedIndex,
+                      activeColor: Theme.of(context).colorScheme.primary,
+                      onTap: (index) => setState(() => _selectedIndex = index),
+                      items: const [
+                        BottomNavigationBarItem(
+                          icon: Icon(CupertinoIcons.square_grid_2x2),
+                          label: 'Overview',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(CupertinoIcons.chart_bar),
+                          label: 'Trends',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(CupertinoIcons.list_bullet),
+                          label: 'Records',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(CupertinoIcons.link),
+                          label: 'Sources',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(CupertinoIcons.square_arrow_up),
+                          label: 'Export',
+                        ),
+                      ],
+                    )
+                  : NavigationBar(
+                      selectedIndex: _selectedIndex,
+                      onDestinationSelected: (index) =>
+                          setState(() => _selectedIndex = index),
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.space_dashboard_outlined),
+                          selectedIcon: Icon(Icons.space_dashboard),
+                          label: 'Overview',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.show_chart_outlined),
+                          selectedIcon: Icon(Icons.show_chart),
+                          label: 'Trends',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.list_alt_outlined),
+                          selectedIcon: Icon(Icons.list_alt),
+                          label: 'Records',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.hub_outlined),
+                          selectedIcon: Icon(Icons.hub),
+                          label: 'Sources',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.ios_share_outlined),
+                          selectedIcon: Icon(Icons.ios_share),
+                          label: 'Export',
+                        ),
+                      ],
                     ),
-                    BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.chart_bar),
-                      label: 'Trends',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.list_bullet),
-                      label: 'Records',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.link),
-                      label: 'Sources',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(CupertinoIcons.square_arrow_up),
-                      label: 'Export',
-                    ),
-                  ],
-                )
-              : NavigationBar(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: (index) =>
-                      setState(() => _selectedIndex = index),
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.space_dashboard_outlined),
-                      selectedIcon: Icon(Icons.space_dashboard),
-                      label: 'Overview',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.show_chart_outlined),
-                      selectedIcon: Icon(Icons.show_chart),
-                      label: 'Trends',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.list_alt_outlined),
-                      selectedIcon: Icon(Icons.list_alt),
-                      label: 'Records',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.hub_outlined),
-                      selectedIcon: Icon(Icons.hub),
-                      label: 'Sources',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.ios_share_outlined),
-                      selectedIcon: Icon(Icons.ios_share),
-                      label: 'Export',
-                    ),
-                  ],
-                ),
         );
       },
     );
@@ -1069,24 +1065,21 @@ class HealthDataController extends ChangeNotifier {
     SyncValueStore? syncValueStore,
     PinnedMetricsPreferences? pinnedPreferences,
     VaultBackupService? vaultBackupService,
-  }) : _store = store ?? EncryptedRecordStore(),
-       _healthImporter = healthImporter ?? HealthPlatformImporter(),
-       _fhirImporter = fhirImporter ?? FhirPortalImporter(),
-       _syncValueStore =
-           syncValueStore ??
-           SecureSyncValueStore(
-             storage: secureStorage ?? const FlutterSecureStorage(),
-           ),
-       _pinnedPreferences =
-           pinnedPreferences ??
-           PinnedMetricsPreferences(
-             storage:
-                 syncValueStore ??
-                 SecureSyncValueStore(
-                   storage: secureStorage ?? const FlutterSecureStorage(),
-                 ),
-           ),
-       _vaultBackupService = vaultBackupService ?? VaultBackupService();
+  })  : _store = store ?? EncryptedRecordStore(),
+        _healthImporter = healthImporter ?? HealthPlatformImporter(),
+        _fhirImporter = fhirImporter ?? FhirPortalImporter(),
+        _syncValueStore = syncValueStore ??
+            SecureSyncValueStore(
+              storage: secureStorage ?? const FlutterSecureStorage(),
+            ),
+        _pinnedPreferences = pinnedPreferences ??
+            PinnedMetricsPreferences(
+              storage: syncValueStore ??
+                  SecureSyncValueStore(
+                    storage: secureStorage ?? const FlutterSecureStorage(),
+                  ),
+            ),
+        _vaultBackupService = vaultBackupService ?? VaultBackupService();
 
   static const _fhirBaseKey = 'fhir_base_url_v1';
   static const _fhirClientKey = 'fhir_client_id_v1';
@@ -1199,8 +1192,7 @@ class HealthDataController extends ChangeNotifier {
     return ForegroundSyncState(
       healthAutoSync: _readStoredBoolean(values[0], _healthAutoSyncKey),
       fhirAutoSync: _readStoredBoolean(values[1], _fhirAutoSyncKey),
-      fhirRefreshTokenAvailable:
-          values[2] != null &&
+      fhirRefreshTokenAvailable: values[2] != null &&
           values[3] != null &&
           values[4] != null &&
           values[5] != null,
@@ -1292,8 +1284,7 @@ class HealthDataController extends ChangeNotifier {
         await _syncValueStore.read(_lastHealthSyncKey),
         _lastHealthSyncKey,
       );
-      final since =
-          lastSync?.subtract(const Duration(days: 3)) ??
+      final since = lastSync?.subtract(const Duration(days: 3)) ??
           DateTime.now().subtract(const Duration(days: 30));
       final imported = await _healthImporter.importRecords(
         since: since,
@@ -1340,8 +1331,7 @@ class HealthDataController extends ChangeNotifier {
         );
       }
       final lastSync = _readStoredDate(values[6], _lastFhirSyncKey);
-      final since =
-          lastSync?.subtract(const Duration(days: 3)) ??
+      final since = lastSync?.subtract(const Duration(days: 3)) ??
           DateTime.now().subtract(const Duration(days: 30));
       final result = await _fhirImporter.refreshAndImportLabResults(
         fhirBaseUrl: baseUrl,
@@ -1379,7 +1369,8 @@ class HealthDataController extends ChangeNotifier {
     final merged = <String, HealthRecord>{
       for (final record in records) record.id: record,
       for (final record in imported) record.id: record,
-    }.values.toList()..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    }.values.toList()
+      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     await _store.save(merged);
     records = merged;
     return newlyImported;
@@ -1647,9 +1638,8 @@ class _OverviewPage extends StatelessWidget {
     // Pinned metrics
     final pinnedRecords = <HealthRecord>[];
     for (final seriesId in pinnedSeries) {
-      final matches = records
-          .where((r) => healthTrendSeriesId(r) == seriesId)
-          .toList();
+      final matches =
+          records.where((r) => healthTrendSeriesId(r) == seriesId).toList();
       if (matches.isNotEmpty) {
         matches.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
         pinnedRecords.add(matches.first);
@@ -1666,18 +1656,18 @@ class _OverviewPage extends StatelessWidget {
           Text(
             'Your health history,\nall together.',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              height: 1.06,
-              letterSpacing: -1.1,
-            ),
+                  fontWeight: FontWeight.w700,
+                  height: 1.06,
+                  letterSpacing: -1.1,
+                ),
           ),
           const SizedBox(height: 12),
           Text(
             'Bring records from your health platforms and care providers into one private place.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              height: 1.45,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
           ),
           const SizedBox(height: 16),
           Card(
@@ -1685,9 +1675,8 @@ class _OverviewPage extends StatelessWidget {
               key: const ValueKey('overview-guidelines-shortcut'),
               onTap: onOpenGuidelines,
               leading: CircleAvatar(
-                backgroundColor: Theme.of(context)
-                    .colorScheme
-                    .secondaryContainer,
+                backgroundColor:
+                    Theme.of(context).colorScheme.secondaryContainer,
                 child: Icon(
                   Icons.menu_book_outlined,
                   color: Theme.of(context).colorScheme.onSecondaryContainer,
@@ -1714,18 +1703,18 @@ class _OverviewPage extends StatelessWidget {
                     children: [
                       _IconStamp(
                         icon: Icons.lock_outline,
-                        background: Theme.of(context)
-                            .colorScheme
-                            .primaryContainer,
-                        foreground: Theme.of(context)
-                            .colorScheme
-                            .onPrimaryContainer,
+                        background:
+                            Theme.of(context).colorScheme.primaryContainer,
+                        foreground:
+                            Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Text(
                           'Kept on this device',
-                          style: Theme.of(context).textTheme.titleMedium
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -1737,8 +1726,8 @@ class _OverviewPage extends StatelessWidget {
                         ? 'Opening your encrypted record vault...'
                         : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved  ·  ${labs.length} lab ${labs.length == 1 ? 'result' : 'results'}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
                   if (syncState?.hasAutoSync == true) ...[
                     const SizedBox(height: 14),
@@ -1820,9 +1809,8 @@ class _OverviewPage extends StatelessWidget {
                                   Icon(
                                     Icons.push_pin,
                                     size: 14,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   ),
                                   const SizedBox(width: 4),
                                   Expanded(
@@ -1843,12 +1831,13 @@ class _OverviewPage extends StatelessWidget {
                               const SizedBox(height: 8),
                               Text(
                                 record.displayValue,
-                                style: Theme.of(context).textTheme.titleLarge
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
                                     ?.copyWith(
                                       fontWeight: FontWeight.w700,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                               ),
                               const SizedBox(height: 4),
@@ -1856,7 +1845,9 @@ class _OverviewPage extends StatelessWidget {
                                 MaterialLocalizations.of(
                                   context,
                                 ).formatShortDate(record.recordedAt.toLocal()),
-                                style: Theme.of(context).textTheme.bodySmall
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
                                     ?.copyWith(
                                       color: Theme.of(context)
                                           .colorScheme
@@ -1921,8 +1912,7 @@ class _OverviewPage extends StatelessWidget {
                           summary.latestStatus == HealthReferenceStatus.above
                               ? Icons.arrow_upward
                               : Icons.arrow_downward,
-                          color:
-                              summary.latestStatus ==
+                          color: summary.latestStatus ==
                                   HealthReferenceStatus.above
                               ? Colors.deepOrange
                               : Colors.blueGrey,
@@ -1993,18 +1983,16 @@ class _OverviewPage extends StatelessWidget {
               key: const ValueKey('overview-trends-list'),
               child: Column(
                 children: [
-                  for (
-                    var index = 0;
-                    index < trendSeries.take(3).length;
-                    index++
-                  ) ...[
+                  for (var index = 0;
+                      index < trendSeries.take(3).length;
+                      index++) ...[
                     _OverviewTrendRow(
                       series: trendSeries[index],
                       onTap: onViewInTrends == null
                           ? null
                           : () => onViewInTrends!(
-                              trendSeries[index].points.last.record,
-                            ),
+                                trendSeries[index].points.last.record,
+                              ),
                     ),
                     if (index < trendSeries.take(3).length - 1)
                       Divider(
@@ -2029,7 +2017,8 @@ class _OverviewPage extends StatelessWidget {
             const _QuietEmptyState(
               icon: Icons.notes_outlined,
               title: 'Your timeline starts here',
-              message: 'Imported health records and lab results will appear here with their source and date.',
+              message:
+                  'Imported health records and lab results will appear here with their source and date.',
             )
           else
             _RecordLedger(
@@ -2125,10 +2114,8 @@ class _OverviewMetricStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final categoriesCount = records
-        .map((record) => record.category)
-        .toSet()
-        .length;
+    final categoriesCount =
+        records.map((record) => record.category).toSet().length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -2194,7 +2181,7 @@ class _OverviewTrendRow extends StatelessWidget {
     final previousDate = previous == null
         ? null
         : MaterialLocalizations.of(context)
-              .formatShortDate(previous.record.recordedAt.toLocal());
+            .formatShortDate(previous.record.recordedAt.toLocal());
     final difference = previous == null ? null : latest.value - previous.value;
     final changeText = switch (difference) {
       null => 'Change unavailable',
@@ -2498,10 +2485,10 @@ class _OverviewSyncStatusBar extends StatelessWidget {
     final colors = theme.colorScheme;
     final latestSync =
         syncState.lastHealthSyncAt != null && syncState.lastFhirSyncAt != null
-        ? (syncState.lastHealthSyncAt!.isAfter(syncState.lastFhirSyncAt!)
-              ? syncState.lastHealthSyncAt
-              : syncState.lastFhirSyncAt)
-        : syncState.lastHealthSyncAt ?? syncState.lastFhirSyncAt;
+            ? (syncState.lastHealthSyncAt!.isAfter(syncState.lastFhirSyncAt!)
+                ? syncState.lastHealthSyncAt
+                : syncState.lastFhirSyncAt)
+            : syncState.lastHealthSyncAt ?? syncState.lastFhirSyncAt;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -2615,12 +2602,11 @@ class _RecordsPageState extends State<_RecordsPage> {
   @override
   Widget build(BuildContext context) {
     final query = _searchQuery.trim().toLowerCase();
-    final availableDates =
-        widget.records
-            .map((record) => DateUtils.dateOnly(record.recordedAt.toLocal()))
-            .toSet()
-            .toList()
-          ..sort((a, b) => b.compareTo(a));
+    final availableDates = widget.records
+        .map((record) => DateUtils.dateOnly(record.recordedAt.toLocal()))
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
     final filtered = widget.records.where((record) {
       if (_filter != null && record.category != _filter) return false;
       if (_selectedDateRange != null) {
@@ -2678,8 +2664,10 @@ class _RecordsPageState extends State<_RecordsPage> {
                       child: Text(
                         'A dated trail of what you’ve collected.',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                       ),
                     ),
                     if (widget.onLogRecord != null)
@@ -2853,8 +2841,10 @@ class _RecordsPageState extends State<_RecordsPage> {
                       Text(
                         'Showing ${filtered.length} of ${widget.records.length} records',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                       ),
                       TextButton(
                         style: TextButton.styleFrom(
@@ -2886,7 +2876,8 @@ class _RecordsPageState extends State<_RecordsPage> {
                   ? const _QuietEmptyState(
                       icon: Icons.manage_search,
                       title: 'No records in this view',
-                      message: 'Connect Apple Health, Health Connect, or a FHIR-enabled provider portal to import records.',
+                      message:
+                          'Connect Apple Health, Health Connect, or a FHIR-enabled provider portal to import records.',
                     )
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2894,7 +2885,8 @@ class _RecordsPageState extends State<_RecordsPage> {
                         const _QuietEmptyState(
                           icon: Icons.manage_search,
                           title: 'No matching records',
-                          message: 'Try another search term, category, or date range.',
+                          message:
+                              'Try another search term, category, or date range.',
                         ),
                         TextButton.icon(
                           onPressed: () {
@@ -3044,8 +3036,9 @@ class _RecordsPageState extends State<_RecordsPage> {
     final newStart = direction < 0 ? target : target.subtract(duration);
     final newEnd = direction < 0 ? target.add(duration) : target;
     return () => setState(
-      () => _selectedDateRange = DateTimeRange(start: newStart, end: newEnd),
-    );
+          () =>
+              _selectedDateRange = DateTimeRange(start: newStart, end: newEnd),
+        );
   }
 
   Future<void> _chooseDateRange(List<DateTime> availableDates) async {
@@ -3071,8 +3064,8 @@ class _RecordsPageState extends State<_RecordsPage> {
             datePickerTheme: theme.datePickerTheme.copyWith(
               rangePickerHeaderHeadlineStyle:
                   MediaQuery.sizeOf(context).width < 420
-                  ? theme.textTheme.titleMedium
-                  : null,
+                      ? theme.textTheme.titleMedium
+                      : null,
             ),
           ),
           child: child!,
@@ -3334,8 +3327,8 @@ class _RecordDetailsSheetState extends State<_RecordDetailsSheet> {
     final categoryColor = _categoryColor(record.category, colors);
     final medicationDetails =
         record.isManual && record.category == RecordCategory.medication
-        ? ManualMedicationDetails.fromRecord(record)
-        : null;
+            ? ManualMedicationDetails.fromRecord(record)
+            : null;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
@@ -3538,25 +3531,25 @@ class _RecordDetailsSheetState extends State<_RecordDetailsSheet> {
                   IconData statusIcon,
                 ) = switch (status) {
                   HealthReferenceStatus.within => (
-                    Colors.teal,
-                    'Within range (${record.referenceRange})',
-                    Icons.check_circle_outline,
-                  ),
+                      Colors.teal,
+                      'Within range (${record.referenceRange})',
+                      Icons.check_circle_outline,
+                    ),
                   HealthReferenceStatus.above => (
-                    Colors.deepOrange,
-                    'Above range (${record.referenceRange})',
-                    Icons.arrow_upward,
-                  ),
+                      Colors.deepOrange,
+                      'Above range (${record.referenceRange})',
+                      Icons.arrow_upward,
+                    ),
                   HealthReferenceStatus.below => (
-                    Colors.blueGrey,
-                    'Below range (${record.referenceRange})',
-                    Icons.arrow_downward,
-                  ),
+                      Colors.blueGrey,
+                      'Below range (${record.referenceRange})',
+                      Icons.arrow_downward,
+                    ),
                   HealthReferenceStatus.unspecified => (
-                    Colors.grey,
-                    '',
-                    Icons.help_outline,
-                  ),
+                      Colors.grey,
+                      '',
+                      Icons.help_outline,
+                    ),
                 };
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -3630,8 +3623,7 @@ class _RecordDetailsSheetState extends State<_RecordDetailsSheet> {
               ),
             if (record.status != null)
               _DetailLine(
-                label:
-                    record.isManual &&
+                label: record.isManual &&
                         record.category == RecordCategory.medication
                     ? 'Medication status'
                     : 'Source status',
@@ -3900,7 +3892,9 @@ class _ConnectionsPage extends StatelessWidget {
       children: [
         Text(
           'Choose what you connect. Imports stay in your encrypted on-device vault.',
-          style: Theme.of(context).textTheme.bodyLarge
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 22),
@@ -3936,10 +3930,10 @@ class _ConnectionsPage extends StatelessWidget {
           _SourcePanel(
             icon: CupertinoIcons.heart_fill,
             title: 'Apple Health',
-            description: 'Read supported measurements and stored lab results. Steps are summarized by day.',
+            description:
+                'Read supported measurements and stored lab results. Steps are summarized by day.',
             count: healthRecordCount,
-            connected:
-                healthRecordCount > 0 ||
+            connected: healthRecordCount > 0 ||
                 (syncState?.healthAutoSync == true &&
                     syncState?.lastHealthSyncAt != null),
             busy: busy,
@@ -3950,10 +3944,10 @@ class _ConnectionsPage extends StatelessWidget {
           _SourcePanel(
             icon: Icons.favorite_outline,
             title: 'Health Connect',
-            description: 'Read supported health and available lab records from Health Connect. Steps are summarized by day.',
+            description:
+                'Read supported health and available lab records from Health Connect. Steps are summarized by day.',
             count: healthRecordCount,
-            connected:
-                healthRecordCount > 0 ||
+            connected: healthRecordCount > 0 ||
                 (syncState?.healthAutoSync == true &&
                     syncState?.lastHealthSyncAt != null),
             busy: busy,
@@ -3990,8 +3984,8 @@ class _ConnectionsPage extends StatelessWidget {
                   Text(
                     '${since.year <= 1900 ? 'All available history' : 'From ${since.year}-${since.month.toString().padLeft(2, '0')}-${since.day.toString().padLeft(2, '0')}'} to today',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -3999,8 +3993,8 @@ class _ConnectionsPage extends StatelessWidget {
                         ? 'Lab results require Health Connect Medical Records support and separate permission. Health Connect may limit history to 30 days unless history access is enabled.'
                         : 'HealthKit measurements and clinical lab records use separate permission prompts. Only approved records stored in Apple Health can be imported.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                   ),
                 ],
               ),
@@ -4013,8 +4007,7 @@ class _ConnectionsPage extends StatelessWidget {
           importedCount: fhirRecordCount,
           autoSyncConfigured: syncState?.fhirAutoSync ?? false,
           syncValueStore: syncValueStore,
-          connected:
-              fhirRecordCount > 0 ||
+          connected: fhirRecordCount > 0 ||
               (syncState?.fhirAutoSync == true &&
                   syncState?.fhirRefreshTokenAvailable == true),
           onConnect: onFhirImport,
@@ -4150,7 +4143,7 @@ class _VaultRestoreSheet extends StatefulWidget {
   const _VaultRestoreSheet({required this.onRestore});
 
   final Future<void> Function(String json, String passphrase, bool replaceAll)
-  onRestore;
+      onRestore;
 
   @override
   State<_VaultRestoreSheet> createState() => _VaultRestoreSheetState();
@@ -4218,15 +4211,17 @@ class _VaultRestoreSheetState extends State<_VaultRestoreSheet> {
           children: [
             Text(
               'Restore Encrypted Vault Backup',
-              style: Theme.of(context).textTheme.titleLarge
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
               'Restore records from a passphrase-protected backup file.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -4235,7 +4230,8 @@ class _VaultRestoreSheetState extends State<_VaultRestoreSheet> {
               maxLines: 5,
               decoration: InputDecoration(
                 labelText: 'Encrypted backup JSON',
-                hintText: '{\n  "format": "clinical_assistant_vault_backup_v1",\n  ...\n}',
+                hintText:
+                    '{\n  "format": "clinical_assistant_vault_backup_v1",\n  ...\n}',
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
                   tooltip: 'Paste from clipboard',
@@ -4464,15 +4460,17 @@ class _FhirJsonImportSheetState extends State<_FhirJsonImportSheet> {
           children: [
             Text(
               'Paste FHIR JSON',
-              style: Theme.of(context).textTheme.titleLarge
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
               'Paste an Observation resource or a Bundle containing Observations.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -4690,7 +4688,9 @@ class _OperationProgressIndicator extends StatelessWidget {
                   const SizedBox(width: 12),
                   Text(
                     '$percentage%',
-                    style: Theme.of(context).textTheme.bodySmall
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ],
@@ -4767,8 +4767,8 @@ class _ForegroundSyncPanel extends StatelessWidget {
                 state?.fhirAutoSync != true
                     ? 'Off · opt in below when authorizing the portal'
                     : state?.fhirRefreshTokenAvailable == true
-                    ? 'On · refresh token stored securely on this device'
-                    : 'Needs attention · reauthorize this portal',
+                        ? 'On · refresh token stored securely on this device'
+                        : 'Needs attention · reauthorize this portal',
               ),
             ),
             if (!healthSyncAvailable)
@@ -4908,8 +4908,7 @@ class _FhirConnectionFormState extends State<_FhirConnectionForm> {
       if (!mounted) return;
       _baseController.text = values[0] ?? '';
       _clientController.text = values[1] ?? '';
-      final hasSavedRefreshToken =
-          values[2] == 'true' &&
+      final hasSavedRefreshToken = values[2] == 'true' &&
           values[3] != null &&
           values[4] != null &&
           values[5] != null &&
@@ -4917,7 +4916,8 @@ class _FhirConnectionFormState extends State<_FhirConnectionForm> {
       _rememberPortalForAutoSync = hasSavedRefreshToken;
       _savedPortalAutoSync = hasSavedRefreshToken;
       if (values[2] == 'true' && !hasSavedRefreshToken) {
-        _configError = 'Saved portal auto-sync authorization is incomplete. Reauthorize the portal to restore it.';
+        _configError =
+            'Saved portal auto-sync authorization is incomplete. Reauthorize the portal to restore it.';
       }
     } catch (error) {
       if (mounted) {
@@ -5123,7 +5123,7 @@ class _ExportPage extends StatefulWidget {
   final bool exporting;
   final ValueChanged<List<HealthRecord>> onPdf;
   final void Function(List<HealthRecord>, DateTimeRange?, String?)?
-  onDoctorVisitPdf;
+      onDoctorVisitPdf;
   final ValueChanged<List<HealthRecord>> onFhir;
   final ValueChanged<List<HealthRecord>> onCsv;
   final ValueChanged<List<HealthRecord>>? onTextSummary;
@@ -5177,10 +5177,10 @@ class _ExportPageState extends State<_ExportPage> {
   }
 
   List<HealthRecord> get _selectedRecords => selectRecordsForExport(
-    widget.records,
-    _selectedCategories,
-    dateRange: _effectiveDateRange,
-  );
+        widget.records,
+        _selectedCategories,
+        dateRange: _effectiveDateRange,
+      );
 
   Future<void> _promptDoctorVisitPdf(List<HealthRecord> records) async {
     final controller = TextEditingController();
@@ -5202,7 +5202,8 @@ class _ExportPageState extends State<_ExportPage> {
               maxLines: 4,
               decoration: const InputDecoration(
                 labelText: 'Questions for doctor (optional)',
-                hintText: 'e.g. Inquire about blood pressure changes, discuss renewing medications...',
+                hintText:
+                    'e.g. Inquire about blood pressure changes, discuss renewing medications...',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -5222,9 +5223,8 @@ class _ExportPageState extends State<_ExportPage> {
       ),
     );
     if (shouldProceed == true && mounted) {
-      final questions = controller.text.trim().isEmpty
-          ? null
-          : controller.text.trim();
+      final questions =
+          controller.text.trim().isEmpty ? null : controller.text.trim();
       widget.onDoctorVisitPdf?.call(records, _effectiveDateRange, questions);
     }
   }
@@ -5232,14 +5232,15 @@ class _ExportPageState extends State<_ExportPage> {
   @override
   Widget build(BuildContext context) {
     final selectedRecords = _selectedRecords;
-    final availableCategories = widget.records
-        .map((record) => record.category)
-        .toSet();
+    final availableCategories =
+        widget.records.map((record) => record.category).toSet();
     return _PageContent(
       children: [
         Text(
           'Choose which records to include, then create a copy or share it with someone you trust.',
-          style: Theme.of(context).textTheme.bodyLarge
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 22),
@@ -5247,7 +5248,8 @@ class _ExportPageState extends State<_ExportPage> {
           const _QuietEmptyState(
             icon: Icons.ios_share_outlined,
             title: 'Nothing to export yet',
-            message: 'Connect a source and import records first. You can choose the destination when the system share sheet opens.',
+            message:
+                'Connect a source and import records first. You can choose the destination when the system share sheet opens.',
           )
         else ...[
           _SectionHeading(
@@ -5263,12 +5265,12 @@ class _ExportPageState extends State<_ExportPage> {
                   ),
                   onPressed:
                       _selectedCategories.containsAll(availableCategories)
-                      ? null
-                      : () {
-                          setState(() {
-                            _selectedCategories.addAll(availableCategories);
-                          });
-                        },
+                          ? null
+                          : () {
+                              setState(() {
+                                _selectedCategories.addAll(availableCategories);
+                              });
+                            },
                   child: const Text('Select all'),
                 ),
                 const SizedBox(width: 4),
@@ -5354,16 +5356,15 @@ class _ExportPageState extends State<_ExportPage> {
                     onSelected: (selected) async {
                       if (!selected) return;
                       if (preset == _ExportDatePreset.custom) {
-                        final availableDates =
-                            widget.records
-                                .map(
-                                  (r) => DateUtils.dateOnly(
-                                    r.recordedAt.toLocal(),
-                                  ),
-                                )
-                                .toSet()
-                                .toList()
-                              ..sort((a, b) => b.compareTo(a));
+                        final availableDates = widget.records
+                            .map(
+                              (r) => DateUtils.dateOnly(
+                                r.recordedAt.toLocal(),
+                              ),
+                            )
+                            .toSet()
+                            .toList()
+                          ..sort((a, b) => b.compareTo(a));
                         final first = availableDates.isEmpty
                             ? DateTime(2000)
                             : availableDates.last;
@@ -5400,8 +5401,8 @@ class _ExportPageState extends State<_ExportPage> {
           Text(
             '${selectedRecords.length} of ${widget.records.length} ${widget.records.length == 1 ? 'record' : 'records'} selected',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
           if (selectedRecords.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -5430,7 +5431,8 @@ class _ExportPageState extends State<_ExportPage> {
             _ExportAction(
               icon: Icons.medical_services_outlined,
               title: 'Doctor visit preparation sheet',
-              detail: 'Concise visit summary with vital signs, flagged lab results, and your discussion questions',
+              detail:
+                  'Concise visit summary with vital signs, flagged lab results, and your discussion questions',
               buttonText: 'Prepare visit PDF',
               onPressed: widget.exporting || selectedRecords.isEmpty
                   ? null
@@ -5443,17 +5445,16 @@ class _ExportPageState extends State<_ExportPage> {
             _ExportAction(
               icon: Icons.article_outlined,
               title: 'Clinical text summary',
-              detail: 'Formatted plain-text document ideal for clinician notes or secure messages',
+              detail:
+                  'Formatted plain-text document ideal for clinician notes or secure messages',
               buttonText: 'Share TXT',
-              onPressed:
-                  widget.exporting ||
+              onPressed: widget.exporting ||
                       selectedRecords.isEmpty ||
                       widget.onTextSummary == null
                   ? null
                   : () => widget.onTextSummary!(selectedRecords),
               secondaryButtonText: 'Copy text',
-              onSecondaryPressed:
-                  widget.exporting ||
+              onSecondaryPressed: widget.exporting ||
                       selectedRecords.isEmpty ||
                       widget.onCopyTextSummary == null
                   ? null
@@ -5485,7 +5486,8 @@ class _ExportPageState extends State<_ExportPage> {
             _ExportAction(
               icon: Icons.shield_outlined,
               title: 'Encrypted vault backup',
-              detail: 'Passphrase-protected AES-256 encrypted file containing all your records, notes, and metadata',
+              detail:
+                  'Passphrase-protected AES-256 encrypted file containing all your records, notes, and metadata',
               buttonText: 'Export encrypted vault',
               onPressed: widget.exporting || widget.records.isEmpty
                   ? null
@@ -5494,7 +5496,8 @@ class _ExportPageState extends State<_ExportPage> {
           ],
           const SizedBox(height: 16),
           const _PrivacyNote(
-            text: 'Exports are created temporarily on this device. They leave the app only if you choose a destination in the system share sheet.',
+            text:
+                'Exports are created temporarily on this device. They leave the app only if you choose a destination in the system share sheet.',
           ),
         ],
       ],
@@ -5651,7 +5654,9 @@ class _SourcePanel extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context).textTheme.titleMedium
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -5668,8 +5673,8 @@ class _SourcePanel extends StatelessWidget {
             Text(
               'Data types available depend on your device, permissions, and connected apps.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: 14),
             FilledButton.icon(
@@ -5710,9 +5715,9 @@ class _ConnectionStatusPill extends StatelessWidget {
           Text(
             'Connected',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colors.onPrimaryContainer,
-              fontWeight: FontWeight.w600,
-            ),
+                  color: colors.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ],
       ),
@@ -5732,7 +5737,8 @@ class _RecordLedger extends StatelessWidget {
       return const _QuietEmptyState(
         icon: Icons.timeline_outlined,
         title: 'No records yet',
-        message: 'When you connect a source, its records will be organized here by date.',
+        message:
+            'When you connect a source, its records will be organized here by date.',
       );
     }
     return Column(
@@ -5741,9 +5747,8 @@ class _RecordLedger extends StatelessWidget {
           _RecordRow(
             record: records[index],
             isLast: index == records.length - 1,
-            onTap: onTapRecord != null
-                ? () => onTapRecord!(records[index])
-                : null,
+            onTap:
+                onTapRecord != null ? () => onTapRecord!(records[index]) : null,
           ),
       ],
     );
@@ -5803,7 +5808,9 @@ class _RecordRow extends StatelessWidget {
                 children: [
                   Text(
                     record.name,
-                    style: Theme.of(context).textTheme.titleSmall
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 3),
@@ -5811,7 +5818,9 @@ class _RecordRow extends StatelessWidget {
                     '${_formatRecordDate(record.recordedAt)}  ·  ${record.source}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
                         ?.copyWith(color: colors.onSurfaceVariant),
                   ),
                 ],
@@ -5821,7 +5830,9 @@ class _RecordRow extends StatelessWidget {
             Text(
               record.displayValue,
               textAlign: TextAlign.end,
-              style: Theme.of(context).textTheme.titleSmall
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
           ],
@@ -5881,16 +5892,18 @@ class _QuietEmptyState extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleMedium
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 5),
                 Text(
                   message,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    height: 1.4,
-                  ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.4,
+                      ),
                 ),
               ],
             ),
@@ -5951,11 +5964,13 @@ class _SectionHeading extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: Theme.of(context).textTheme.titleLarge
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
                 ?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
-        ?trailing,
+        if (trailing != null) trailing!,
       ],
     );
   }
@@ -6061,8 +6076,8 @@ class _DetailLine extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ),
           Expanded(child: Text(value)),
@@ -6073,17 +6088,17 @@ class _DetailLine extends StatelessWidget {
 }
 
 String _categoryLabel(RecordCategory category) => switch (category) {
-  RecordCategory.lab => 'Labs',
-  RecordCategory.vital => 'Vitals',
-  RecordCategory.activity => 'Activity',
-  RecordCategory.sleep => 'Sleep',
-  RecordCategory.nutrition => 'Nutrition',
-  RecordCategory.cycleTracking => 'Cycle tracking',
-  RecordCategory.medication => 'Medications',
-  RecordCategory.condition => 'Conditions',
-  RecordCategory.allergy => 'Allergies',
-  RecordCategory.immunization => 'Immunizations',
-};
+      RecordCategory.lab => 'Labs',
+      RecordCategory.vital => 'Vitals',
+      RecordCategory.activity => 'Activity',
+      RecordCategory.sleep => 'Sleep',
+      RecordCategory.nutrition => 'Nutrition',
+      RecordCategory.cycleTracking => 'Cycle tracking',
+      RecordCategory.medication => 'Medications',
+      RecordCategory.condition => 'Conditions',
+      RecordCategory.allergy => 'Allergies',
+      RecordCategory.immunization => 'Immunizations',
+    };
 
 String _formatRecordDate(DateTime date) {
   final local = date.toLocal();
@@ -6097,17 +6112,17 @@ String _displayError(Object error) {
 }
 
 IconData _categoryIcon(RecordCategory category) => switch (category) {
-  RecordCategory.lab => Icons.science_outlined,
-  RecordCategory.vital => Icons.monitor_heart_outlined,
-  RecordCategory.activity => Icons.directions_walk_outlined,
-  RecordCategory.sleep => Icons.bedtime_outlined,
-  RecordCategory.nutrition => Icons.restaurant_outlined,
-  RecordCategory.cycleTracking => Icons.water_drop_outlined,
-  RecordCategory.medication => Icons.medication_outlined,
-  RecordCategory.condition => Icons.health_and_safety_outlined,
-  RecordCategory.allergy => Icons.warning_amber_outlined,
-  RecordCategory.immunization => Icons.vaccines_outlined,
-};
+      RecordCategory.lab => Icons.science_outlined,
+      RecordCategory.vital => Icons.monitor_heart_outlined,
+      RecordCategory.activity => Icons.directions_walk_outlined,
+      RecordCategory.sleep => Icons.bedtime_outlined,
+      RecordCategory.nutrition => Icons.restaurant_outlined,
+      RecordCategory.cycleTracking => Icons.water_drop_outlined,
+      RecordCategory.medication => Icons.medication_outlined,
+      RecordCategory.condition => Icons.health_and_safety_outlined,
+      RecordCategory.allergy => Icons.warning_amber_outlined,
+      RecordCategory.immunization => Icons.vaccines_outlined,
+    };
 
 Color _categoryColor(RecordCategory category, ColorScheme colors) {
   return switch (category) {

@@ -27,9 +27,10 @@ class FhirPortalImporter {
   FhirPortalImporter({
     FlutterAppAuth? appAuth,
     http.Client? client,
-    this._parser = const FhirObservationParser(),
-  }) : _appAuth = appAuth ?? const FlutterAppAuth(),
-       _client = client ?? http.Client();
+    FhirObservationParser? parser,
+  })  : _parser = parser ?? const FhirObservationParser(),
+        _appAuth = appAuth ?? const FlutterAppAuth(),
+        _client = client ?? http.Client();
 
   static const redirectUri =
       'com.aymericgrassart.clinicalassistant:/oauth2redirect';
@@ -117,9 +118,8 @@ class FhirPortalImporter {
       tokenResponse.tokenAdditionalParameters?['patient']?.toString(),
       'The provider did not grant a patient context. Launch the connection from your patient portal or choose a provider that supports standalone patient access.',
     );
-    final refreshToken = requestRefreshToken
-        ? _nonEmpty(tokenResponse.refreshToken)
-        : null;
+    final refreshToken =
+        requestRefreshToken ? _nonEmpty(tokenResponse.refreshToken) : null;
 
     final typesToImport = resourceTypes ?? const ['Observation'];
     onProgress?.call(
@@ -317,9 +317,8 @@ class FhirPortalImporter {
       if (since != null && resourceType == 'Observation')
         'date': 'ge${since.toUtc().toIso8601String()}',
     };
-    final resourceUri = base
-        .resolve(resourceType)
-        .replace(queryParameters: query);
+    final resourceUri =
+        base.resolve(resourceType).replace(queryParameters: query);
     final records = <HealthRecord>[];
     var nextUri = resourceUri;
     final expectedOrigin = base.origin;
@@ -382,8 +381,8 @@ class FhirPortalImporter {
       final progressFraction = totalEntries == null
           ? 0.05
           : (0.05 + 0.8 * completedEntries / totalEntries)
-                .clamp(0.05, 0.85)
-                .toDouble();
+              .clamp(0.05, 0.85)
+              .toDouble();
       onProgress?.call(
         ImportProgress(
           fraction: progressFraction,
@@ -396,8 +395,8 @@ class FhirPortalImporter {
       final links = decoded['link'];
       if (links is! List) break;
       final nextLink = links.whereType<Map>().where(
-        (link) => link['relation'] == 'next',
-      );
+            (link) => link['relation'] == 'next',
+          );
       if (nextLink.isEmpty) break;
       final nextUrl = nextLink.first['url']?.toString();
       if (nextUrl == null || nextUrl.isEmpty) break;

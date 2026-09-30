@@ -54,9 +54,9 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
         ? allSeries
         : allSeries.where((series) => series.category == _category).toList();
     final selectedSeries = visibleSeries.cast<HealthTrendSeries?>().firstWhere(
-      (series) => series?.id == _selectedSeriesId,
-      orElse: () => visibleSeries.isEmpty ? null : visibleSeries.first,
-    );
+          (series) => series?.id == _selectedSeriesId,
+          orElse: () => visibleSeries.isEmpty ? null : visibleSeries.first,
+        );
     final selectedPoints = selectedSeries == null
         ? const <HealthTrendPoint>[]
         : pointsWithinRange(
@@ -66,9 +66,8 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
           );
     final orderedPoints = [...selectedPoints]
       ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
-    final summary = orderedPoints.isEmpty
-        ? null
-        : summarizeHealthTrend(orderedPoints);
+    final summary =
+        orderedPoints.isEmpty ? null : summarizeHealthTrend(orderedPoints);
 
     return Align(
       alignment: Alignment.topCenter,
@@ -85,21 +84,26 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                   children: [
                     Text(
                       'Follow a reading over time.',
-                      style: Theme.of(context).textTheme.headlineSmall
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Recorded values are shown as collected, without clinical interpretation.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        height: 1.4,
-                      ),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            height: 1.4,
+                          ),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       'Record type',
-                      style: Theme.of(context).textTheme.titleSmall
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
@@ -157,18 +161,21 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                     else if (allSeries.isEmpty)
                       const _TrendEmptyState(
                         title: 'No numeric readings to chart',
-                        message: 'Import lab results, vital measurements, or activity totals to explore their recorded values over time.',
+                        message:
+                            'Import lab results, vital measurements, or activity totals to explore their recorded values over time.',
                       )
                     else if (visibleSeries.isEmpty)
                       _TrendEmptyState(
                         title:
                             'No ${_categoryLabel(_category!).toLowerCase()} with numeric readings',
-                        message: 'Choose another record type or import more readings.',
+                        message:
+                            'Choose another record type or import more readings.',
                       )
                     else if (orderedPoints.isEmpty)
                       _TrendEmptyState(
                         title: 'No readings in this time range',
-                        message: 'Try a longer range to include earlier measurements.',
+                        message:
+                            'Try a longer range to include earlier measurements.',
                         action: TextButton(
                           onPressed: () =>
                               setState(() => _range = _TrendRange.all),
@@ -368,7 +375,9 @@ class _MeasurementPickerSheetState extends State<_MeasurementPickerSheet> {
             children: [
               Text(
                 'Choose a measurement',
-                style: Theme.of(context).textTheme.titleLarge
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 14),
@@ -428,9 +437,8 @@ class _MeasurementPickerSheetState extends State<_MeasurementPickerSheet> {
                             trailing: selected
                                 ? Icon(
                                     Icons.check,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   )
                                 : null,
                             onTap: () => Navigator.of(context).pop(series.id),
@@ -460,7 +468,9 @@ class _SelectedReadingHeading extends StatelessWidget {
       children: [
         Text(
           series.name,
-          style: Theme.of(context).textTheme.titleLarge
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
@@ -470,20 +480,24 @@ class _SelectedReadingHeading extends StatelessWidget {
           children: [
             Text(
               latest.displayValue,
-              style: Theme.of(context).textTheme.headlineMedium
+              style: Theme.of(context)
+                  .textTheme
+                  .headlineMedium
                   ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.7),
             ),
             Text(
               'Latest · ${MaterialLocalizations.of(context).formatMediumDate(latest.recordedAt.toLocal())}',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ],
         ),
         Text(
           '${_categoryLabel(series.category)} · ${latest.source}',
-          style: Theme.of(context).textTheme.bodySmall
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
@@ -544,9 +558,8 @@ class _TrendChartPanelState extends State<_TrendChartPanel> {
       points,
       unit: points.first.record.unit,
     );
-    final suppliedRangeCount = points
-        .where((point) => point.record.referenceRange != null)
-        .length;
+    final suppliedRangeCount =
+        points.where((point) => point.record.referenceRange != null).length;
     final unplottedRangeCount = suppliedRangeCount - referenceMarks.length;
     final averages = showMovingAverage
         ? _sampleValues(movingAverageValues(points))
@@ -558,8 +571,8 @@ class _TrendChartPanelState extends State<_TrendChartPanel> {
 
     final inspectedPoint =
         _inspectedIndex != null && _inspectedIndex! < points.length
-        ? points[_inspectedIndex!]
-        : null;
+            ? points[_inspectedIndex!]
+            : null;
 
     return Card(
       child: Padding(
@@ -573,7 +586,9 @@ class _TrendChartPanelState extends State<_TrendChartPanel> {
               children: [
                 Text(
                   'Recorded values',
-                  style: Theme.of(context).textTheme.titleMedium
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 FilterChip(
@@ -626,18 +641,14 @@ class _TrendChartPanelState extends State<_TrendChartPanel> {
                             inspectedIndex: _inspectedIndex,
                             inspectedPoint: inspectedPoint,
                             color: Theme.of(context).colorScheme.primary,
-                            averageColor: Theme.of(context)
-                                .colorScheme
-                                .secondary,
-                            referenceColor: Theme.of(context)
-                                .colorScheme
-                                .tertiary,
-                            gridColor: Theme.of(context)
-                                .colorScheme
-                                .outlineVariant,
-                            textColor: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            averageColor:
+                                Theme.of(context).colorScheme.secondary,
+                            referenceColor:
+                                Theme.of(context).colorScheme.tertiary,
+                            gridColor:
+                                Theme.of(context).colorScheme.outlineVariant,
+                            textColor:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       );
@@ -672,8 +683,8 @@ class _TrendChartPanelState extends State<_TrendChartPanel> {
                 unplottedRanges: unplottedRangeCount,
               ),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
             if (showMovingAverage || referenceMarks.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -885,8 +896,10 @@ class _TrendChartPainter extends CustomPainter {
     final values = [
       ...points.map((point) => point.value),
       ...averages,
-      for (final mark in referenceMarks) ?mark.range.lowerBound,
-      for (final mark in referenceMarks) ?mark.range.upperBound,
+      for (final mark in referenceMarks)
+        if (mark.range.lowerBound case final lower?) lower,
+      for (final mark in referenceMarks)
+        if (mark.range.upperBound case final upper?) upper,
     ];
     var minimum = values.reduce((a, b) => a < b ? a : b);
     var maximum = values.reduce((a, b) => a > b ? a : b);
@@ -914,8 +927,7 @@ class _TrendChartPainter extends CustomPainter {
     }
 
     Offset pointOffset(double index, double value) {
-      final x =
-          plot.left +
+      final x = plot.left +
           (totalPoints <= 1 ? 0.5 : index / (totalPoints - 1)) * plot.width;
       final y =
           plot.bottom - (value - minimum) / (maximum - minimum) * plot.height;
@@ -1001,8 +1013,7 @@ class _TrendChartPainter extends CustomPainter {
     if (averages.isNotEmpty && totalPoints >= 3) {
       final averageLine = Path();
       for (var index = 0; index < averages.length; index++) {
-        final averageIndex =
-            2.0 +
+        final averageIndex = 2.0 +
             (averages.length == 1
                 ? 0.0
                 : index * (totalPoints - 3) / (averages.length - 1));
@@ -1082,8 +1093,8 @@ class _TrendIndicators extends StatelessWidget {
     final changeValue = change == null
         ? '—'
         : summary.percentChange == null
-        ? '${change >= 0 ? '+' : ''}${_formatTrendValue(change)}'
-        : '${change >= 0 ? '+' : ''}${summary.percentChange!.toStringAsFixed(1)}%';
+            ? '${change >= 0 ? '+' : ''}${_formatTrendValue(change)}'
+            : '${change >= 0 ? '+' : ''}${summary.percentChange!.toStringAsFixed(1)}%';
     final changeLabel = summary.previous == null
         ? 'Need another reading'
         : 'Since previous reading';
@@ -1116,7 +1127,9 @@ class _TrendIndicators extends StatelessWidget {
                   color: Theme.of(context).colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant
                         .withValues(alpha: 0.6),
                   ),
                 ),
@@ -1130,7 +1143,9 @@ class _TrendIndicators extends StatelessWidget {
                             fields[index].$1,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelMedium
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
                                 ?.copyWith(
                                   color: Theme.of(context)
                                       .colorScheme
@@ -1145,16 +1160,16 @@ class _TrendIndicators extends StatelessWidget {
                             change > 0
                                 ? Icons.trending_up
                                 : change < 0
-                                ? Icons.trending_down
-                                : Icons.trending_flat,
+                                    ? Icons.trending_down
+                                    : Icons.trending_flat,
                             size: 16,
                             color: change > 0
                                 ? Theme.of(context).colorScheme.primary
                                 : change < 0
-                                ? Theme.of(context).colorScheme.secondary
-                                : Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                    ? Theme.of(context).colorScheme.secondary
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                           ),
                         ],
                       ],
@@ -1164,7 +1179,9 @@ class _TrendIndicators extends StatelessWidget {
                       fields[index].$2,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 2),
@@ -1173,8 +1190,9 @@ class _TrendIndicators extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
                   ],
                 ),
@@ -1201,7 +1219,9 @@ class _RecentTrendReadings extends StatelessWidget {
       children: [
         Text(
           'Latest readings',
-          style: Theme.of(context).textTheme.titleMedium
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
@@ -1241,8 +1261,10 @@ class _RecentTrendReadings extends StatelessWidget {
                       Text(
                         point.record.status!,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                       ),
                     if (onRecordTap != null)
                       const Icon(Icons.chevron_right, size: 18),
@@ -1258,8 +1280,8 @@ class _RecentTrendReadings extends StatelessWidget {
             child: Text(
               'Showing the latest ${recent.length} of ${points.length} readings in this range.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ),
       ],
@@ -1292,16 +1314,18 @@ class _TrendEmptyState extends StatelessWidget {
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.titleMedium
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
                 ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
             message,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              height: 1.4,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
           ),
           if (action != null) ...[const SizedBox(height: 8), action!],
         ],
@@ -1317,10 +1341,10 @@ class _LegendDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 9,
-    height: 9,
-    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-  );
+        width: 9,
+        height: 9,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
 }
 
 class _ReferenceRangeLegend extends StatelessWidget {
@@ -1330,10 +1354,10 @@ class _ReferenceRangeLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 12,
-    height: 14,
-    child: CustomPaint(painter: _ReferenceRangeLegendPainter(color)),
-  );
+        width: 12,
+        height: 14,
+        child: CustomPaint(painter: _ReferenceRangeLegendPainter(color)),
+      );
 }
 
 class _ReferenceRangeLegendPainter extends CustomPainter {
@@ -1374,17 +1398,17 @@ enum _TrendRange {
 }
 
 String _categoryLabel(RecordCategory category) => switch (category) {
-  RecordCategory.lab => 'Labs',
-  RecordCategory.vital => 'Vitals',
-  RecordCategory.activity => 'Activities',
-  RecordCategory.sleep => 'Sleep',
-  RecordCategory.nutrition => 'Nutrition',
-  RecordCategory.cycleTracking => 'Cycle tracking',
-  RecordCategory.medication => 'Medications',
-  RecordCategory.condition => 'Conditions',
-  RecordCategory.allergy => 'Allergies',
-  RecordCategory.immunization => 'Immunizations',
-};
+      RecordCategory.lab => 'Labs',
+      RecordCategory.vital => 'Vitals',
+      RecordCategory.activity => 'Activities',
+      RecordCategory.sleep => 'Sleep',
+      RecordCategory.nutrition => 'Nutrition',
+      RecordCategory.cycleTracking => 'Cycle tracking',
+      RecordCategory.medication => 'Medications',
+      RecordCategory.condition => 'Conditions',
+      RecordCategory.allergy => 'Allergies',
+      RecordCategory.immunization => 'Immunizations',
+    };
 
 String _formatTrendValue(double value) => formatSensibleNumber(value);
 
