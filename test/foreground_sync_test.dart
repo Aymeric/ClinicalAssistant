@@ -205,6 +205,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.hub_outlined));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Sync enabled sources now'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sync enabled sources now'));
     await tester.pumpAndSettle();
     expect(fhirImporter.refreshCount, 2);

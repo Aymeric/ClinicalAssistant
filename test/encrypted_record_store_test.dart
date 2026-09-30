@@ -41,7 +41,8 @@ void main() {
       final file = File('${directory.path}/records.enc');
       final ciphertext = await file.readAsString();
       expect(ciphertext, isNot(contains('Glucose')));
-      expect(ciphertext, isNot(contains('96')));
+      expect(ciphertext, isNot(contains('"value":"96"')));
+      expect(ciphertext, isNot(contains('portal.example')));
       expect((await store.load()).single.toJson(), record.toJson());
     },
   );

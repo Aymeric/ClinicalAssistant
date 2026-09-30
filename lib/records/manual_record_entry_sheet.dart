@@ -181,10 +181,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         break;
 
       case ManualEntryType.glucose:
-        final fullNote = [
-          'Context: $_glucoseContext',
-          if (userNote != null) userNote,
-        ].join(' · ');
+        final fullNote = ['Context: $_glucoseContext', ?userNote].join(' · ');
         records.add(
           HealthRecord(
             id: 'manual:glucose:$nowMs',

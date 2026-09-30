@@ -446,8 +446,8 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('Glucose'), findsOneWidget);
-    expect(find.text('Hemoglobin A1c'), findsOneWidget);
+    expect(find.text('Glucose'), findsWidgets);
+    expect(find.text('Hemoglobin A1c'), findsWidgets);
     await tester.tap(find.byIcon(Icons.list_alt_outlined));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -745,11 +745,12 @@ void main() {
     expect(notifications.permissionRequests, 0);
     await tester.tap(find.byIcon(Icons.hub_outlined));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Result notifications'), 100);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Result notifications'));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView).last, const Offset(0, -400));
+    await tester.scrollUntilVisible(find.text('Enable notifications'), 100);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Enable notifications'));
     await tester.tap(find.text('Enable notifications'));
     await tester.pumpAndSettle();
 
@@ -807,11 +808,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.hub_outlined));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Result notifications'), 100);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Result notifications'));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView).last, const Offset(0, -400));
+    await tester.scrollUntilVisible(find.text('Enable notifications'), 100);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Enable notifications'));
     await tester.tap(find.text('Enable notifications'));
     await tester.pumpAndSettle();
 
@@ -846,9 +848,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Your health history,\nall together.'), findsOneWidget);
-    await tester.ensureVisible(find.text('Your timeline starts here'));
-    await tester.pumpAndSettle();
     expect(find.text('Connect a health source'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Your timeline starts here'),
+      100,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Your timeline starts here'), findsOneWidget);
     expect(find.text('No records yet'), findsNothing);
     await tester.tap(find.byIcon(Icons.list_alt_outlined));

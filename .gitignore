@@ -34,3 +34,5 @@ key.properties
 *.mobileprovision
 ios/ExportOptions.plist
 
+# Test coverage
+coverage/
