@@ -436,10 +436,12 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty)
+                          if (val == null || val.trim().isEmpty) {
                             return 'Required';
-                          if (double.tryParse(val.trim()) == null)
+                          }
+                          if (double.tryParse(val.trim()) == null) {
                             return 'Invalid number';
+                          }
                           return null;
                         },
                       ),
@@ -455,10 +457,12 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty)
+                          if (val == null || val.trim().isEmpty) {
                             return 'Required';
-                          if (double.tryParse(val.trim()) == null)
+                          }
+                          if (double.tryParse(val.trim()) == null) {
                             return 'Invalid number';
+                          }
                           return null;
                         },
                       ),
@@ -645,10 +649,12 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           border: const OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty)
+                          if (val == null || val.trim().isEmpty) {
                             return 'Required';
-                          if (double.tryParse(val.trim()) == null)
+                          }
+                          if (double.tryParse(val.trim()) == null) {
                             return 'Invalid number';
+                          }
                           return null;
                         },
                       ),
