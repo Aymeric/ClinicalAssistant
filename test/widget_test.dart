@@ -78,6 +78,277 @@ void main() {
     expect(find.byKey(const ValueKey('record-search')), findsOneWidget);
   });
 
+  testWidgets('flags only latest out-of-range labs with dated trend context', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    HealthRecord lab(
+      String id,
+      String name,
+      String value,
+      int day,
+      String referenceRange,
+    ) => HealthRecord(
+      id: id,
+      name: name,
+      value: value,
+      unit: name == 'Blood glucose' ? 'mg/dL' : '%',
+      recordedAt: DateTime(2026, 9, day, 12),
+      category: RecordCategory.lab,
+      source: 'Test lab',
+      referenceRange: referenceRange,
+    );
+
+    final controller = HealthDataController(
+      store: _MemoryRecordStore([
+        lab('glucose-old', 'Blood glucose', '150', 1, '70–99 mg/dL'),
+        lab('glucose-latest', 'Blood glucose', '120', 10, '70–99 mg/dL'),
+        lab('a1c-old', 'Hemoglobin A1c', '6.5', 2, '4–5.6 %'),
+        lab('a1c-latest', 'Hemoglobin A1c', '5.4', 11, '4–5.6 %'),
+      ]),
+      fhirImporter: FhirPortalImporter(
+        client: MockClient((_) async {
+          throw StateError(
+            'No network request was expected in this widget test.',
+          );
+        }),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: HealthHome(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Flagged lab results'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 currently out of range'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('flagged-lab-glucose-latest')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('flagged-lab-a1c-latest')), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('flagged-lab-glucose-latest')),
+        matching: find.textContaining('120 mg/dL'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Reference range: 70–99 mg/dL'), findsOneWidget);
+    final flaggedResult = find.byKey(
+      const ValueKey('flagged-lab-glucose-latest'),
+    );
+    expect(
+      find.descendant(
+        of: flaggedResult,
+        matching: find.textContaining('Sep 10, 2026'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: flaggedResult,
+        matching: find.textContaining('Previous Sep 1, 2026'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Moved closer to range'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shows recent numeric trends and opens the selected series', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    HealthRecord reading(
+      String id,
+      String name,
+      String value,
+      String unit,
+      RecordCategory category,
+      int day,
+    ) => HealthRecord(
+      id: id,
+      name: name,
+      value: value,
+      unit: unit,
+      recordedAt: DateTime(2026, 9, day, 12),
+      category: category,
+      source: 'Test source',
+    );
+
+    final controller = HealthDataController(
+      store: _MemoryRecordStore([
+        reading(
+          'glucose-previous',
+          'Blood glucose',
+          '100',
+          'mg/dL',
+          RecordCategory.vital,
+          1,
+        ),
+        reading(
+          'glucose-latest',
+          'Blood glucose',
+          '105',
+          'mg/dL',
+          RecordCategory.vital,
+          10,
+        ),
+        reading(
+          'creatinine-previous',
+          'Serum creatinine',
+          '1.0',
+          'mg/dL',
+          RecordCategory.lab,
+          2,
+        ),
+        reading(
+          'creatinine-latest',
+          'Serum creatinine',
+          '1.2',
+          'mg/dL',
+          RecordCategory.lab,
+          12,
+        ),
+        reading(
+          'steps-previous',
+          'Steps',
+          '7000',
+          'count',
+          RecordCategory.activity,
+          3,
+        ),
+        reading(
+          'steps-latest',
+          'Steps',
+          '8000',
+          'count',
+          RecordCategory.activity,
+          13,
+        ),
+        reading(
+          'heart-previous',
+          'Heart rate',
+          '60',
+          'bpm',
+          RecordCategory.vital,
+          4,
+        ),
+        reading(
+          'heart-latest',
+          'Heart rate',
+          '72',
+          'bpm',
+          RecordCategory.vital,
+          14,
+        ),
+      ]),
+      fhirImporter: FhirPortalImporter(
+        client: MockClient((_) async {
+          throw StateError(
+            'No network request was expected in this widget test.',
+          );
+        }),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: HealthHome(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('overview-trends-view-all')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('overview-trend-heart-latest')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('overview-trend-steps-latest')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('overview-trend-creatinine-latest')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('overview-trend-glucose-latest')),
+      findsNothing,
+    );
+    expect(find.textContaining('Change: +12 bpm'), findsOneWidget);
+    expect(
+      find.textContaining('Previous 60 bpm on Sep 4, 2026'),
+      findsOneWidget,
+    );
+    expect(find.text('Sep 14, 2026'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('overview-trend-heart-latest')),
+    );
+    await tester.tap(find.byKey(const ValueKey('overview-trend-heart-latest')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Follow a reading over time.'), findsOneWidget);
+    expect(find.text('Heart rate (bpm)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shows an empty Trends prompt and opens the trends screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final controller = HealthDataController(
+      store: _MemoryRecordStore(),
+      fhirImporter: FhirPortalImporter(
+        client: MockClient((_) async {
+          throw StateError(
+            'No network request was expected in this widget test.',
+          );
+        }),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: HealthHome(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('overview-trends-view-all')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No numeric readings yet'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('overview-trends-view-all')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No numeric readings to chart'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('opens guidelines from Overview and Sources without a new tab', (
     tester,
   ) async {

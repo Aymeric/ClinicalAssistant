@@ -35,6 +35,16 @@ void main() {
         referenceRange: '< 80 mmHg',
       ),
       HealthRecord(
+        id: 'lab-glucose-prior',
+        name: 'Blood Glucose',
+        value: '165',
+        unit: 'mg/dL',
+        recordedAt: now.subtract(const Duration(days: 30)),
+        category: RecordCategory.lab,
+        source: 'Hospital Portal',
+        referenceRange: '70 - 99 mg/dL',
+      ),
+      HealthRecord(
         id: 'lab-glucose',
         name: 'Blood Glucose',
         value: '145',
@@ -71,7 +81,9 @@ void main() {
   });
 
   test('handles empty records list gracefully', () async {
-    final doc = await exportService.buildDoctorVisitSummaryPdfDocument(const []);
+    final doc = await exportService.buildDoctorVisitSummaryPdfDocument(
+      const [],
+    );
     final bytes = await doc.save();
     expect(bytes, isNotEmpty);
     expect(bytes.length, greaterThan(500));

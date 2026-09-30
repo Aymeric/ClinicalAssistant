@@ -21,8 +21,7 @@ class HealthReferenceRange {
   static HealthReferenceRange? tryParse(
     String? raw, {
     String expectedUnit = '',
-  }) =>
-      parseHealthReferenceRange(raw, expectedUnit: expectedUnit);
+  }) => parseHealthReferenceRange(raw, expectedUnit: expectedUnit);
 
   HealthReferenceStatus evaluate(double value) {
     if (upperBound != null && value > upperBound!) {
@@ -88,11 +87,194 @@ class HealthTrendSummary {
   }
 }
 
+enum HealthLabTrendDirection {
+  closerToRange('Moved closer to range'),
+  fartherFromRange('Moved farther from range'),
+  enteredRange('Now within range'),
+  leftRange('Now outside range'),
+  shiftedAcrossRange('Shifted across the reference range'),
+  unchanged('No change in distance from range'),
+  unavailable('Range-relative trend unavailable');
+
+  const HealthLabTrendDirection(this.label);
+  final String label;
+}
+
+class HealthLabResultSummary {
+  const HealthLabResultSummary({
+    required this.latest,
+    required this.latestRange,
+    required this.latestStatus,
+    required this.previous,
+    required this.previousRange,
+    required this.previousStatus,
+    required this.direction,
+  });
+
+  final HealthTrendPoint latest;
+  final HealthReferenceRange? latestRange;
+  final HealthReferenceStatus latestStatus;
+  final HealthTrendPoint? previous;
+  final HealthReferenceRange? previousRange;
+  final HealthReferenceStatus? previousStatus;
+  final HealthLabTrendDirection direction;
+}
+
 String healthTrendSeriesId(HealthRecord record) => [
   record.category.name,
   record.name.trim().toLowerCase(),
   record.unit,
 ].join('\u0000');
+
+List<HealthLabResultSummary> buildLatestLabResultSummaries(
+  Iterable<HealthRecord> records, {
+  Iterable<HealthRecord>? candidates,
+}) {
+  final recordsBySeries = <String, List<HealthTrendPoint>>{};
+  for (final record in records) {
+    if (record.category != RecordCategory.lab) continue;
+    final value = parseHealthRecordValue(record.value);
+    if (value == null) continue;
+    recordsBySeries
+        .putIfAbsent(healthTrendSeriesId(record), () => [])
+        .add(HealthTrendPoint(record: record, value: value));
+  }
+  for (final series in recordsBySeries.values) {
+    series.sort(_compareHealthTrendPoints);
+  }
+
+  final candidatesBySeries = <String, List<HealthRecord>>{};
+  for (final record in candidates ?? records) {
+    if (record.category != RecordCategory.lab) continue;
+    candidatesBySeries
+        .putIfAbsent(healthTrendSeriesId(record), () => [])
+        .add(record);
+  }
+
+  final summaries = <HealthLabResultSummary>[];
+  for (final entry in candidatesBySeries.entries) {
+    final candidates = entry.value..sort(_compareHealthRecords);
+    final latestRecord = candidates.last;
+    final latestValue = parseHealthRecordValue(latestRecord.value);
+    if (latestValue == null) continue;
+    final latest = HealthTrendPoint(record: latestRecord, value: latestValue);
+    final earlierPoints = recordsBySeries[entry.key] ?? const [];
+    final earlierIndex = earlierPoints.lastIndexWhere(
+      (point) => point.record.recordedAt.isBefore(latest.record.recordedAt),
+    );
+    final previous = earlierIndex < 0 ? null : earlierPoints[earlierIndex];
+    final latestRange = parseHealthReferenceRange(
+      latest.record.referenceRange,
+      expectedUnit: latest.record.unit,
+    );
+    final previousRange = previous == null
+        ? null
+        : parseHealthReferenceRange(
+            previous.record.referenceRange,
+            expectedUnit: previous.record.unit,
+          );
+    final latestStatus =
+        latestRange?.evaluate(latest.value) ??
+        HealthReferenceStatus.unspecified;
+    final previousStatus = previous == null
+        ? null
+        : previousRange?.evaluate(previous.value) ??
+              HealthReferenceStatus.unspecified;
+
+    summaries.add(
+      HealthLabResultSummary(
+        latest: latest,
+        latestRange: latestRange,
+        latestStatus: latestStatus,
+        previous: previous,
+        previousRange: previousRange,
+        previousStatus: previousStatus,
+        direction: _labTrendDirection(
+          latest: latest,
+          latestRange: latestRange,
+          latestStatus: latestStatus,
+          previous: previous,
+          previousRange: previousRange,
+          previousStatus: previousStatus,
+        ),
+      ),
+    );
+  }
+  summaries.sort((a, b) => _compareHealthTrendPoints(b.latest, a.latest));
+  return summaries;
+}
+
+int _compareHealthTrendPoints(HealthTrendPoint a, HealthTrendPoint b) {
+  return _compareHealthRecords(a.record, b.record);
+}
+
+int _compareHealthRecords(HealthRecord a, HealthRecord b) {
+  final dateOrder = a.recordedAt.compareTo(b.recordedAt);
+  return dateOrder != 0 ? dateOrder : a.id.compareTo(b.id);
+}
+
+HealthLabTrendDirection _labTrendDirection({
+  required HealthTrendPoint latest,
+  required HealthReferenceRange? latestRange,
+  required HealthReferenceStatus latestStatus,
+  required HealthTrendPoint? previous,
+  required HealthReferenceRange? previousRange,
+  required HealthReferenceStatus? previousStatus,
+}) {
+  if (previous == null ||
+      latestRange == null ||
+      previousRange == null ||
+      previousStatus == null) {
+    return HealthLabTrendDirection.unavailable;
+  }
+  if (previousStatus == HealthReferenceStatus.unspecified ||
+      latestStatus == HealthReferenceStatus.unspecified) {
+    return HealthLabTrendDirection.unavailable;
+  }
+
+  final previousWasWithin = previousStatus == HealthReferenceStatus.within;
+  final latestIsWithin = latestStatus == HealthReferenceStatus.within;
+  if (!previousWasWithin && latestIsWithin) {
+    return HealthLabTrendDirection.enteredRange;
+  }
+  if (previousWasWithin && !latestIsWithin) {
+    return HealthLabTrendDirection.leftRange;
+  }
+  if (previousStatus != latestStatus) {
+    return HealthLabTrendDirection.shiftedAcrossRange;
+  }
+
+  final previousDistance = _distanceFromRange(
+    previous.value,
+    previousRange,
+    previousStatus,
+  );
+  final latestDistance = _distanceFromRange(
+    latest.value,
+    latestRange,
+    latestStatus,
+  );
+  if (latestDistance < previousDistance) {
+    return HealthLabTrendDirection.closerToRange;
+  }
+  if (latestDistance > previousDistance) {
+    return HealthLabTrendDirection.fartherFromRange;
+  }
+  return HealthLabTrendDirection.unchanged;
+}
+
+double _distanceFromRange(
+  double value,
+  HealthReferenceRange range,
+  HealthReferenceStatus status,
+) {
+  return switch (status) {
+    HealthReferenceStatus.above => value - range.upperBound!,
+    HealthReferenceStatus.below => range.lowerBound! - value,
+    HealthReferenceStatus.within => 0,
+    HealthReferenceStatus.unspecified => double.infinity,
+  };
+}
 
 List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
   final groups = <String, List<HealthRecord>>{};
@@ -129,7 +311,6 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
   });
   return series;
 }
-
 
 HealthReferenceRange? parseHealthReferenceRange(
   String? sourceText, {
