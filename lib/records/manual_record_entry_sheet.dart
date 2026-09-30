@@ -316,10 +316,12 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dateStr = MaterialLocalizations.of(context)
-        .formatMediumDate(_recordedAt);
-    final timeStr = MaterialLocalizations.of(context)
-        .formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
+    final dateStr = MaterialLocalizations.of(
+      context,
+    ).formatMediumDate(_recordedAt);
+    final timeStr = MaterialLocalizations.of(
+      context,
+    ).formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
 
     return Padding(
       padding: EdgeInsets.only(
@@ -434,10 +436,12 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty)
+                          if (val == null || val.trim().isEmpty) {
                             return 'Required';
-                          if (double.tryParse(val.trim()) == null)
+                          }
+                          if (double.tryParse(val.trim()) == null) {
                             return 'Invalid number';
+                          }
                           return null;
                         },
                       ),
@@ -453,10 +457,12 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty)
+                          if (val == null || val.trim().isEmpty) {
                             return 'Required';
-                          if (double.tryParse(val.trim()) == null)
+                          }
+                          if (double.tryParse(val.trim()) == null) {
                             return 'Invalid number';
+                          }
                           return null;
                         },
                       ),
@@ -644,10 +650,12 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           border: const OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty)
+                          if (val == null || val.trim().isEmpty) {
                             return 'Required';
-                          if (double.tryParse(val.trim()) == null)
+                          }
+                          if (double.tryParse(val.trim()) == null) {
                             return 'Invalid number';
+                          }
                           return null;
                         },
                       ),

@@ -63,8 +63,9 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
         children: [
           Text(
             'Evidence-based sources',
-            style: Theme.of(context).textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
@@ -125,8 +126,9 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
           const SizedBox(height: 16),
           Text(
             'Topic',
-            style: Theme.of(context).textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(
@@ -222,36 +224,41 @@ class _GuidelineSourceCard extends StatelessWidget {
                 _SourceStatusLabel(status: source.status),
                 Text(
                   source.jurisdiction.label,
-                  style: Theme.of(context).textTheme.labelMedium
-                      ?.copyWith(color: colors.onSurfaceVariant),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
             Text(
               source.name,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
             Text(
               source.publisher,
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: colors.onSurfaceVariant),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 10),
             Text(source.description),
             const SizedBox(height: 10),
             Text(
               'Scope: ${source.audience}',
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: colors.onSurfaceVariant),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
               source.statusNote,
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: colors.onSurfaceVariant),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 6),
             Align(
@@ -294,8 +301,9 @@ class _SourceStatusLabel extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             status.label,
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),

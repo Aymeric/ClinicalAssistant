@@ -12,41 +12,44 @@ void main() {
   const parser = FhirObservationParser();
 
   group('FhirObservationParser clinical resources expansion', () {
-    test('parses MedicationRequest with dosage instruction, RxNorm code, and notes', () {
-      final json = jsonEncode({
-        'resourceType': 'MedicationRequest',
-        'id': 'med-101',
-        'status': 'active',
-        'authoredOn': '2026-05-10T10:00:00Z',
-        'medicationCodeableConcept': {
-          'coding': [
-            {
-              'system': 'http://www.nlm.nih.gov/research/umls/rxnorm',
-              'code': '866514',
-              'display': 'Metformin hydrochloride 500 MG Oral Tablet',
-            },
+    test(
+      'parses MedicationRequest with dosage instruction, RxNorm code, and notes',
+      () {
+        final json = jsonEncode({
+          'resourceType': 'MedicationRequest',
+          'id': 'med-101',
+          'status': 'active',
+          'authoredOn': '2026-05-10T10:00:00Z',
+          'medicationCodeableConcept': {
+            'coding': [
+              {
+                'system': 'http://www.nlm.nih.gov/research/umls/rxnorm',
+                'code': '866514',
+                'display': 'Metformin hydrochloride 500 MG Oral Tablet',
+              },
+            ],
+            'text': 'Metformin 500mg',
+          },
+          'dosageInstruction': [
+            {'text': 'Take 1 tablet twice daily with meals'},
           ],
-          'text': 'Metformin 500mg',
-        },
-        'dosageInstruction': [
-          {'text': 'Take 1 tablet twice daily with meals'},
-        ],
-        'note': [
-          {'text': 'Prescribed for glucose management'},
-        ],
-      });
+          'note': [
+            {'text': 'Prescribed for glucose management'},
+          ],
+        });
 
-      final records = parser.parseJson(json, source: 'Portal Clinic');
-      expect(records, hasLength(1));
-      final record = records.first;
-      expect(record.category, RecordCategory.medication);
-      expect(record.name, 'Metformin 500mg');
-      expect(record.value, 'Take 1 tablet twice daily with meals');
-      expect(record.code, '866514');
-      expect(record.notes, 'Prescribed for glucose management');
-      expect(record.source, 'Portal Clinic');
-      expect(record.status, 'active');
-    });
+        final records = parser.parseJson(json, source: 'Portal Clinic');
+        expect(records, hasLength(1));
+        final record = records.first;
+        expect(record.category, RecordCategory.medication);
+        expect(record.name, 'Metformin 500mg');
+        expect(record.value, 'Take 1 tablet twice daily with meals');
+        expect(record.code, '866514');
+        expect(record.notes, 'Prescribed for glucose management');
+        expect(record.source, 'Portal Clinic');
+        expect(record.status, 'active');
+      },
+    );
 
     test(
       'parses MedicationStatement with reference fallback and reported status',
@@ -229,164 +232,170 @@ void main() {
       expect(record.notes, 'Booster dose administered in left deltoid');
     });
 
-    test('parses comprehensive bundle with observations, medications, conditions, allergies, and immunizations', () {
-      final bundle = {
-        'resourceType': 'Bundle',
-        'entry': [
-          {
-            'resource': {
-              'resourceType': 'Observation',
-              'id': 'obs-1',
-              'status': 'final',
-              'code': {'text': 'Hemoglobin A1c'},
-              'valueQuantity': {'value': 5.8, 'unit': '%'},
-              'effectiveDateTime': '2026-08-01T10:00:00Z',
+    test(
+      'parses comprehensive bundle with observations, medications, conditions, allergies, and immunizations',
+      () {
+        final bundle = {
+          'resourceType': 'Bundle',
+          'entry': [
+            {
+              'resource': {
+                'resourceType': 'Observation',
+                'id': 'obs-1',
+                'status': 'final',
+                'code': {'text': 'Hemoglobin A1c'},
+                'valueQuantity': {'value': 5.8, 'unit': '%'},
+                'effectiveDateTime': '2026-08-01T10:00:00Z',
+              },
             },
-          },
-          {
-            'resource': {
-              'resourceType': 'MedicationRequest',
-              'id': 'med-1',
-              'status': 'active',
-              'code': {'text': 'Atorvastatin 20mg'},
-              'authoredOn': '2026-08-01T10:05:00Z',
-              'dosageInstruction': [
-                {'text': 'Take 1 tablet daily at bedtime'},
-              ],
+            {
+              'resource': {
+                'resourceType': 'MedicationRequest',
+                'id': 'med-1',
+                'status': 'active',
+                'code': {'text': 'Atorvastatin 20mg'},
+                'authoredOn': '2026-08-01T10:05:00Z',
+                'dosageInstruction': [
+                  {'text': 'Take 1 tablet daily at bedtime'},
+                ],
+              },
             },
-          },
-          {
-            'resource': {
-              'resourceType': 'Condition',
-              'id': 'cond-1',
-              'clinicalStatus': {'text': 'Active'},
-              'code': {'text': 'Hyperlipidemia'},
-              'recordedDate': '2026-08-01T10:10:00Z',
+            {
+              'resource': {
+                'resourceType': 'Condition',
+                'id': 'cond-1',
+                'clinicalStatus': {'text': 'Active'},
+                'code': {'text': 'Hyperlipidemia'},
+                'recordedDate': '2026-08-01T10:10:00Z',
+              },
             },
-          },
-          {
-            'resource': {
-              'resourceType': 'AllergyIntolerance',
-              'id': 'all-1',
-              'clinicalStatus': {'text': 'Active'},
-              'code': {'text': 'Latex'},
-              'recordedDate': '2026-08-01T10:15:00Z',
+            {
+              'resource': {
+                'resourceType': 'AllergyIntolerance',
+                'id': 'all-1',
+                'clinicalStatus': {'text': 'Active'},
+                'code': {'text': 'Latex'},
+                'recordedDate': '2026-08-01T10:15:00Z',
+              },
             },
-          },
-          {
-            'resource': {
-              'resourceType': 'Immunization',
-              'id': 'imm-1',
-              'status': 'completed',
-              'vaccineCode': {'text': 'Influenza seasonal'},
-              'occurrenceDateTime': '2026-08-01T10:20:00Z',
+            {
+              'resource': {
+                'resourceType': 'Immunization',
+                'id': 'imm-1',
+                'status': 'completed',
+                'vaccineCode': {'text': 'Influenza seasonal'},
+                'occurrenceDateTime': '2026-08-01T10:20:00Z',
+              },
             },
-          },
-        ],
-      };
+          ],
+        };
 
-      final records = parser.parseBundle(bundle, source: 'Memorial Hospital');
-      expect(records, hasLength(5));
-      final categories = records.map((r) => r.category).toSet();
-      expect(categories, contains(RecordCategory.lab));
-      expect(categories, contains(RecordCategory.medication));
-      expect(categories, contains(RecordCategory.condition));
-      expect(categories, contains(RecordCategory.allergy));
-      expect(categories, contains(RecordCategory.immunization));
-    });
+        final records = parser.parseBundle(bundle, source: 'Memorial Hospital');
+        expect(records, hasLength(5));
+        final categories = records.map((r) => r.category).toSet();
+        expect(categories, contains(RecordCategory.lab));
+        expect(categories, contains(RecordCategory.medication));
+        expect(categories, contains(RecordCategory.condition));
+        expect(categories, contains(RecordCategory.allergy));
+        expect(categories, contains(RecordCategory.immunization));
+      },
+    );
   });
 
   group('FhirPortalImporter multi-resource syncing', () {
-    test('gracefully continues when an optional clinical resource endpoint returns 404 or 403', () async {
-      final requestedPaths = <String>[];
-      final importer = FhirPortalImporter(
-        appAuth: _FakeAppAuth(),
-        client: MockClient((request) async {
-          final path = request.url.path;
-          requestedPaths.add(path);
-          if (path.endsWith('/.well-known/smart-configuration')) {
-            return http.Response(
-              jsonEncode({
-                'authorization_endpoint': 'https://auth.example/authorize',
-                'token_endpoint': 'https://auth.example/token',
-              }),
-              200,
-            );
-          }
-          if (path.endsWith('/Observation')) {
-            return http.Response(
-              jsonEncode({
-                'resourceType': 'Bundle',
-                'entry': [
-                  {
-                    'resource': {
-                      'resourceType': 'Observation',
-                      'id': 'lab-10',
-                      'status': 'final',
-                      'code': {'text': 'Potassium'},
-                      'effectiveDateTime': '2026-09-01T00:00:00Z',
-                      'valueQuantity': {'value': 4.2, 'unit': 'mmol/L'},
+    test(
+      'gracefully continues when an optional clinical resource endpoint returns 404 or 403',
+      () async {
+        final requestedPaths = <String>[];
+        final importer = FhirPortalImporter(
+          appAuth: _FakeAppAuth(),
+          client: MockClient((request) async {
+            final path = request.url.path;
+            requestedPaths.add(path);
+            if (path.endsWith('/.well-known/smart-configuration')) {
+              return http.Response(
+                jsonEncode({
+                  'authorization_endpoint': 'https://auth.example/authorize',
+                  'token_endpoint': 'https://auth.example/token',
+                }),
+                200,
+              );
+            }
+            if (path.endsWith('/Observation')) {
+              return http.Response(
+                jsonEncode({
+                  'resourceType': 'Bundle',
+                  'entry': [
+                    {
+                      'resource': {
+                        'resourceType': 'Observation',
+                        'id': 'lab-10',
+                        'status': 'final',
+                        'code': {'text': 'Potassium'},
+                        'effectiveDateTime': '2026-09-01T00:00:00Z',
+                        'valueQuantity': {'value': 4.2, 'unit': 'mmol/L'},
+                      },
                     },
-                  },
-                ],
-              }),
-              200,
-            );
-          }
-          if (path.endsWith('/MedicationRequest')) {
-            // Server does not support MedicationRequest (404)
-            return http.Response(
-              '{"resourceType": "OperationOutcome", "issue": []}',
-              404,
-            );
-          }
-          if (path.endsWith('/Condition')) {
-            // User does not have condition read permissions (403)
-            return http.Response('Forbidden', 403);
-          }
-          if (path.endsWith('/AllergyIntolerance')) {
-            return http.Response(
-              jsonEncode({
-                'resourceType': 'Bundle',
-                'entry': [
-                  {
-                    'resource': {
-                      'resourceType': 'AllergyIntolerance',
-                      'id': 'allergy-10',
-                      'code': {'text': 'Sulfa'},
-                      'clinicalStatus': {'text': 'Active'},
-                      'recordedDate': '2026-09-01T00:00:00Z',
+                  ],
+                }),
+                200,
+              );
+            }
+            if (path.endsWith('/MedicationRequest')) {
+              // Server does not support MedicationRequest (404)
+              return http.Response(
+                '{"resourceType": "OperationOutcome", "issue": []}',
+                404,
+              );
+            }
+            if (path.endsWith('/Condition')) {
+              // User does not have condition read permissions (403)
+              return http.Response('Forbidden', 403);
+            }
+            if (path.endsWith('/AllergyIntolerance')) {
+              return http.Response(
+                jsonEncode({
+                  'resourceType': 'Bundle',
+                  'entry': [
+                    {
+                      'resource': {
+                        'resourceType': 'AllergyIntolerance',
+                        'id': 'allergy-10',
+                        'code': {'text': 'Sulfa'},
+                        'clinicalStatus': {'text': 'Active'},
+                        'recordedDate': '2026-09-01T00:00:00Z',
+                      },
                     },
-                  },
-                ],
-              }),
-              200,
-            );
-          }
-          if (path.endsWith('/Immunization')) {
-            return http.Response('Not Implemented', 501);
-          }
-          return http.Response('Not Found', 404);
-        }),
-      );
+                  ],
+                }),
+                200,
+              );
+            }
+            if (path.endsWith('/Immunization')) {
+              return http.Response('Not Implemented', 501);
+            }
+            return http.Response('Not Found', 404);
+          }),
+        );
 
-      final result = await importer.refreshAndImportLabResults(
-        fhirBaseUrl: 'https://fhir.example/api',
-        clientId: 'client-1',
-        patientId: 'patient-99',
-        refreshToken: 'refresh-token',
-        authorizationEndpoint: 'https://auth.example/authorize',
-        tokenEndpoint: 'https://auth.example/token',
-        since: DateTime.utc(2026, 1, 1),
-        resourceTypes: FhirPortalImporter.clinicalResourceTypes,
-        onRefreshTokenUpdated: (_) async {},
-      );
+        final result = await importer.refreshAndImportLabResults(
+          fhirBaseUrl: 'https://fhir.example/api',
+          clientId: 'client-1',
+          patientId: 'patient-99',
+          refreshToken: 'refresh-token',
+          authorizationEndpoint: 'https://auth.example/authorize',
+          tokenEndpoint: 'https://auth.example/token',
+          since: DateTime.utc(2026, 1, 1),
+          resourceTypes: FhirPortalImporter.clinicalResourceTypes,
+          onRefreshTokenUpdated: (_) async {},
+        );
 
-      expect(result.records, hasLength(2));
-      final names = result.records.map((r) => r.name).toList();
-      expect(names, contains('Potassium'));
-      expect(names, contains('Sulfa'));
-    });
+        expect(result.records, hasLength(2));
+        final names = result.records.map((r) => r.name).toList();
+        expect(names, contains('Potassium'));
+        expect(names, contains('Sulfa'));
+      },
+    );
   });
 }
 

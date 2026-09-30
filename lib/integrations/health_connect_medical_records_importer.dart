@@ -5,9 +5,8 @@ import 'package:flutter/services.dart';
 import '../models/health_record.dart';
 import 'fhir_observation_parser.dart';
 
-typedef HealthConnectMedicalRecordsStatusCallback = void Function(
-  String message,
-);
+typedef HealthConnectMedicalRecordsStatusCallback =
+    void Function(String message);
 
 class HealthConnectMedicalRecordsImporter {
   HealthConnectMedicalRecordsImporter({

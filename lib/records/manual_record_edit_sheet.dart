@@ -79,8 +79,9 @@ List<HealthRecord> applyManualRecordEdits(
         );
       }
       if (details.endDate != null &&
-          DateUtils.dateOnly(details.endDate!.toLocal())
-              .isBefore(DateUtils.dateOnly(edit.recordedAt.toLocal()))) {
+          DateUtils.dateOnly(
+            details.endDate!.toLocal(),
+          ).isBefore(DateUtils.dateOnly(edit.recordedAt.toLocal()))) {
         throw StateError(
           'Medication end date cannot be before its start date.',
         );
@@ -287,10 +288,12 @@ class _ManualRecordEditSheetState extends State<ManualRecordEditSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final date = MaterialLocalizations.of(context)
-        .formatMediumDate(_recordedAt);
-    final time = MaterialLocalizations.of(context)
-        .formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
+    final date = MaterialLocalizations.of(
+      context,
+    ).formatMediumDate(_recordedAt);
+    final time = MaterialLocalizations.of(
+      context,
+    ).formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
 
     return Padding(
       padding: EdgeInsets.fromLTRB(

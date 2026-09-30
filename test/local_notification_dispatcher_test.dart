@@ -3,21 +3,24 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('initializes successfully even when plugin returns false (iOS deferred permissions)', () async {
-    final fakePlugin = _FakeFlutterLocalNotificationsPlugin(
-      initializeResult: false,
-    );
-    final dispatcher = FlutterLocalNotificationDispatcher(plugin: fakePlugin);
+  test(
+    'initializes successfully even when plugin returns false (iOS deferred permissions)',
+    () async {
+      final fakePlugin = _FakeFlutterLocalNotificationsPlugin(
+        initializeResult: false,
+      );
+      final dispatcher = FlutterLocalNotificationDispatcher(plugin: fakePlugin);
 
-    var tapped = false;
-    await expectLater(
-      dispatcher.initialize(onNotificationTap: () => tapped = true),
-      completes,
-    );
+      var tapped = false;
+      await expectLater(
+        dispatcher.initialize(onNotificationTap: () => tapped = true),
+        completes,
+      );
 
-    expect(fakePlugin.initializeCount, 1);
-    expect(tapped, isFalse);
-  });
+      expect(fakePlugin.initializeCount, 1);
+      expect(tapped, isFalse);
+    },
+  );
 
   test('does not re-initialize if already initialized', () async {
     final fakePlugin = _FakeFlutterLocalNotificationsPlugin(
