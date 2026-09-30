@@ -61,14 +61,15 @@ class _FakeFlutterLocalNotificationsPlugin
     required InitializationSettings settings,
     DidReceiveNotificationResponseCallback? onDidReceiveNotificationResponse,
     DidReceiveBackgroundNotificationResponseCallback?
-        onDidReceiveBackgroundNotificationResponse,
+    onDidReceiveBackgroundNotificationResponse,
   }) async {
     initializeCount++;
     return initializeResult;
   }
 
   @override
-  Future<NotificationAppLaunchDetails?> getNotificationAppLaunchDetails() async {
+  Future<NotificationAppLaunchDetails?>
+  getNotificationAppLaunchDetails() async {
     return launchDetails;
   }
 

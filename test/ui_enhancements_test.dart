@@ -107,68 +107,69 @@ void main() {
     expect(betaY < gammaY, isTrue);
   });
 
-  testWidgets('overview category badge navigates to records with category filter', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(420, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'overview category badge navigates to records with category filter',
+    (tester) async {
+      tester.view.physicalSize = const Size(420, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final records = [
-      HealthRecord(
-        id: 'vital:1',
-        name: 'Resting heart rate',
-        value: '68',
-        unit: 'bpm',
-        recordedAt: DateTime.utc(2025, 5, 10),
-        category: RecordCategory.vital,
-        source: 'Health Connect',
-      ),
-      HealthRecord(
-        id: 'lab:1',
-        name: 'Serum Potassium',
-        value: '4.2',
-        unit: 'mmol/L',
-        recordedAt: DateTime.utc(2025, 5, 8),
-        category: RecordCategory.lab,
-        source: 'Hospital Lab',
-      ),
-    ];
+      final records = [
+        HealthRecord(
+          id: 'vital:1',
+          name: 'Resting heart rate',
+          value: '68',
+          unit: 'bpm',
+          recordedAt: DateTime.utc(2025, 5, 10),
+          category: RecordCategory.vital,
+          source: 'Health Connect',
+        ),
+        HealthRecord(
+          id: 'lab:1',
+          name: 'Serum Potassium',
+          value: '4.2',
+          unit: 'mmol/L',
+          recordedAt: DateTime.utc(2025, 5, 8),
+          category: RecordCategory.lab,
+          source: 'Hospital Lab',
+        ),
+      ];
 
-    final controller = HealthDataController(
-      store: _MemoryRecordStore(records),
-      fhirImporter: FhirPortalImporter(
-        client: MockClient((_) async => throw StateError('No net')),
-      ),
-    );
+      final controller = HealthDataController(
+        store: _MemoryRecordStore(records),
+        fhirImporter: FhirPortalImporter(
+          client: MockClient((_) async => throw StateError('No net')),
+        ),
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(home: HealthHome(controller: controller)),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(home: HealthHome(controller: controller)),
+      );
+      await tester.pumpAndSettle();
 
-    // Scroll to Category breakdown in Overview
-    await tester.scrollUntilVisible(
-      find.text('Categories'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
+      // Scroll to Category breakdown in Overview
+      await tester.scrollUntilVisible(
+        find.text('Categories'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Categories'), findsOneWidget);
-    expect(find.text('Vitals'), findsWidgets);
-    expect(find.text('Labs'), findsWidgets);
+      expect(find.text('Categories'), findsOneWidget);
+      expect(find.text('Vitals'), findsWidgets);
+      expect(find.text('Labs'), findsWidgets);
 
-    // Tap on the Vitals badge in Overview
-    await tester.tap(find.text('Vitals').first);
-    await tester.pumpAndSettle();
+      // Tap on the Vitals badge in Overview
+      await tester.tap(find.text('Vitals').first);
+      await tester.pumpAndSettle();
 
-    // Verify we navigated to Records tab and Vitals filter is active
-    expect(find.byKey(const ValueKey('record-search')), findsOneWidget);
-    expect(find.text('Resting heart rate'), findsOneWidget);
-    expect(find.text('Serum Potassium'), findsNothing);
-  });
+      // Verify we navigated to Records tab and Vitals filter is active
+      expect(find.byKey(const ValueKey('record-search')), findsOneWidget);
+      expect(find.text('Resting heart rate'), findsOneWidget);
+      expect(find.text('Serum Potassium'), findsNothing);
+    },
+  );
 
   testWidgets(
     'record detail modal bottom sheet opens with copy actions and raw JSON inspector',
@@ -194,7 +195,11 @@ void main() {
           'resourceType': 'Observation',
           'id': 'obs-potassium-01',
           'status': 'final',
-          'code': {'coding': [{'system': 'http://loinc.org', 'code': '2823-3'}]},
+          'code': {
+            'coding': [
+              {'system': 'http://loinc.org', 'code': '2823-3'},
+            ],
+          },
         },
       );
 
@@ -264,54 +269,55 @@ void main() {
     },
   );
 
-  testWidgets('record details sheet View in Trends shortcut jumps to Trends tab', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(420, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'record details sheet View in Trends shortcut jumps to Trends tab',
+    (tester) async {
+      tester.view.physicalSize = const Size(420, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final record = HealthRecord(
-      id: 'vital:pulse',
-      name: 'Pulse rate',
-      value: '72',
-      unit: 'bpm',
-      recordedAt: DateTime.utc(2025, 5, 8, 9, 0),
-      category: RecordCategory.vital,
-      source: 'Apple Health',
-    );
+      final record = HealthRecord(
+        id: 'vital:pulse',
+        name: 'Pulse rate',
+        value: '72',
+        unit: 'bpm',
+        recordedAt: DateTime.utc(2025, 5, 8, 9, 0),
+        category: RecordCategory.vital,
+        source: 'Apple Health',
+      );
 
-    final controller = HealthDataController(
-      store: _MemoryRecordStore([record]),
-      fhirImporter: FhirPortalImporter(
-        client: MockClient((_) async => throw StateError('No net')),
-      ),
-    );
+      final controller = HealthDataController(
+        store: _MemoryRecordStore([record]),
+        fhirImporter: FhirPortalImporter(
+          client: MockClient((_) async => throw StateError('No net')),
+        ),
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(home: HealthHome(controller: controller)),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(home: HealthHome(controller: controller)),
+      );
+      await tester.pumpAndSettle();
 
-    // Go to records tab
-    await tester.tap(find.byIcon(Icons.list_alt_outlined));
-    await tester.pumpAndSettle();
+      // Go to records tab
+      await tester.tap(find.byIcon(Icons.list_alt_outlined));
+      await tester.pumpAndSettle();
 
-    // Tap record to open sheet
-    await tester.tap(find.text('Pulse rate'));
-    await tester.pumpAndSettle();
+      // Tap record to open sheet
+      await tester.tap(find.text('Pulse rate'));
+      await tester.pumpAndSettle();
 
-    // Tap 'View in Trends'
-    expect(find.text('View in Trends'), findsOneWidget);
-    await tester.tap(find.text('View in Trends'));
-    await tester.pumpAndSettle();
+      // Tap 'View in Trends'
+      expect(find.text('View in Trends'), findsOneWidget);
+      await tester.tap(find.text('View in Trends'));
+      await tester.pumpAndSettle();
 
-    // Sheet should be closed and Trends page should be active
-    expect(find.text('Follow a reading over time.'), findsOneWidget);
-    expect(find.text('Pulse rate'), findsOneWidget);
-    expect(find.textContaining('Pulse rate'), findsNWidgets(2));
-  });
+      // Sheet should be closed and Trends page should be active
+      expect(find.text('Follow a reading over time.'), findsOneWidget);
+      expect(find.text('Pulse rate'), findsOneWidget);
+      expect(find.textContaining('Pulse rate'), findsNWidgets(2));
+    },
+  );
 
   testWidgets(
     'trend chart scrubbing displays point banner with source and reference info and dismisses',
@@ -644,108 +650,109 @@ void main() {
     },
   );
 
-  testWidgets('manual record detail can edit a pair; imported detail is read-only', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(420, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'manual record detail can edit a pair; imported detail is read-only',
+    (tester) async {
+      tester.view.physicalSize = const Size(420, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final timestamp = DateTime.now().subtract(const Duration(days: 1));
-    final systolic = HealthRecord(
-      id: 'manual:sys:123',
-      name: 'Systolic Blood Pressure',
-      value: '120',
-      unit: 'mmHg',
-      recordedAt: timestamp,
-      category: RecordCategory.vital,
-      source: 'Manual Entry',
-    );
-    final diastolic = HealthRecord(
-      id: 'manual:dia:123',
-      name: 'Diastolic Blood Pressure',
-      value: '80',
-      unit: 'mmHg',
-      recordedAt: timestamp,
-      category: RecordCategory.vital,
-      source: 'Manual Entry',
-    );
-    final imported = HealthRecord(
-      id: 'health:hr:123',
-      name: 'Resting Heart Rate',
-      value: '64',
-      unit: 'bpm',
-      recordedAt: timestamp,
-      category: RecordCategory.vital,
-      source: 'Apple Health',
-    );
-    final store = _RecordingRecordStore([systolic, diastolic, imported]);
-    final controller = HealthDataController(
-      store: store,
-      fhirImporter: FhirPortalImporter(
-        client: MockClient((_) async => throw StateError('No net')),
-      ),
-    );
+      final timestamp = DateTime.now().subtract(const Duration(days: 1));
+      final systolic = HealthRecord(
+        id: 'manual:sys:123',
+        name: 'Systolic Blood Pressure',
+        value: '120',
+        unit: 'mmHg',
+        recordedAt: timestamp,
+        category: RecordCategory.vital,
+        source: 'Manual Entry',
+      );
+      final diastolic = HealthRecord(
+        id: 'manual:dia:123',
+        name: 'Diastolic Blood Pressure',
+        value: '80',
+        unit: 'mmHg',
+        recordedAt: timestamp,
+        category: RecordCategory.vital,
+        source: 'Manual Entry',
+      );
+      final imported = HealthRecord(
+        id: 'health:hr:123',
+        name: 'Resting Heart Rate',
+        value: '64',
+        unit: 'bpm',
+        recordedAt: timestamp,
+        category: RecordCategory.vital,
+        source: 'Apple Health',
+      );
+      final store = _RecordingRecordStore([systolic, diastolic, imported]);
+      final controller = HealthDataController(
+        store: store,
+        fhirImporter: FhirPortalImporter(
+          client: MockClient((_) async => throw StateError('No net')),
+        ),
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(home: HealthHome(controller: controller)),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.list_alt_outlined));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Systolic Blood Pressure'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Edit manual record'));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(home: HealthHome(controller: controller)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.list_alt_outlined));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Systolic Blood Pressure'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Edit manual record'));
+      await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const ValueKey('edit-systolic-value')),
-      '125',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('edit-diastolic-value')),
-      '82',
-    );
-    await tester.tap(find.byKey(const ValueKey('save-manual-record-edit')));
-    await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-systolic-value')),
+        '125',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-diastolic-value')),
+        '82',
+      );
+      await tester.tap(find.byKey(const ValueKey('save-manual-record-edit')));
+      await tester.pumpAndSettle();
 
-    expect(
-      controller.records
-          .where((record) => record.id == systolic.id)
-          .single
-          .value,
-      '125',
-    );
-    expect(
-      controller.records
-          .where((record) => record.id == diastolic.id)
-          .single
-          .value,
-      '82',
-    );
-    expect(store.records.map((record) => record.id).toSet(), {
-      systolic.id,
-      diastolic.id,
-      imported.id,
-    });
-    expect(
-      controller.records
-          .where((record) => record.id == imported.id)
-          .single
-          .value,
-      '64',
-    );
+      expect(
+        controller.records
+            .where((record) => record.id == systolic.id)
+            .single
+            .value,
+        '125',
+      );
+      expect(
+        controller.records
+            .where((record) => record.id == diastolic.id)
+            .single
+            .value,
+        '82',
+      );
+      expect(store.records.map((record) => record.id).toSet(), {
+        systolic.id,
+        diastolic.id,
+        imported.id,
+      });
+      expect(
+        controller.records
+            .where((record) => record.id == imported.id)
+            .single
+            .value,
+        '64',
+      );
 
-    await tester.tap(find.text('Resting Heart Rate'));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Edit manual record'), findsNothing);
-  });
+      await tester.tap(find.text('Resting Heart Rate'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Edit manual record'), findsNothing);
+    },
+  );
 }
 
 class _MemoryRecordStore extends EncryptedRecordStore {
   _MemoryRecordStore([this.records = const []])
-      : super(directory: Directory.systemTemp);
+    : super(directory: Directory.systemTemp);
 
   final List<HealthRecord> records;
 
@@ -760,8 +767,7 @@ class _MemoryRecordStore extends EncryptedRecordStore {
 }
 
 class _RecordingRecordStore extends EncryptedRecordStore {
-  _RecordingRecordStore(this.records)
-      : super(directory: Directory.systemTemp);
+  _RecordingRecordStore(this.records) : super(directory: Directory.systemTemp);
 
   List<HealthRecord> records;
 

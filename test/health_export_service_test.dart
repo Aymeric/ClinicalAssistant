@@ -157,7 +157,10 @@ void main() {
 
     expect(resource['resourceType'], 'MedicationStatement');
     expect(resource['status'], 'stopped');
-    expect((resource['medicationCodeableConcept'] as Map)['text'], 'Example Medicine');
+    expect(
+      (resource['medicationCodeableConcept'] as Map)['text'],
+      'Example Medicine',
+    );
     expect(effectivePeriod['start'], '2026-09-10T14:00:00.000Z');
     expect(effectivePeriod['end'], '2026-09-12');
     expect(dosage['text'], '10 mg');

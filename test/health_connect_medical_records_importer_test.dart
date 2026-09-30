@@ -41,9 +41,8 @@ void main() {
           }
         });
 
-    final records = await HealthConnectMedicalRecordsImporter(
-      channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026, 1, 1));
+    final records = await HealthConnectMedicalRecordsImporter(channel: channel)
+        .importLabRecords(since: DateTime.utc(2026, 1, 1));
 
     expect(records, hasLength(1));
     expect(
@@ -85,9 +84,8 @@ void main() {
           }
         });
 
-    final records = await HealthConnectMedicalRecordsImporter(
-      channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026, 1, 1));
+    final records = await HealthConnectMedicalRecordsImporter(channel: channel)
+        .importLabRecords(since: DateTime.utc(2026, 1, 1));
 
     expect(records, hasLength(1));
     expect(records.single.sourceData?['id'], '2026-01-01');
@@ -106,12 +104,8 @@ void main() {
           };
         });
 
-    final records = await HealthConnectMedicalRecordsImporter(
-      channel: channel,
-    ).importLabRecords(
-      since: DateTime.utc(2026),
-      onStatus: statuses.add,
-    );
+    final records = await HealthConnectMedicalRecordsImporter(channel: channel)
+        .importLabRecords(since: DateTime.utc(2026), onStatus: statuses.add);
 
     expect(records, isEmpty);
     expect(methods, ['isMedicalRecordsAvailable', 'requestLabReadPermission']);
@@ -127,12 +121,8 @@ void main() {
           return false;
         });
 
-    final records = await HealthConnectMedicalRecordsImporter(
-      channel: channel,
-    ).importLabRecords(
-      since: DateTime.utc(2026),
-      onStatus: statuses.add,
-    );
+    final records = await HealthConnectMedicalRecordsImporter(channel: channel)
+        .importLabRecords(since: DateTime.utc(2026), onStatus: statuses.add);
 
     expect(records, isEmpty);
     expect(methods, ['isMedicalRecordsAvailable']);
@@ -146,17 +136,15 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           return switch (call.method) {
-            'isMedicalRecordsAvailable' ||
-            'requestLabReadPermission' => true,
+            'isMedicalRecordsAvailable' || 'requestLabReadPermission' => true,
             'readLabRecords' => ['not a record'],
             _ => fail('Unexpected method ${call.method}'),
           };
         });
 
     await expectLater(
-      HealthConnectMedicalRecordsImporter(channel: channel).importLabRecords(
-        since: DateTime.utc(2026),
-      ),
+      HealthConnectMedicalRecordsImporter(channel: channel)
+          .importLabRecords(since: DateTime.utc(2026)),
       throwsFormatException,
     );
   });

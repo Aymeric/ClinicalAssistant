@@ -109,13 +109,17 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                       children: [
                         _categoryChip('All', null, allSeries.length),
                         for (final category in RecordCategory.values)
-                          if (allSeries.any((series) => series.category == category) ||
+                          if (allSeries.any(
+                                (series) => series.category == category,
+                              ) ||
                               _category == category)
                             _categoryChip(
                               _categoryLabel(category),
                               category,
                               allSeries
-                                  .where((series) => series.category == category)
+                                  .where(
+                                    (series) => series.category == category,
+                                  )
                                   .length,
                             ),
                       ],
@@ -552,8 +556,8 @@ class _TrendChartPanelState extends State<_TrendChartPanel> {
     final lastDate = MaterialLocalizations.of(context)
         .formatShortDate(points.last.record.recordedAt.toLocal());
 
-    final inspectedPoint = _inspectedIndex != null &&
-            _inspectedIndex! < points.length
+    final inspectedPoint =
+        _inspectedIndex != null && _inspectedIndex! < points.length
         ? points[_inspectedIndex!]
         : null;
 
@@ -622,14 +626,18 @@ class _TrendChartPanelState extends State<_TrendChartPanel> {
                             inspectedIndex: _inspectedIndex,
                             inspectedPoint: inspectedPoint,
                             color: Theme.of(context).colorScheme.primary,
-                            averageColor:
-                                Theme.of(context).colorScheme.secondary,
-                            referenceColor:
-                                Theme.of(context).colorScheme.tertiary,
-                            gridColor:
-                                Theme.of(context).colorScheme.outlineVariant,
-                            textColor:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            averageColor: Theme.of(context)
+                                .colorScheme
+                                .secondary,
+                            referenceColor: Theme.of(context)
+                                .colorScheme
+                                .tertiary,
+                            gridColor: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant,
+                            textColor: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                       );
@@ -768,7 +776,9 @@ class _ChartInspectionBanner extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.65,
+        ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: theme.colorScheme.primary.withValues(alpha: 0.25),
@@ -1032,11 +1042,7 @@ class _TrendChartPainter extends CustomPainter {
         8.0,
         Paint()..color = color.withValues(alpha: 0.22),
       );
-      canvas.drawCircle(
-        inspectedOffset,
-        4.5,
-        Paint()..color = color,
-      );
+      canvas.drawCircle(inspectedOffset, 4.5, Paint()..color = color);
       canvas.drawCircle(
         inspectedOffset,
         4.5,
@@ -1095,7 +1101,8 @@ class _TrendIndicators extends StatelessWidget {
       builder: (context, constraints) {
         final columns = constraints.maxWidth < 500 ? 2 : 4;
         const spacing = 6.0;
-        final width = (constraints.maxWidth - (columns - 1) * spacing) / columns;
+        final width =
+            (constraints.maxWidth - (columns - 1) * spacing) / columns;
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
@@ -1109,9 +1116,7 @@ class _TrendIndicators extends StatelessWidget {
                   color: Theme.of(context).colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outlineVariant
+                    color: Theme.of(context).colorScheme.outlineVariant
                         .withValues(alpha: 0.6),
                   ),
                 ),
@@ -1125,9 +1130,7 @@ class _TrendIndicators extends StatelessWidget {
                             fields[index].$1,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
+                            style: Theme.of(context).textTheme.labelMedium
                                 ?.copyWith(
                                   color: Theme.of(context)
                                       .colorScheme
@@ -1150,8 +1153,8 @@ class _TrendIndicators extends StatelessWidget {
                                 : change < 0
                                 ? Theme.of(context).colorScheme.secondary
                                 : Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                      .colorScheme
+                                      .onSurfaceVariant,
                           ),
                         ],
                       ],
@@ -1170,9 +1173,8 @@ class _TrendIndicators extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -1185,10 +1187,7 @@ class _TrendIndicators extends StatelessWidget {
 }
 
 class _RecentTrendReadings extends StatelessWidget {
-  const _RecentTrendReadings({
-    required this.points,
-    this.onRecordTap,
-  });
+  const _RecentTrendReadings({required this.points, this.onRecordTap});
 
   final List<HealthTrendPoint> points;
   final ValueChanged<HealthRecord>? onRecordTap;
@@ -1242,8 +1241,7 @@ class _RecentTrendReadings extends StatelessWidget {
                       Text(
                         point.record.status!,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     if (onRecordTap != null)

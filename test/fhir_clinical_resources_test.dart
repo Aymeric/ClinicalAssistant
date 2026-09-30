@@ -48,71 +48,73 @@ void main() {
       expect(record.status, 'active');
     });
 
-    test('parses MedicationStatement with reference fallback and reported status', () {
-      final json = jsonEncode({
-        'resourceType': 'MedicationStatement',
-        'id': 'statement-202',
-        'status': 'active',
-        'effectiveDateTime': '2026-06-01T08:00:00Z',
-        'medicationReference': {
-          'display': 'Lisinopril 10 MG Oral Tablet',
-        },
-        'dosage': [
-          {'text': '10 mg once daily in the morning'},
-        ],
-      });
-
-      final records = parser.parseJson(json, source: 'Health System');
-      expect(records, hasLength(1));
-      final record = records.first;
-      expect(record.category, RecordCategory.medication);
-      expect(record.name, 'Lisinopril 10 MG Oral Tablet');
-      expect(record.value, '10 mg once daily in the morning');
-    });
-
-    test('parses Condition with SNOMED coding, clinicalStatus, and severity', () {
-      final json = jsonEncode({
-        'resourceType': 'Condition',
-        'id': 'cond-303',
-        'clinicalStatus': {
-          'coding': [
-            {'code': 'active', 'display': 'Active'},
+    test(
+      'parses MedicationStatement with reference fallback and reported status',
+      () {
+        final json = jsonEncode({
+          'resourceType': 'MedicationStatement',
+          'id': 'statement-202',
+          'status': 'active',
+          'effectiveDateTime': '2026-06-01T08:00:00Z',
+          'medicationReference': {'display': 'Lisinopril 10 MG Oral Tablet'},
+          'dosage': [
+            {'text': '10 mg once daily in the morning'},
           ],
-        },
-        'verificationStatus': {
-          'coding': [
-            {'code': 'confirmed', 'display': 'Confirmed'},
-          ],
-        },
-        'severity': {
-          'text': 'Moderate',
-        },
-        'code': {
-          'coding': [
-            {
-              'system': 'http://snomed.info/sct',
-              'code': '38341003',
-              'display': 'Hypertensive disorder',
-            },
-          ],
-          'text': 'Essential hypertension',
-        },
-        'onsetDateTime': '2025-01-15',
-        'note': [
-          {'text': 'Controlled with lifestyle and medications'},
-        ],
-      });
+        });
 
-      final records = parser.parseJson(json, source: 'Cardiology Clinic');
-      expect(records, hasLength(1));
-      final record = records.first;
-      expect(record.category, RecordCategory.condition);
-      expect(record.name, 'Essential hypertension');
-      expect(record.value, 'Active (Moderate)');
-      expect(record.code, '38341003');
-      expect(record.notes, 'Controlled with lifestyle and medications');
-      expect(record.recordedAt, DateTime.utc(2025, 1, 15));
-    });
+        final records = parser.parseJson(json, source: 'Health System');
+        expect(records, hasLength(1));
+        final record = records.first;
+        expect(record.category, RecordCategory.medication);
+        expect(record.name, 'Lisinopril 10 MG Oral Tablet');
+        expect(record.value, '10 mg once daily in the morning');
+      },
+    );
+
+    test(
+      'parses Condition with SNOMED coding, clinicalStatus, and severity',
+      () {
+        final json = jsonEncode({
+          'resourceType': 'Condition',
+          'id': 'cond-303',
+          'clinicalStatus': {
+            'coding': [
+              {'code': 'active', 'display': 'Active'},
+            ],
+          },
+          'verificationStatus': {
+            'coding': [
+              {'code': 'confirmed', 'display': 'Confirmed'},
+            ],
+          },
+          'severity': {'text': 'Moderate'},
+          'code': {
+            'coding': [
+              {
+                'system': 'http://snomed.info/sct',
+                'code': '38341003',
+                'display': 'Hypertensive disorder',
+              },
+            ],
+            'text': 'Essential hypertension',
+          },
+          'onsetDateTime': '2025-01-15',
+          'note': [
+            {'text': 'Controlled with lifestyle and medications'},
+          ],
+        });
+
+        final records = parser.parseJson(json, source: 'Cardiology Clinic');
+        expect(records, hasLength(1));
+        final record = records.first;
+        expect(record.category, RecordCategory.condition);
+        expect(record.name, 'Essential hypertension');
+        expect(record.value, 'Active (Moderate)');
+        expect(record.code, '38341003');
+        expect(record.notes, 'Controlled with lifestyle and medications');
+        expect(record.recordedAt, DateTime.utc(2025, 1, 15));
+      },
+    );
 
     test('skips entered-in-error and refuted conditions', () {
       final bundle = {
@@ -123,7 +125,9 @@ void main() {
               'resourceType': 'Condition',
               'id': 'err-1',
               'verificationStatus': {
-                'coding': [{'code': 'entered-in-error'}],
+                'coding': [
+                  {'code': 'entered-in-error'},
+                ],
               },
               'code': {'text': 'Misdiagnosed condition'},
               'recordedDate': '2026-01-01',
@@ -134,7 +138,9 @@ void main() {
               'resourceType': 'Condition',
               'id': 'refuted-2',
               'verificationStatus': {
-                'coding': [{'code': 'refuted'}],
+                'coding': [
+                  {'code': 'refuted'},
+                ],
               },
               'code': {'text': 'Refuted diagnosis'},
               'recordedDate': '2026-01-01',
@@ -147,44 +153,49 @@ void main() {
       expect(records, isEmpty);
     });
 
-    test('parses AllergyIntolerance with reaction manifestations and criticality', () {
-      final json = jsonEncode({
-        'resourceType': 'AllergyIntolerance',
-        'id': 'allergy-404',
-        'clinicalStatus': {
-          'coding': [{'code': 'active'}],
-        },
-        'criticality': 'high',
-        'code': {
-          'coding': [
+    test(
+      'parses AllergyIntolerance with reaction manifestations and criticality',
+      () {
+        final json = jsonEncode({
+          'resourceType': 'AllergyIntolerance',
+          'id': 'allergy-404',
+          'clinicalStatus': {
+            'coding': [
+              {'code': 'active'},
+            ],
+          },
+          'criticality': 'high',
+          'code': {
+            'coding': [
+              {
+                'system': 'http://snomed.info/sct',
+                'code': '373270004',
+                'display': 'Penicillin',
+              },
+            ],
+            'text': 'Penicillin G',
+          },
+          'recordedDate': '2024-03-22T14:15:00Z',
+          'reaction': [
             {
-              'system': 'http://snomed.info/sct',
-              'code': '373270004',
-              'display': 'Penicillin',
+              'manifestation': [
+                {'text': 'Anaphylaxis'},
+                {'text': 'Urticaria'},
+              ],
+              'severity': 'severe',
             },
           ],
-          'text': 'Penicillin G',
-        },
-        'recordedDate': '2024-03-22T14:15:00Z',
-        'reaction': [
-          {
-            'manifestation': [
-              {'text': 'Anaphylaxis'},
-              {'text': 'Urticaria'},
-            ],
-            'severity': 'severe',
-          },
-        ],
-      });
+        });
 
-      final records = parser.parseJson(json, source: 'Allergy Clinic');
-      expect(records, hasLength(1));
-      final record = records.first;
-      expect(record.category, RecordCategory.allergy);
-      expect(record.name, 'Penicillin G');
-      expect(record.value, 'Anaphylaxis, Urticaria (severe)');
-      expect(record.code, '373270004');
-    });
+        final records = parser.parseJson(json, source: 'Allergy Clinic');
+        expect(records, hasLength(1));
+        final record = records.first;
+        expect(record.category, RecordCategory.allergy);
+        expect(record.name, 'Penicillin G');
+        expect(record.value, 'Anaphylaxis, Urticaria (severe)');
+        expect(record.code, '373270004');
+      },
+    );
 
     test('parses Immunization with vaccine CVX code and lot number', () {
       final json = jsonEncode({
@@ -324,7 +335,10 @@ void main() {
           }
           if (path.endsWith('/MedicationRequest')) {
             // Server does not support MedicationRequest (404)
-            return http.Response('{"resourceType": "OperationOutcome", "issue": []}', 404);
+            return http.Response(
+              '{"resourceType": "OperationOutcome", "issue": []}',
+              404,
+            );
           }
           if (path.endsWith('/Condition')) {
             // User does not have condition read permissions (403)

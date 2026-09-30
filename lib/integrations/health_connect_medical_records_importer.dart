@@ -40,9 +40,7 @@ class HealthConnectMedicalRecordsImporter {
       return const [];
     }
 
-    final response = await _channel.invokeListMethod<Object?>(
-      'readLabRecords',
-    );
+    final response = await _channel.invokeListMethod<Object?>('readLabRecords');
     if (response == null) {
       throw const FormatException(
         'Health Connect returned no laboratory-record response.',

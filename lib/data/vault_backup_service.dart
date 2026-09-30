@@ -7,16 +7,11 @@ import 'package:cryptography/cryptography.dart';
 import '../models/health_record.dart';
 
 class VaultBackupService {
-  VaultBackupService({
-    AesGcm? cipher,
-    Pbkdf2? kdf,
-  })  : _cipher = cipher ?? AesGcm.with256bits(),
-        _kdf = kdf ??
-            Pbkdf2(
-              macAlgorithm: Hmac.sha256(),
-              iterations: 100000,
-              bits: 256,
-            );
+  VaultBackupService({AesGcm? cipher, Pbkdf2? kdf})
+    : _cipher = cipher ?? AesGcm.with256bits(),
+      _kdf =
+          kdf ??
+          Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: 100000, bits: 256);
 
   static const String currentFormat = 'clinical_assistant_vault_backup_v1';
   static const int saltLength = 16;
@@ -45,9 +40,7 @@ class VaultBackupService {
       nonce: salt,
     );
 
-    final payloadJson = jsonEncode(
-      records.map((r) => r.toJson()).toList(),
-    );
+    final payloadJson = jsonEncode(records.map((r) => r.toJson()).toList());
     final cleartextBytes = utf8.encode(payloadJson);
 
     final secretBox = await _cipher.encrypt(
@@ -104,7 +97,9 @@ class VaultBackupService {
     final kdfMap = decoded['kdf'];
     final cipherMap = decoded['cipher'];
     if (kdfMap is! Map || cipherMap is! Map) {
-      throw const FormatException('Missing cryptographic parameters in backup.');
+      throw const FormatException(
+        'Missing cryptographic parameters in backup.',
+      );
     }
 
     final saltB64 = kdfMap['salt'] as String?;
@@ -119,7 +114,9 @@ class VaultBackupService {
     final macB64 = cipherMap['mac'] as String?;
 
     if (nonceB64 == null || cipherB64 == null || macB64 == null) {
-      throw const FormatException('Missing ciphertext, nonce, or mac in backup.');
+      throw const FormatException(
+        'Missing ciphertext, nonce, or mac in backup.',
+      );
     }
 
     final kdf = iterations == 100000
@@ -143,10 +140,7 @@ class VaultBackupService {
 
     List<int> cleartext;
     try {
-      cleartext = await _cipher.decrypt(
-        secretBox,
-        secretKey: secretKey,
-      );
+      cleartext = await _cipher.decrypt(secretBox, secretKey: secretKey);
     } on SecretBoxAuthenticationError {
       throw const VaultBackupAuthException(
         'Incorrect passphrase or corrupted backup file.',

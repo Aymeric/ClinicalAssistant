@@ -19,10 +19,7 @@ enum ManualEntryType {
 }
 
 class ManualRecordEntrySheet extends StatefulWidget {
-  const ManualRecordEntrySheet({
-    super.key,
-    required this.onSave,
-  });
+  const ManualRecordEntrySheet({super.key, required this.onSave});
 
   final ValueChanged<List<HealthRecord>> onSave;
 
@@ -87,7 +84,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
           _refRangeController.text = '95 – 100 %';
           break;
         case ManualEntryType.temperature:
-          _refRangeController.text = _tempUnit == '°F' ? '97.0 – 99.0 °F' : '36.1 – 37.2 °C';
+          _refRangeController.text = _tempUnit == '°F'
+              ? '97.0 – 99.0 °F'
+              : '36.1 – 37.2 °C';
           break;
         case ManualEntryType.medication:
           _medicationStatus = 'active';
@@ -182,10 +181,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         break;
 
       case ManualEntryType.glucose:
-        final fullNote = [
-          'Context: $_glucoseContext',
-          ?userNote,
-        ].join(' · ');
+        final fullNote = ['Context: $_glucoseContext', ?userNote].join(' · ');
         records.add(
           HealthRecord(
             id: 'manual:glucose:$nowMs',
@@ -195,7 +191,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
             recordedAt: timestamp,
             category: RecordCategory.lab,
             source: 'Manual Entry',
-            referenceRange: _refRangeController.text.trim().isEmpty ? '70 – 99 mg/dL' : _refRangeController.text.trim(),
+            referenceRange: _refRangeController.text.trim().isEmpty
+                ? '70 – 99 mg/dL'
+                : _refRangeController.text.trim(),
             notes: fullNote,
           ),
         );
@@ -211,7 +209,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
             recordedAt: timestamp,
             category: RecordCategory.vital,
             source: 'Manual Entry',
-            referenceRange: _refRangeController.text.trim().isEmpty ? '60 – 100 bpm' : _refRangeController.text.trim(),
+            referenceRange: _refRangeController.text.trim().isEmpty
+                ? '60 – 100 bpm'
+                : _refRangeController.text.trim(),
             notes: userNote,
           ),
         );
@@ -260,7 +260,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
             recordedAt: timestamp,
             category: RecordCategory.vital,
             source: 'Manual Entry',
-            referenceRange: _refRangeController.text.trim().isEmpty ? '95 – 100 %' : _refRangeController.text.trim(),
+            referenceRange: _refRangeController.text.trim().isEmpty
+                ? '95 – 100 %'
+                : _refRangeController.text.trim(),
             notes: userNote,
           ),
         );
@@ -314,8 +316,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dateStr = MaterialLocalizations.of(context).formatMediumDate(_recordedAt);
-    final timeStr = MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
+    final dateStr = MaterialLocalizations.of(context)
+        .formatMediumDate(_recordedAt);
+    final timeStr = MaterialLocalizations.of(context)
+        .formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
 
     return Padding(
       padding: EdgeInsets.only(
@@ -333,13 +337,19 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.edit_note, color: theme.colorScheme.primary, size: 28),
+                  Icon(
+                    Icons.edit_note,
+                    color: theme.colorScheme.primary,
+                    size: 28,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     _selectedType == ManualEntryType.medication
                         ? 'Log Medication'
                         : 'Log Health Measurement',
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
@@ -374,14 +384,21 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                 onTap: _pickDateTime,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: theme.colorScheme.outlineVariant),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 18, color: theme.colorScheme.primary),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
                       const SizedBox(width: 10),
                       Text(
                         _selectedType == ManualEntryType.medication
@@ -390,7 +407,13 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                         style: theme.textTheme.bodyMedium,
                       ),
                       const Spacer(),
-                      Text('Change', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Change',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -411,8 +434,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Required';
-                          if (double.tryParse(val.trim()) == null) return 'Invalid number';
+                          if (val == null || val.trim().isEmpty)
+                            return 'Required';
+                          if (double.tryParse(val.trim()) == null)
+                            return 'Invalid number';
                           return null;
                         },
                       ),
@@ -428,8 +453,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Required';
-                          if (double.tryParse(val.trim()) == null) return 'Invalid number';
+                          if (val == null || val.trim().isEmpty)
+                            return 'Required';
+                          if (double.tryParse(val.trim()) == null)
+                            return 'Invalid number';
                           return null;
                         },
                       ),
@@ -446,10 +473,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     hintText: 'e.g. Medication name',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty
-                          ? 'Enter a medication name'
-                          : null,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter a medication name'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -460,10 +486,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     hintText: 'e.g. 10 mg or 1 tablet',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty
-                          ? 'Enter the dose or instructions'
-                          : null,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter the dose or instructions'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -474,10 +499,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     hintText: 'e.g. once daily or as needed',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty
-                          ? 'Enter the reported frequency'
-                          : null,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter the reported frequency'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -501,7 +525,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     DropdownMenuItem(value: 'active', child: Text('Active')),
                     DropdownMenuItem(value: 'stopped', child: Text('Stopped')),
                     DropdownMenuItem(value: 'on-hold', child: Text('On hold')),
-                    DropdownMenuItem(value: 'completed', child: Text('Completed')),
+                    DropdownMenuItem(
+                      value: 'completed',
+                      child: Text('Completed'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value == null) return;
@@ -541,7 +568,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     hintText: 'e.g. Total Cholesterol, Ferritin',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Enter a name' : null,
+                  validator: (val) =>
+                      val == null || val.trim().isEmpty ? 'Enter a name' : null,
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -554,7 +582,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           labelText: 'Value',
                           border: OutlineInputBorder(),
                         ),
-                        validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Required'
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -577,13 +607,16 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     ChoiceChip(
                       label: const Text('Vital'),
                       selected: _customCategory == RecordCategory.vital,
-                      onSelected: (_) => setState(() => _customCategory = RecordCategory.vital),
+                      onSelected: (_) => setState(
+                        () => _customCategory = RecordCategory.vital,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text('Lab'),
                       selected: _customCategory == RecordCategory.lab,
-                      onSelected: (_) => setState(() => _customCategory = RecordCategory.lab),
+                      onSelected: (_) =>
+                          setState(() => _customCategory = RecordCategory.lab),
                     ),
                   ],
                 ),
@@ -602,14 +635,19 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     Expanded(
                       child: TextFormField(
                         controller: _valueController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         decoration: InputDecoration(
-                          labelText: 'Value (${_getUnitForType(_selectedType)})',
+                          labelText:
+                              'Value (${_getUnitForType(_selectedType)})',
                           border: const OutlineInputBorder(),
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Required';
-                          if (double.tryParse(val.trim()) == null) return 'Invalid number';
+                          if (val == null || val.trim().isEmpty)
+                            return 'Required';
+                          if (double.tryParse(val.trim()) == null)
+                            return 'Invalid number';
                           return null;
                         },
                       ),
@@ -622,9 +660,11 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           ButtonSegment(value: 'kg', label: Text('kg')),
                         ],
                         selected: {_weightUnit},
-                        onSelectionChanged: (set) => setState(() => _weightUnit = set.first),
+                        onSelectionChanged: (set) =>
+                            setState(() => _weightUnit = set.first),
                       ),
-                    ] else if (_selectedType == ManualEntryType.temperature) ...[
+                    ] else if (_selectedType ==
+                        ManualEntryType.temperature) ...[
                       const SizedBox(width: 12),
                       SegmentedButton<String>(
                         segments: const [
@@ -635,7 +675,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                         onSelectionChanged: (set) {
                           setState(() {
                             _tempUnit = set.first;
-                            _refRangeController.text = _tempUnit == '°F' ? '97.0 – 99.0 °F' : '36.1 – 37.2 °C';
+                            _refRangeController.text = _tempUnit == '°F'
+                                ? '97.0 – 99.0 °F'
+                                : '36.1 – 37.2 °C';
                           });
                         },
                       ),
@@ -654,7 +696,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                         ChoiceChip(
                           label: Text(ctx),
                           selected: _glucoseContext == ctx,
-                          onSelected: (_) => setState(() => _glucoseContext = ctx),
+                          onSelected: (_) =>
+                              setState(() => _glucoseContext = ctx),
                         ),
                     ],
                   ),
@@ -676,7 +719,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                 maxLines: 2,
                 decoration: const InputDecoration(
                   labelText: 'Personal Notes / Context (optional)',
-                  hintText: 'e.g. Taken after 15 min rest, fasting 12h, post-workout',
+                  hintText:
+                      'e.g. Taken after 15 min rest, fasting 12h, post-workout',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.note_add_outlined),
                 ),
