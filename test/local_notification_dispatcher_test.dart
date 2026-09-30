@@ -3,7 +3,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('initializes successfully even when plugin returns false (iOS deferred permissions)', () async {
+  test(
+      'initializes successfully even when plugin returns false (iOS deferred permissions)',
+      () async {
     final fakePlugin = _FakeFlutterLocalNotificationsPlugin(
       initializeResult: false,
     );
@@ -61,7 +63,7 @@ class _FakeFlutterLocalNotificationsPlugin
     required InitializationSettings settings,
     DidReceiveNotificationResponseCallback? onDidReceiveNotificationResponse,
     DidReceiveBackgroundNotificationResponseCallback?
-    onDidReceiveBackgroundNotificationResponse,
+        onDidReceiveBackgroundNotificationResponse,
   }) async {
     initializeCount++;
     return initializeResult;
@@ -69,7 +71,7 @@ class _FakeFlutterLocalNotificationsPlugin
 
   @override
   Future<NotificationAppLaunchDetails?>
-  getNotificationAppLaunchDetails() async {
+      getNotificationAppLaunchDetails() async {
     return launchDetails;
   }
 

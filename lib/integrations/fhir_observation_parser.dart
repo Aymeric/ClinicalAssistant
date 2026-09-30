@@ -284,11 +284,9 @@ class FhirObservationParser {
       if (texts.isNotEmpty) instructionText = texts.join('; ');
     }
 
-    final value =
-        instructionText ??
+    final value = instructionText ??
         (status != null ? _capitalize(status) : 'Prescribed');
-    final recordedAt =
-        _parseFhirDate(medication['authoredOn']) ??
+    final recordedAt = _parseFhirDate(medication['authoredOn']) ??
         _parseFhirDate(medication['effectiveDateTime']) ??
         _parseFhirDate((medication['meta'] as Map?)?['lastUpdated']) ??
         DateTime.now().toUtc();
@@ -343,8 +341,7 @@ class FhirObservationParser {
 
     final value =
         instructionText ?? (status != null ? _capitalize(status) : 'Reported');
-    final recordedAt =
-        _parseFhirDate(statement['effectiveDateTime']) ??
+    final recordedAt = _parseFhirDate(statement['effectiveDateTime']) ??
         _parseFhirDate(statement['dateAsserted']) ??
         _parseFhirDate((statement['meta'] as Map?)?['lastUpdated']) ??
         DateTime.now().toUtc();
@@ -371,8 +368,7 @@ class FhirObservationParser {
     required String sourceId,
     required String idPrefix,
   }) {
-    final verificationStatus =
-        _conceptCode(condition['verificationStatus']) ??
+    final verificationStatus = _conceptCode(condition['verificationStatus']) ??
         _conceptText(condition['verificationStatus']).toLowerCase();
     if (verificationStatus == 'entered-in-error' ||
         verificationStatus == 'refuted') {
@@ -386,8 +382,7 @@ class FhirObservationParser {
     final name = _conceptText(code);
     if (name.isEmpty) return null;
 
-    final clinicalStatus =
-        _conceptCode(condition['clinicalStatus']) ??
+    final clinicalStatus = _conceptCode(condition['clinicalStatus']) ??
         _conceptText(condition['clinicalStatus']);
     final severity = _conceptText(condition['severity']);
 
@@ -402,8 +397,7 @@ class FhirObservationParser {
       value = 'Diagnosed';
     }
 
-    final recordedAt =
-        _parseFhirDate(condition['onsetDateTime']) ??
+    final recordedAt = _parseFhirDate(condition['onsetDateTime']) ??
         _parseFhirDate(condition['recordedDate']) ??
         _parseFhirDate((condition['onsetPeriod'] as Map?)?['start']) ??
         _parseFhirDate((condition['meta'] as Map?)?['lastUpdated']) ??
@@ -431,8 +425,7 @@ class FhirObservationParser {
     required String sourceId,
     required String idPrefix,
   }) {
-    final verificationStatus =
-        _conceptCode(allergy['verificationStatus']) ??
+    final verificationStatus = _conceptCode(allergy['verificationStatus']) ??
         _conceptText(allergy['verificationStatus']).toLowerCase();
     if (verificationStatus == 'entered-in-error' ||
         verificationStatus == 'refuted') {
@@ -446,8 +439,7 @@ class FhirObservationParser {
     final name = _conceptText(code);
     if (name.isEmpty) return null;
 
-    final clinicalStatus =
-        _conceptCode(allergy['clinicalStatus']) ??
+    final clinicalStatus = _conceptCode(allergy['clinicalStatus']) ??
         _conceptText(allergy['clinicalStatus']);
     final criticality = allergy['criticality']?.toString();
 
@@ -485,8 +477,7 @@ class FhirObservationParser {
       value = 'Recorded';
     }
 
-    final recordedAt =
-        _parseFhirDate(allergy['recordedDate']) ??
+    final recordedAt = _parseFhirDate(allergy['recordedDate']) ??
         _parseFhirDate(allergy['onsetDateTime']) ??
         _parseFhirDate(allergy['lastOccurrence']) ??
         _parseFhirDate((allergy['meta'] as Map?)?['lastUpdated']) ??
@@ -529,8 +520,7 @@ class FhirObservationParser {
         ? 'Completed (Lot: $lotNumber)'
         : 'Completed';
 
-    final recordedAt =
-        _parseFhirDate(immunization['occurrenceDateTime']) ??
+    final recordedAt = _parseFhirDate(immunization['occurrenceDateTime']) ??
         _parseFhirDate(immunization['occurrenceString']) ??
         _parseFhirDate(immunization['recorded']) ??
         _parseFhirDate((immunization['meta'] as Map?)?['lastUpdated']) ??
@@ -650,8 +640,7 @@ class FhirObservationParser {
     final lowText = _quantityText(low);
     final highText = _quantityText(high);
     if (lowText == null && highText == null) return null;
-    final unit =
-        (low is Map ? low['unit'] : null) ??
+    final unit = (low is Map ? low['unit'] : null) ??
         (high is Map ? high['unit'] : null);
     return '${lowText ?? '—'}–${highText ?? '—'}${unit == null ? '' : ' $unit'}';
   }

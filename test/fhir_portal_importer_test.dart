@@ -7,7 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
-  test('imports every FHIR page with determinate progress and patient-scoped token', () async {
+  test(
+      'imports every FHIR page with determinate progress and patient-scoped token',
+      () async {
     final requests = <http.Request>[];
     final progress = <double>[];
     final importer = FhirPortalImporter(

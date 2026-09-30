@@ -10,9 +10,8 @@ class HealthDataRecordMapper {
     required String fallbackSource,
   }) {
     final value = point.value.toJson();
-    final source = point.sourceName.trim().isEmpty
-        ? fallbackSource
-        : point.sourceName;
+    final source =
+        point.sourceName.trim().isEmpty ? fallbackSource : point.sourceName;
     return HealthRecord(
       id: 'health:${point.sourceId}:${point.uuid}',
       name: _labelFor(point.type),
@@ -30,28 +29,31 @@ class HealthDataRecordMapper {
 
   String _statusFor(HealthDataPoint point) =>
       point.type == HealthDataType.WORKOUT_ROUTE &&
-          point.metadata?['route_requires_consent'] == true
-      ? 'Consent required'
-      : 'Imported';
+              point.metadata?['route_requires_consent'] == true
+          ? 'Consent required'
+          : 'Imported';
 
   RecordCategory _categoryFor(HealthDataType type) => switch (type) {
-    HealthDataType.SLEEP_ASLEEP ||
-    HealthDataType.SLEEP_AWAKE ||
-    HealthDataType.SLEEP_DEEP ||
-    HealthDataType.SLEEP_LIGHT ||
-    HealthDataType.SLEEP_REM => RecordCategory.sleep,
-    HealthDataType.NUTRITION ||
-    HealthDataType.WATER => RecordCategory.nutrition,
-    HealthDataType.MENSTRUATION_FLOW => RecordCategory.cycleTracking,
-    HealthDataType.ACTIVE_ENERGY_BURNED ||
-    HealthDataType.BASAL_ENERGY_BURNED ||
-    HealthDataType.FLIGHTS_CLIMBED ||
-    HealthDataType.STEPS ||
-    HealthDataType.TOTAL_CALORIES_BURNED ||
-    HealthDataType.WORKOUT ||
-    HealthDataType.WORKOUT_ROUTE => RecordCategory.activity,
-    _ => RecordCategory.vital,
-  };
+        HealthDataType.SLEEP_ASLEEP ||
+        HealthDataType.SLEEP_AWAKE ||
+        HealthDataType.SLEEP_DEEP ||
+        HealthDataType.SLEEP_LIGHT ||
+        HealthDataType.SLEEP_REM =>
+          RecordCategory.sleep,
+        HealthDataType.NUTRITION ||
+        HealthDataType.WATER =>
+          RecordCategory.nutrition,
+        HealthDataType.MENSTRUATION_FLOW => RecordCategory.cycleTracking,
+        HealthDataType.ACTIVE_ENERGY_BURNED ||
+        HealthDataType.BASAL_ENERGY_BURNED ||
+        HealthDataType.FLIGHTS_CLIMBED ||
+        HealthDataType.STEPS ||
+        HealthDataType.TOTAL_CALORIES_BURNED ||
+        HealthDataType.WORKOUT ||
+        HealthDataType.WORKOUT_ROUTE =>
+          RecordCategory.activity,
+        _ => RecordCategory.vital,
+      };
 
   String _displayValue(HealthDataPoint point, Map<String, dynamic> json) {
     final numericValue = json['numericValue'];
@@ -60,9 +62,9 @@ class HealthDataRecordMapper {
     return switch (point.value) {
       WorkoutHealthValue value => _workoutSummary(value),
       WorkoutRouteHealthValue value => _workoutRouteSummary(
-        value,
-        consentRequired: point.metadata?['route_requires_consent'] == true,
-      ),
+          value,
+          consentRequired: point.metadata?['route_requires_consent'] == true,
+        ),
       NutritionHealthValue value => _nutritionSummary(value),
       MenstruationFlowHealthValue value => _menstruationSummary(value),
       _ => point.value.toString(),
@@ -125,59 +127,59 @@ class HealthDataRecordMapper {
   String _formatNumber(num value) => formatSensibleNumber(value);
 
   String _labelFor(HealthDataType type) => switch (type) {
-    HealthDataType.ACTIVE_ENERGY_BURNED => 'Active energy burned',
-    HealthDataType.BASAL_ENERGY_BURNED => 'Basal energy burned',
-    HealthDataType.BLOOD_GLUCOSE => 'Blood glucose',
-    HealthDataType.BLOOD_OXYGEN => 'Blood oxygen',
-    HealthDataType.BLOOD_PRESSURE_SYSTOLIC => 'Systolic blood pressure',
-    HealthDataType.BLOOD_PRESSURE_DIASTOLIC => 'Diastolic blood pressure',
-    HealthDataType.BODY_FAT_PERCENTAGE => 'Body fat',
-    HealthDataType.BODY_MASS_INDEX => 'Body mass index',
-    HealthDataType.BODY_TEMPERATURE => 'Body temperature',
-    HealthDataType.FLIGHTS_CLIMBED => 'Flights climbed',
-    HealthDataType.HEART_RATE => 'Heart rate',
-    HealthDataType.HEIGHT => 'Height',
-    HealthDataType.LEAN_BODY_MASS => 'Lean body mass',
-    HealthDataType.MENSTRUATION_FLOW => 'Menstrual flow',
-    HealthDataType.NUTRITION => 'Nutrition',
-    HealthDataType.RESPIRATORY_RATE => 'Respiratory rate',
-    HealthDataType.RESTING_HEART_RATE => 'Resting heart rate',
-    HealthDataType.SLEEP_ASLEEP => 'Sleep (asleep)',
-    HealthDataType.SLEEP_AWAKE => 'Sleep (awake)',
-    HealthDataType.SLEEP_DEEP => 'Sleep (deep)',
-    HealthDataType.SLEEP_LIGHT => 'Sleep (light)',
-    HealthDataType.SLEEP_REM => 'Sleep (REM)',
-    HealthDataType.STEPS => 'Steps',
-    HealthDataType.TOTAL_CALORIES_BURNED => 'Total calories burned',
-    HealthDataType.WATER => 'Water',
-    HealthDataType.WEIGHT => 'Weight',
-    HealthDataType.WORKOUT => 'Workout',
-    HealthDataType.WORKOUT_ROUTE => 'Workout route',
-    _ => type.name.replaceAll('_', ' ').toLowerCase(),
-  };
+        HealthDataType.ACTIVE_ENERGY_BURNED => 'Active energy burned',
+        HealthDataType.BASAL_ENERGY_BURNED => 'Basal energy burned',
+        HealthDataType.BLOOD_GLUCOSE => 'Blood glucose',
+        HealthDataType.BLOOD_OXYGEN => 'Blood oxygen',
+        HealthDataType.BLOOD_PRESSURE_SYSTOLIC => 'Systolic blood pressure',
+        HealthDataType.BLOOD_PRESSURE_DIASTOLIC => 'Diastolic blood pressure',
+        HealthDataType.BODY_FAT_PERCENTAGE => 'Body fat',
+        HealthDataType.BODY_MASS_INDEX => 'Body mass index',
+        HealthDataType.BODY_TEMPERATURE => 'Body temperature',
+        HealthDataType.FLIGHTS_CLIMBED => 'Flights climbed',
+        HealthDataType.HEART_RATE => 'Heart rate',
+        HealthDataType.HEIGHT => 'Height',
+        HealthDataType.LEAN_BODY_MASS => 'Lean body mass',
+        HealthDataType.MENSTRUATION_FLOW => 'Menstrual flow',
+        HealthDataType.NUTRITION => 'Nutrition',
+        HealthDataType.RESPIRATORY_RATE => 'Respiratory rate',
+        HealthDataType.RESTING_HEART_RATE => 'Resting heart rate',
+        HealthDataType.SLEEP_ASLEEP => 'Sleep (asleep)',
+        HealthDataType.SLEEP_AWAKE => 'Sleep (awake)',
+        HealthDataType.SLEEP_DEEP => 'Sleep (deep)',
+        HealthDataType.SLEEP_LIGHT => 'Sleep (light)',
+        HealthDataType.SLEEP_REM => 'Sleep (REM)',
+        HealthDataType.STEPS => 'Steps',
+        HealthDataType.TOTAL_CALORIES_BURNED => 'Total calories burned',
+        HealthDataType.WATER => 'Water',
+        HealthDataType.WEIGHT => 'Weight',
+        HealthDataType.WORKOUT => 'Workout',
+        HealthDataType.WORKOUT_ROUTE => 'Workout route',
+        _ => type.name.replaceAll('_', ' ').toLowerCase(),
+      };
 
   String _unitLabel(HealthDataUnit unit) => switch (unit) {
-    HealthDataUnit.MILLIGRAM_PER_DECILITER => 'mg/dL',
-    HealthDataUnit.MILLIMOLES_PER_LITER => 'mmol/L',
-    HealthDataUnit.PERCENT => '%',
-    HealthDataUnit.MILLIMETER_OF_MERCURY => 'mmHg',
-    HealthDataUnit.DEGREE_CELSIUS => '°C',
-    HealthDataUnit.DEGREE_FAHRENHEIT => '°F',
-    HealthDataUnit.BEATS_PER_MINUTE => 'bpm',
-    HealthDataUnit.RESPIRATIONS_PER_MINUTE => 'breaths/min',
-    HealthDataUnit.MILLISECOND => 'ms',
-    HealthDataUnit.METER => 'm',
-    HealthDataUnit.CENTIMETER => 'cm',
-    HealthDataUnit.KILOGRAM => 'kg',
-    HealthDataUnit.POUND => 'lb',
-    HealthDataUnit.KILOCALORIE => 'kcal',
-    HealthDataUnit.LITER => 'L',
-    HealthDataUnit.MILLILITER => 'mL',
-    HealthDataUnit.GRAM => 'g',
-    HealthDataUnit.MINUTE => 'min',
-    HealthDataUnit.COUNT => 'count',
-    HealthDataUnit.NO_UNIT => '',
-    HealthDataUnit.UNKNOWN_UNIT => 'Unknown unit',
-    _ => unit.name.replaceAll('_', ' ').toLowerCase(),
-  };
+        HealthDataUnit.MILLIGRAM_PER_DECILITER => 'mg/dL',
+        HealthDataUnit.MILLIMOLES_PER_LITER => 'mmol/L',
+        HealthDataUnit.PERCENT => '%',
+        HealthDataUnit.MILLIMETER_OF_MERCURY => 'mmHg',
+        HealthDataUnit.DEGREE_CELSIUS => '°C',
+        HealthDataUnit.DEGREE_FAHRENHEIT => '°F',
+        HealthDataUnit.BEATS_PER_MINUTE => 'bpm',
+        HealthDataUnit.RESPIRATIONS_PER_MINUTE => 'breaths/min',
+        HealthDataUnit.MILLISECOND => 'ms',
+        HealthDataUnit.METER => 'm',
+        HealthDataUnit.CENTIMETER => 'cm',
+        HealthDataUnit.KILOGRAM => 'kg',
+        HealthDataUnit.POUND => 'lb',
+        HealthDataUnit.KILOCALORIE => 'kcal',
+        HealthDataUnit.LITER => 'L',
+        HealthDataUnit.MILLILITER => 'mL',
+        HealthDataUnit.GRAM => 'g',
+        HealthDataUnit.MINUTE => 'min',
+        HealthDataUnit.COUNT => 'count',
+        HealthDataUnit.NO_UNIT => '',
+        HealthDataUnit.UNKNOWN_UNIT => 'Unknown unit',
+        _ => unit.name.replaceAll('_', ' ').toLowerCase(),
+      };
 }

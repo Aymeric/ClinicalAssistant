@@ -92,16 +92,17 @@ void main() {
       String value,
       int day,
       String referenceRange,
-    ) => HealthRecord(
-      id: id,
-      name: name,
-      value: value,
-      unit: name == 'Blood glucose' ? 'mg/dL' : '%',
-      recordedAt: DateTime(2026, 9, day, 12),
-      category: RecordCategory.lab,
-      source: 'Test lab',
-      referenceRange: referenceRange,
-    );
+    ) =>
+        HealthRecord(
+          id: id,
+          name: name,
+          value: value,
+          unit: name == 'Blood glucose' ? 'mg/dL' : '%',
+          recordedAt: DateTime(2026, 9, day, 12),
+          category: RecordCategory.lab,
+          source: 'Test lab',
+          referenceRange: referenceRange,
+        );
 
     final controller = HealthDataController(
       store: _MemoryRecordStore([
@@ -180,15 +181,16 @@ void main() {
       String unit,
       RecordCategory category,
       int day,
-    ) => HealthRecord(
-      id: id,
-      name: name,
-      value: value,
-      unit: unit,
-      recordedAt: DateTime(2026, 9, day, 12),
-      category: category,
-      source: 'Test source',
-    );
+    ) =>
+        HealthRecord(
+          id: id,
+          name: name,
+          value: value,
+          unit: unit,
+          recordedAt: DateTime(2026, 9, day, 12),
+          category: category,
+          source: 'Test source',
+        );
 
     final controller = HealthDataController(
       store: _MemoryRecordStore([
@@ -911,18 +913,18 @@ void main() {
 }
 
 HealthRecord _recordForDate(String name, DateTime recordedAt) => HealthRecord(
-  id: 'test:$name',
-  name: name,
-  value: '1',
-  unit: '',
-  recordedAt: recordedAt,
-  category: RecordCategory.vital,
-  source: 'Test source',
-);
+      id: 'test:$name',
+      name: name,
+      value: '1',
+      unit: '',
+      recordedAt: recordedAt,
+      category: RecordCategory.vital,
+      source: 'Test source',
+    );
 
 class _MemoryRecordStore extends EncryptedRecordStore {
   _MemoryRecordStore([this.records = const []])
-    : super(directory: Directory.systemTemp);
+      : super(directory: Directory.systemTemp);
 
   final List<HealthRecord> records;
 
@@ -974,7 +976,8 @@ class _FakeHealthPlatformImporter extends HealthPlatformImporter {
   Future<List<HealthRecord>> importRecords({
     required DateTime since,
     ImportProgressCallback? onProgress,
-  }) async => records;
+  }) async =>
+      records;
 }
 
 class _MemorySyncValueStore implements SyncValueStore {

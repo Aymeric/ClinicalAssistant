@@ -55,7 +55,7 @@ class MeasurementSignalAnalyzer {
       if (previous.value != 0) {
         final changePercent =
             ((latest.value - previous.value).abs() / previous.value.abs()) *
-            100;
+                100;
         if (changePercent >= trendThresholdPercent) trendCount++;
       }
 

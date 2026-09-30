@@ -9,13 +9,13 @@ enum GuidelineTopic {
 
 extension GuidelineTopicLabel on GuidelineTopic {
   String get label => switch (this) {
-    GuidelineTopic.all => 'All topics',
-    GuidelineTopic.publicHealth => 'Public health',
-    GuidelineTopic.prevention => 'Prevention',
-    GuidelineTopic.immunization => 'Immunization',
-    GuidelineTopic.conditionCare => 'Condition care',
-    GuidelineTopic.evidenceSearch => 'Guideline discovery',
-  };
+        GuidelineTopic.all => 'All topics',
+        GuidelineTopic.publicHealth => 'Public health',
+        GuidelineTopic.prevention => 'Prevention',
+        GuidelineTopic.immunization => 'Immunization',
+        GuidelineTopic.conditionCare => 'Condition care',
+        GuidelineTopic.evidenceSearch => 'Guideline discovery',
+      };
 }
 
 enum GuidelineJurisdiction {
@@ -30,24 +30,24 @@ enum GuidelineJurisdiction {
 
 extension GuidelineJurisdictionLabel on GuidelineJurisdiction {
   String get label => switch (this) {
-    GuidelineJurisdiction.all => 'All jurisdictions',
-    GuidelineJurisdiction.global => 'Global',
-    GuidelineJurisdiction.unitedKingdom => 'United Kingdom',
-    GuidelineJurisdiction.unitedStates => 'United States',
-    GuidelineJurisdiction.australia => 'Australia',
-    GuidelineJurisdiction.canada => 'Canada',
-    GuidelineJurisdiction.internationalIndex => 'International index',
-  };
+        GuidelineJurisdiction.all => 'All jurisdictions',
+        GuidelineJurisdiction.global => 'Global',
+        GuidelineJurisdiction.unitedKingdom => 'United Kingdom',
+        GuidelineJurisdiction.unitedStates => 'United States',
+        GuidelineJurisdiction.australia => 'Australia',
+        GuidelineJurisdiction.canada => 'Canada',
+        GuidelineJurisdiction.internationalIndex => 'International index',
+      };
 }
 
 enum GuidelineSourceStatus { currentPortal, archive, discoveryIndex }
 
 extension GuidelineSourceStatusLabel on GuidelineSourceStatus {
   String get label => switch (this) {
-    GuidelineSourceStatus.currentPortal => 'Official source portal',
-    GuidelineSourceStatus.archive => 'Published-guideline archive',
-    GuidelineSourceStatus.discoveryIndex => 'Discovery index',
-  };
+        GuidelineSourceStatus.currentPortal => 'Official source portal',
+        GuidelineSourceStatus.archive => 'Published-guideline archive',
+        GuidelineSourceStatus.discoveryIndex => 'Discovery index',
+      };
 }
 
 class GuidelineSource {
@@ -93,8 +93,7 @@ abstract final class GuidelineCatalog {
           'Browse WHO-issued guidelines and follow each listing to its '
           'publication record for the document, scope, and status details.',
       status: GuidelineSourceStatus.currentPortal,
-      statusNote:
-          'Check the publication record for the latest edition and any '
+      statusNote: 'Check the publication record for the latest edition and any '
           'updates or replacement guidance.',
       url: Uri.parse('https://www.who.int/publications/who-guidelines'),
       verifiedOn: lastLinkCheck,
@@ -128,8 +127,7 @@ abstract final class GuidelineCatalog {
       jurisdiction: GuidelineJurisdiction.unitedStates,
       topics: {GuidelineTopic.prevention},
       audience: 'Preventive services in the United States',
-      description:
-          'Browse USPSTF recommendation statements and their evidence '
+      description: 'Browse USPSTF recommendation statements and their evidence '
           'reviews for screening, counseling, and preventive medication '
           'topics.',
       status: GuidelineSourceStatus.currentPortal,
@@ -153,8 +151,7 @@ abstract final class GuidelineCatalog {
           'Browse Australian Government immunisation guidance. Advice is '
           'specific to Australian policy and schedules.',
       status: GuidelineSourceStatus.currentPortal,
-      statusNote:
-          'Check the handbook page for the latest chapter revision and '
+      statusNote: 'Check the handbook page for the latest chapter revision and '
           'recommendations.',
       url: Uri.parse('https://immunisationhandbook.health.gov.au/contents'),
       verifiedOn: lastLinkCheck,
@@ -186,8 +183,7 @@ abstract final class GuidelineCatalog {
       jurisdiction: GuidelineJurisdiction.internationalIndex,
       topics: {GuidelineTopic.evidenceSearch},
       audience: 'Guideline discovery across organizations and countries',
-      description:
-          'Use this library to discover guidelines from different '
+      description: 'Use this library to discover guidelines from different '
           'organizations, then follow the record to the original developer. '
           'An index entry is not a substitute for checking the source.',
       status: GuidelineSourceStatus.discoveryIndex,
@@ -225,24 +221,21 @@ abstract final class GuidelineCatalog {
     GuidelineJurisdiction jurisdiction = GuidelineJurisdiction.all,
   }) {
     final normalizedQuery = query.trim().toLowerCase();
-    return sources
-        .where((source) {
-          final matchesTopic =
-              topic == GuidelineTopic.all || source.topics.contains(topic);
-          final matchesJurisdiction =
-              jurisdiction == GuidelineJurisdiction.all ||
-              source.jurisdiction == jurisdiction;
-          final searchable = [
-            source.name,
-            source.publisher,
-            source.jurisdiction.label,
-            source.audience,
-            source.description,
-          ].join(' ').toLowerCase();
-          final matchesQuery =
-              normalizedQuery.isEmpty || searchable.contains(normalizedQuery);
-          return matchesTopic && matchesJurisdiction && matchesQuery;
-        })
-        .toList(growable: false);
+    return sources.where((source) {
+      final matchesTopic =
+          topic == GuidelineTopic.all || source.topics.contains(topic);
+      final matchesJurisdiction = jurisdiction == GuidelineJurisdiction.all ||
+          source.jurisdiction == jurisdiction;
+      final searchable = [
+        source.name,
+        source.publisher,
+        source.jurisdiction.label,
+        source.audience,
+        source.description,
+      ].join(' ').toLowerCase();
+      final matchesQuery =
+          normalizedQuery.isEmpty || searchable.contains(normalizedQuery);
+      return matchesTopic && matchesJurisdiction && matchesQuery;
+    }).toList(growable: false);
   }
 }

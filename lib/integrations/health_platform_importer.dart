@@ -15,11 +15,11 @@ class HealthPlatformImporter {
     Health? health,
     AppleClinicalRecordsImporter? appleClinicalRecords,
     HealthConnectMedicalRecordsImporter? healthConnectMedicalRecords,
-  }) : _health = health ?? Health(),
-       _appleClinicalRecords =
-           appleClinicalRecords ?? AppleClinicalRecordsImporter(),
-       _healthConnectMedicalRecords =
-           healthConnectMedicalRecords ?? HealthConnectMedicalRecordsImporter();
+  })  : _health = health ?? Health(),
+        _appleClinicalRecords =
+            appleClinicalRecords ?? AppleClinicalRecordsImporter(),
+        _healthConnectMedicalRecords = healthConnectMedicalRecords ??
+            HealthConnectMedicalRecordsImporter();
 
   static const _queryBatchYears = 10;
   final Health _health;
@@ -126,17 +126,14 @@ class HealthPlatformImporter {
         await _health.requestHealthDataHistoryAuthorization();
       }
 
-      final detailedTypes = availableTypes
-          .where((type) => type != HealthDataType.STEPS)
-          .toList();
-      final stepTypes = availableTypes
-          .where((type) => type == HealthDataType.STEPS)
-          .toList();
+      final detailedTypes =
+          availableTypes.where((type) => type != HealthDataType.STEPS).toList();
+      final stepTypes =
+          availableTypes.where((type) => type == HealthDataType.STEPS).toList();
       final windows = _buildWindows(since, endTime);
       final groupsPerWindow =
           (detailedTypes.isEmpty ? 0 : 1) + (stepTypes.isEmpty ? 0 : 1);
-      totalSteps =
-          windows.length * groupsPerWindow +
+      totalSteps = windows.length * groupsPerWindow +
           (Platform.isIOS || Platform.isAndroid ? 1 : 0);
 
       report('Preparing health data');

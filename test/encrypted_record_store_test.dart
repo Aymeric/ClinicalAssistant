@@ -92,7 +92,8 @@ class _MemorySecureStorage extends FlutterSecureStorage {
     WebOptions? webOptions,
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
-  }) async => values[key];
+  }) async =>
+      values[key];
 
   @override
   Future<void> write({

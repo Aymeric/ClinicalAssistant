@@ -35,7 +35,8 @@ void main() {
     expect(
       (await controller.syncHealth(
         onProgress: (value) => progress.add(value.fraction),
-      )).map((record) => record.id),
+      ))
+          .map((record) => record.id),
       ['health:first'],
     );
     expect(await controller.syncHealth(), isEmpty);
@@ -289,14 +290,14 @@ void main() {
 }
 
 HealthRecord _record(String id) => HealthRecord(
-  id: id,
-  name: 'Glucose',
-  value: '100',
-  unit: 'mg/dL',
-  recordedAt: DateTime.utc(2026, 9, 20),
-  category: RecordCategory.lab,
-  source: 'Example portal',
-);
+      id: id,
+      name: 'Glucose',
+      value: '100',
+      unit: 'mg/dL',
+      recordedAt: DateTime.utc(2026, 9, 20),
+      category: RecordCategory.lab,
+      source: 'Example portal',
+    );
 
 class _MemoryRecordStore extends EncryptedRecordStore {
   _MemoryRecordStore() : super(directory: Directory.systemTemp);
@@ -359,13 +360,13 @@ class _FakeFhirImporter extends FhirPortalImporter {
     List<HealthRecord>? refreshRecords,
     List<HealthRecord>? authorizationRecords,
     this.authorizationGate,
-  }) : _refreshRecords = refreshRecords ?? [_record('fhir:new')],
-       _authorizationRecords =
-           authorizationRecords ?? [_record('fhir:existing')],
-       super(
-         client: MockClient((_) async => http.Response('', 500)),
-         appAuth: const FlutterAppAuth(),
-       );
+  })  : _refreshRecords = refreshRecords ?? [_record('fhir:new')],
+        _authorizationRecords =
+            authorizationRecords ?? [_record('fhir:existing')],
+        super(
+          client: MockClient((_) async => http.Response('', 500)),
+          appAuth: const FlutterAppAuth(),
+        );
 
   final bool issueRefreshToken;
   final List<HealthRecord> _refreshRecords;
@@ -392,9 +393,8 @@ class _FakeFhirImporter extends FhirPortalImporter {
       patientId: 'patient-7',
       authorizationEndpoint: 'https://login.portal.example/authorize',
       tokenEndpoint: 'https://login.portal.example/token',
-      refreshToken: requestRefreshToken && issueRefreshToken
-          ? 'initial-refresh'
-          : null,
+      refreshToken:
+          requestRefreshToken && issueRefreshToken ? 'initial-refresh' : null,
     );
   }
 

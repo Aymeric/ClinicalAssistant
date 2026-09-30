@@ -120,9 +120,8 @@ class HealthExportService {
       buffer.writeln('--- $categoryTitle (${categoryRecords.length}) ---');
       for (final r in categoryRecords) {
         final date = _formatDate(r.recordedAt);
-        final ref = r.referenceRange != null
-            ? ' [Ref: ${r.referenceRange}]'
-            : '';
+        final ref =
+            r.referenceRange != null ? ' [Ref: ${r.referenceRange}]' : '';
         buffer.writeln(
           '• $date: ${r.name} = ${_medicationInstructions(r)}$ref (${r.source})',
         );
@@ -263,9 +262,8 @@ class HealthExportService {
     final sources = ordered.map((r) => r.source).toSet().join(', ');
 
     // Group vitals
-    final vitals = ordered
-        .where((r) => r.category == RecordCategory.vital)
-        .toList();
+    final vitals =
+        ordered.where((r) => r.category == RecordCategory.vital).toList();
     final vitalSeries = <String, List<HealthRecord>>{};
     for (final v in vitals) {
       vitalSeries.putIfAbsent(v.name, () => []).add(v);
@@ -295,15 +293,12 @@ class HealthExportService {
         )
         .toList();
 
-    final medications = ordered
-        .where((r) => r.category == RecordCategory.medication)
-        .toList();
-    final conditions = ordered
-        .where((r) => r.category == RecordCategory.condition)
-        .toList();
-    final allergies = ordered
-        .where((r) => r.category == RecordCategory.allergy)
-        .toList();
+    final medications =
+        ordered.where((r) => r.category == RecordCategory.medication).toList();
+    final conditions =
+        ordered.where((r) => r.category == RecordCategory.condition).toList();
+    final allergies =
+        ordered.where((r) => r.category == RecordCategory.allergy).toList();
 
     pdf.addPage(
       pw.MultiPage(
@@ -779,38 +774,38 @@ class HealthExportService {
             ),
             child:
                 patientQuestions != null && patientQuestions.trim().isNotEmpty
-                ? pw.Text(
-                    patientQuestions.trim(),
-                    style: const pw.TextStyle(fontSize: 9, lineSpacing: 2),
-                  )
-                : pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        '1. __________________________________________________________________________',
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
-                        ),
+                    ? pw.Text(
+                        patientQuestions.trim(),
+                        style: const pw.TextStyle(fontSize: 9, lineSpacing: 2),
+                      )
+                    : pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            '1. __________________________________________________________________________',
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey600,
+                            ),
+                          ),
+                          pw.SizedBox(height: 8),
+                          pw.Text(
+                            '2. __________________________________________________________________________',
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey600,
+                            ),
+                          ),
+                          pw.SizedBox(height: 8),
+                          pw.Text(
+                            '3. __________________________________________________________________________',
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey600,
+                            ),
+                          ),
+                        ],
                       ),
-                      pw.SizedBox(height: 8),
-                      pw.Text(
-                        '2. __________________________________________________________________________',
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
-                        ),
-                      ),
-                      pw.SizedBox(height: 8),
-                      pw.Text(
-                        '3. __________________________________________________________________________',
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
-                        ),
-                      ),
-                    ],
-                  ),
           ),
         ],
       ),
@@ -982,20 +977,20 @@ class HealthExportService {
   }
 
   String? _ucumCode(String unit) => switch (unit) {
-    'mg/dL' => 'mg/dL',
-    'mmol/L' => 'mmol/L',
-    '%' => '%',
-    'mmHg' => 'mm[Hg]',
-    '°C' => 'Cel',
-    '°F' => '[degF]',
-    'bpm' => '/min',
-    'breaths/min' => '/min',
-    'ms' => 'ms',
-    'm' => 'm',
-    'cm' => 'cm',
-    'kg' => 'kg',
-    'lb' => '[lb_av]',
-    'count' => '1',
-    _ => null,
-  };
+        'mg/dL' => 'mg/dL',
+        'mmol/L' => 'mmol/L',
+        '%' => '%',
+        'mmHg' => 'mm[Hg]',
+        '°C' => 'Cel',
+        '°F' => '[degF]',
+        'bpm' => '/min',
+        'breaths/min' => '/min',
+        'ms' => 'ms',
+        'm' => 'm',
+        'cm' => 'cm',
+        'kg' => 'kg',
+        'lb' => '[lb_av]',
+        'count' => '1',
+        _ => null,
+      };
 }

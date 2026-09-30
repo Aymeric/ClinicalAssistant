@@ -32,9 +32,8 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
 
   var fixed = value.toStringAsFixed(decimals);
   if (fixed.contains('.')) {
-    fixed = fixed
-        .replaceFirst(RegExp(r'0+$'), '')
-        .replaceFirst(RegExp(r'\.$'), '');
+    fixed =
+        fixed.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
   }
 
   if (fixed == '-0') return '0';
@@ -150,20 +149,20 @@ class HealthRecord {
   }
 
   Map<String, Object?> toJson() => {
-    'id': id,
-    'name': name,
-    'value': value,
-    'unit': unit,
-    'recordedAt': recordedAt.toUtc().toIso8601String(),
-    'category': category.name,
-    'source': source,
-    'sourceId': sourceId,
-    'code': code,
-    'referenceRange': referenceRange,
-    'status': status,
-    'sourceData': sourceData,
-    if (notes != null) 'notes': notes,
-  };
+        'id': id,
+        'name': name,
+        'value': value,
+        'unit': unit,
+        'recordedAt': recordedAt.toUtc().toIso8601String(),
+        'category': category.name,
+        'source': source,
+        'sourceId': sourceId,
+        'code': code,
+        'referenceRange': referenceRange,
+        'status': status,
+        'sourceData': sourceData,
+        if (notes != null) 'notes': notes,
+      };
 
   factory HealthRecord.fromJson(Map<String, Object?> json) {
     return HealthRecord(

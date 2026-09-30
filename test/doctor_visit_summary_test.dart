@@ -11,7 +11,9 @@ void main() {
     exportService = HealthExportService();
   });
 
-  test('generates doctor visit summary PDF document with vitals and out-of-range labs', () async {
+  test(
+      'generates doctor visit summary PDF document with vitals and out-of-range labs',
+      () async {
     final now = DateTime.utc(2026, 9, 20);
     final records = [
       HealthRecord(
@@ -89,7 +91,9 @@ void main() {
     expect(bytes.length, greaterThan(500));
   });
 
-  test('generates doctor visit summary with medications, conditions, and allergies', () async {
+  test(
+      'generates doctor visit summary with medications, conditions, and allergies',
+      () async {
     final now = DateTime.utc(2026, 9, 20);
     final records = [
       HealthRecord(

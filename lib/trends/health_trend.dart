@@ -21,7 +21,8 @@ class HealthReferenceRange {
   static HealthReferenceRange? tryParse(
     String? raw, {
     String expectedUnit = '',
-  }) => parseHealthReferenceRange(raw, expectedUnit: expectedUnit);
+  }) =>
+      parseHealthReferenceRange(raw, expectedUnit: expectedUnit);
 
   HealthReferenceStatus evaluate(double value) {
     if (upperBound != null && value > upperBound!) {
@@ -121,10 +122,10 @@ class HealthLabResultSummary {
 }
 
 String healthTrendSeriesId(HealthRecord record) => [
-  record.category.name,
-  record.name.trim().toLowerCase(),
-  record.unit,
-].join('\u0000');
+      record.category.name,
+      record.name.trim().toLowerCase(),
+      record.unit,
+    ].join('\u0000');
 
 List<HealthLabResultSummary> buildLatestLabResultSummaries(
   Iterable<HealthRecord> records, {
@@ -173,13 +174,12 @@ List<HealthLabResultSummary> buildLatestLabResultSummaries(
             previous.record.referenceRange,
             expectedUnit: previous.record.unit,
           );
-    final latestStatus =
-        latestRange?.evaluate(latest.value) ??
+    final latestStatus = latestRange?.evaluate(latest.value) ??
         HealthReferenceStatus.unspecified;
     final previousStatus = previous == null
         ? null
         : previousRange?.evaluate(previous.value) ??
-              HealthReferenceStatus.unspecified;
+            HealthReferenceStatus.unspecified;
 
     summaries.add(
       HealthLabResultSummary(

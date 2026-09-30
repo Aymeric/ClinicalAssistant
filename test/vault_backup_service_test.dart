@@ -149,7 +149,8 @@ void main() {
       );
     });
 
-    test('rejects backups with unsafe iteration counts or weak salts', () async {
+    test('rejects backups with unsafe iteration counts or weak salts',
+        () async {
       const password = 'valid-password-123';
       final validBackup = await service.exportEncryptedBackup(
         sampleRecords,
@@ -159,7 +160,8 @@ void main() {
 
       // Test too low iterations
       final lowIter = Map<String, dynamic>.from(decoded);
-      lowIter['kdf'] = Map<String, dynamic>.from(decoded['kdf'] as Map)..['iterations'] = 1000;
+      lowIter['kdf'] = Map<String, dynamic>.from(decoded['kdf'] as Map)
+        ..['iterations'] = 1000;
       expect(
         () => service.restoreEncryptedBackup(jsonEncode(lowIter), password),
         throwsFormatException,
@@ -167,7 +169,8 @@ void main() {
 
       // Test excessively high iterations (DoS protection)
       final highIter = Map<String, dynamic>.from(decoded);
-      highIter['kdf'] = Map<String, dynamic>.from(decoded['kdf'] as Map)..['iterations'] = 10000000;
+      highIter['kdf'] = Map<String, dynamic>.from(decoded['kdf'] as Map)
+        ..['iterations'] = 10000000;
       expect(
         () => service.restoreEncryptedBackup(jsonEncode(highIter), password),
         throwsFormatException,
@@ -175,7 +178,8 @@ void main() {
 
       // Test short salt
       final shortSalt = Map<String, dynamic>.from(decoded);
-      shortSalt['kdf'] = Map<String, dynamic>.from(decoded['kdf'] as Map)..['salt'] = base64Encode([1, 2, 3]);
+      shortSalt['kdf'] = Map<String, dynamic>.from(decoded['kdf'] as Map)
+        ..['salt'] = base64Encode([1, 2, 3]);
       expect(
         () => service.restoreEncryptedBackup(jsonEncode(shortSalt), password),
         throwsFormatException,

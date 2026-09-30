@@ -7,10 +7,9 @@ class AppleClinicalRecordsImporter {
   AppleClinicalRecordsImporter({
     MethodChannel? channel,
     FhirObservationParser? parser,
-  }) : _channel =
-           channel ??
-           const MethodChannel('clinical_assistant/apple_clinical_records'),
-       _parser = parser ?? const FhirObservationParser();
+  })  : _channel = channel ??
+            const MethodChannel('clinical_assistant/apple_clinical_records'),
+        _parser = parser ?? const FhirObservationParser();
 
   final MethodChannel _channel;
   final FhirObservationParser _parser;

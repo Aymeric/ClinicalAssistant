@@ -28,7 +28,7 @@ abstract interface class SyncValueStore {
 
 class SecureSyncValueStore implements SyncValueStore {
   SecureSyncValueStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+      : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 

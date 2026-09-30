@@ -8,10 +8,9 @@ import '../models/health_record.dart';
 
 class VaultBackupService {
   VaultBackupService({AesGcm? cipher, Pbkdf2? kdf})
-    : _cipher = cipher ?? AesGcm.with256bits(),
-      _kdf =
-          kdf ??
-          Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: 100000, bits: 256);
+      : _cipher = cipher ?? AesGcm.with256bits(),
+        _kdf = kdf ??
+            Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: 100000, bits: 256);
 
   static const String currentFormat = 'clinical_assistant_vault_backup_v1';
   static const int saltLength = 16;

@@ -12,7 +12,9 @@ void main() {
   const parser = FhirObservationParser();
 
   group('FhirObservationParser clinical resources expansion', () {
-    test('parses MedicationRequest with dosage instruction, RxNorm code, and notes', () {
+    test(
+        'parses MedicationRequest with dosage instruction, RxNorm code, and notes',
+        () {
       final json = jsonEncode({
         'resourceType': 'MedicationRequest',
         'id': 'med-101',
@@ -229,7 +231,9 @@ void main() {
       expect(record.notes, 'Booster dose administered in left deltoid');
     });
 
-    test('parses comprehensive bundle with observations, medications, conditions, allergies, and immunizations', () {
+    test(
+        'parses comprehensive bundle with observations, medications, conditions, allergies, and immunizations',
+        () {
       final bundle = {
         'resourceType': 'Bundle',
         'entry': [
@@ -297,7 +301,9 @@ void main() {
   });
 
   group('FhirPortalImporter multi-resource syncing', () {
-    test('gracefully continues when an optional clinical resource endpoint returns 404 or 403', () async {
+    test(
+        'gracefully continues when an optional clinical resource endpoint returns 404 or 403',
+        () async {
       final requestedPaths = <String>[];
       final importer = FhirPortalImporter(
         appAuth: _FakeAppAuth(),

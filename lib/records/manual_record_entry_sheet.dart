@@ -84,9 +84,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
           _refRangeController.text = '95 – 100 %';
           break;
         case ManualEntryType.temperature:
-          _refRangeController.text = _tempUnit == '°F'
-              ? '97.0 – 99.0 °F'
-              : '36.1 – 37.2 °C';
+          _refRangeController.text =
+              _tempUnit == '°F' ? '97.0 – 99.0 °F' : '36.1 – 37.2 °C';
           break;
         case ManualEntryType.medication:
           _medicationStatus = 'active';
@@ -181,7 +180,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         break;
 
       case ManualEntryType.glucose:
-        final fullNote = ['Context: $_glucoseContext', if (userNote != null) userNote].join(' · ');
+        final fullNote = [
+          'Context: $_glucoseContext',
+          if (userNote != null) userNote
+        ].join(' · ');
         records.add(
           HealthRecord(
             id: 'manual:glucose:$nowMs',
@@ -316,8 +318,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dateStr = MaterialLocalizations.of(context)
-        .formatMediumDate(_recordedAt);
+    final dateStr =
+        MaterialLocalizations.of(context).formatMediumDate(_recordedAt);
     final timeStr = MaterialLocalizations.of(context)
         .formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
 
@@ -541,15 +543,14 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                   },
                   validator: (value) =>
                       (value == 'stopped' || value == 'completed') &&
-                          _medicationEndDate == null
-                      ? 'Choose an end date'
-                      : null,
+                              _medicationEndDate == null
+                          ? 'Choose an end date'
+                          : null,
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   key: const ValueKey('manual-medication-end-date'),
-                  onPressed:
-                      _medicationStatus == 'active' ||
+                  onPressed: _medicationStatus == 'active' ||
                           _medicationStatus == 'on-hold'
                       ? null
                       : _pickMedicationEndDate,
@@ -744,11 +745,11 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   }
 
   String _getUnitForType(ManualEntryType type) => switch (type) {
-    ManualEntryType.glucose => 'mg/dL',
-    ManualEntryType.heartRate => 'bpm',
-    ManualEntryType.weight => _weightUnit,
-    ManualEntryType.temperature => _tempUnit,
-    ManualEntryType.oxygen => '%',
-    _ => '',
-  };
+        ManualEntryType.glucose => 'mg/dL',
+        ManualEntryType.heartRate => 'bpm',
+        ManualEntryType.weight => _weightUnit,
+        ManualEntryType.temperature => _tempUnit,
+        ManualEntryType.oxygen => '%',
+        _ => '',
+      };
 }

@@ -15,7 +15,7 @@ abstract interface class ResultNotificationPreferenceStore {
 class SecureResultNotificationPreferenceStore
     implements ResultNotificationPreferenceStore {
   SecureResultNotificationPreferenceStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+      : _storage = storage ?? const FlutterSecureStorage();
 
   static const _preferencesKey = 'result_notification_preferences_v1';
   final FlutterSecureStorage _storage;
@@ -50,9 +50,9 @@ class LocalResultNotificationManager implements ResultNotificationManager {
     LocalNotificationDispatcher? dispatcher,
     ResultNotificationPreferenceStore? preferenceStore,
     this.onNotificationTap,
-  }) : _dispatcher = dispatcher ?? FlutterLocalNotificationDispatcher(),
-       _preferenceStore =
-           preferenceStore ?? SecureResultNotificationPreferenceStore();
+  })  : _dispatcher = dispatcher ?? FlutterLocalNotificationDispatcher(),
+        _preferenceStore =
+            preferenceStore ?? SecureResultNotificationPreferenceStore();
 
   static const _newResultsNotificationId = 1;
   static const _trendNotificationId = 2;
@@ -99,7 +99,7 @@ class LocalResultNotificationManager implements ResultNotificationManager {
     if (preferences.newLabResults || preferences.newMeasurements) {
       final newRecordCount =
           (preferences.newLabResults ? signals.newLabResults : 0) +
-          (preferences.newMeasurements ? signals.newMeasurements : 0);
+              (preferences.newMeasurements ? signals.newMeasurements : 0);
       final parts = <String>[
         if (preferences.newLabResults && signals.newLabResults > 0)
           '${signals.newLabResults} new lab ${_plural(signals.newLabResults, 'result')}',

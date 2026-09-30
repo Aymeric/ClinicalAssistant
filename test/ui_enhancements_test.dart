@@ -752,7 +752,7 @@ void main() {
 
 class _MemoryRecordStore extends EncryptedRecordStore {
   _MemoryRecordStore([this.records = const []])
-    : super(directory: Directory.systemTemp);
+      : super(directory: Directory.systemTemp);
 
   final List<HealthRecord> records;
 

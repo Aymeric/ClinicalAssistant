@@ -16,30 +16,30 @@ void main() {
   test('parses Health Connect lab records with source provenance', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-          switch (call.method) {
-            case 'isMedicalRecordsAvailable':
-            case 'requestLabReadPermission':
-              return true;
-            case 'readLabRecords':
-              return [
-                {
-                  'sourceId': 'health-connect-source-1',
-                  'sourceName': 'Example Clinic',
-                  'resourceId': 'observation-1',
-                  'resource': jsonEncode({
-                    'resourceType': 'Observation',
-                    'id': 'observation-1',
-                    'status': 'final',
-                    'code': {'text': 'Glucose'},
-                    'effectiveDateTime': '2026-03-10T14:30:00Z',
-                    'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
-                  }),
-                },
-              ];
-            default:
-              fail('Unexpected method ${call.method}');
-          }
-        });
+      switch (call.method) {
+        case 'isMedicalRecordsAvailable':
+        case 'requestLabReadPermission':
+          return true;
+        case 'readLabRecords':
+          return [
+            {
+              'sourceId': 'health-connect-source-1',
+              'sourceName': 'Example Clinic',
+              'resourceId': 'observation-1',
+              'resource': jsonEncode({
+                'resourceType': 'Observation',
+                'id': 'observation-1',
+                'status': 'final',
+                'code': {'text': 'Glucose'},
+                'effectiveDateTime': '2026-03-10T14:30:00Z',
+                'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
+              }),
+            },
+          ];
+        default:
+          fail('Unexpected method ${call.method}');
+      }
+    });
 
     final records = await HealthConnectMedicalRecordsImporter(channel: channel)
         .importLabRecords(since: DateTime.utc(2026, 1, 1));
@@ -59,30 +59,30 @@ void main() {
   test('filters observations to the requested start date', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-          switch (call.method) {
-            case 'isMedicalRecordsAvailable':
-            case 'requestLabReadPermission':
-              return true;
-            case 'readLabRecords':
-              return [
-                for (final date in ['2025-12-31', '2026-01-01'])
-                  {
-                    'sourceId': 'clinic',
-                    'resourceId': date,
-                    'resource': jsonEncode({
-                      'resourceType': 'Observation',
-                      'id': date,
-                      'status': 'final',
-                      'code': {'text': 'Glucose'},
-                      'effectiveDateTime': '${date}T14:30:00Z',
-                      'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
-                    }),
-                  },
-              ];
-            default:
-              fail('Unexpected method ${call.method}');
-          }
-        });
+      switch (call.method) {
+        case 'isMedicalRecordsAvailable':
+        case 'requestLabReadPermission':
+          return true;
+        case 'readLabRecords':
+          return [
+            for (final date in ['2025-12-31', '2026-01-01'])
+              {
+                'sourceId': 'clinic',
+                'resourceId': date,
+                'resource': jsonEncode({
+                  'resourceType': 'Observation',
+                  'id': date,
+                  'status': 'final',
+                  'code': {'text': 'Glucose'},
+                  'effectiveDateTime': '${date}T14:30:00Z',
+                  'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
+                }),
+              },
+          ];
+        default:
+          fail('Unexpected method ${call.method}');
+      }
+    });
 
     final records = await HealthConnectMedicalRecordsImporter(channel: channel)
         .importLabRecords(since: DateTime.utc(2026, 1, 1));
@@ -96,13 +96,13 @@ void main() {
     final statuses = <String>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-          methods.add(call.method);
-          return switch (call.method) {
-            'isMedicalRecordsAvailable' => true,
-            'requestLabReadPermission' => false,
-            _ => fail('Unexpected method ${call.method}'),
-          };
-        });
+      methods.add(call.method);
+      return switch (call.method) {
+        'isMedicalRecordsAvailable' => true,
+        'requestLabReadPermission' => false,
+        _ => fail('Unexpected method ${call.method}'),
+      };
+    });
 
     final records = await HealthConnectMedicalRecordsImporter(channel: channel)
         .importLabRecords(since: DateTime.utc(2026), onStatus: statuses.add);
@@ -117,9 +117,9 @@ void main() {
     final statuses = <String>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-          methods.add(call.method);
-          return false;
-        });
+      methods.add(call.method);
+      return false;
+    });
 
     final records = await HealthConnectMedicalRecordsImporter(channel: channel)
         .importLabRecords(since: DateTime.utc(2026), onStatus: statuses.add);
@@ -135,12 +135,12 @@ void main() {
   test('rejects malformed native medical-record responses', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-          return switch (call.method) {
-            'isMedicalRecordsAvailable' || 'requestLabReadPermission' => true,
-            'readLabRecords' => ['not a record'],
-            _ => fail('Unexpected method ${call.method}'),
-          };
-        });
+      return switch (call.method) {
+        'isMedicalRecordsAvailable' || 'requestLabReadPermission' => true,
+        'readLabRecords' => ['not a record'],
+        _ => fail('Unexpected method ${call.method}'),
+      };
+    });
 
     await expectLater(
       HealthConnectMedicalRecordsImporter(channel: channel)

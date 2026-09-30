@@ -18,7 +18,7 @@ abstract interface class LocalNotificationDispatcher {
 class FlutterLocalNotificationDispatcher
     implements LocalNotificationDispatcher {
   FlutterLocalNotificationDispatcher({FlutterLocalNotificationsPlugin? plugin})
-    : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+      : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
   var _initialized = false;
@@ -68,16 +68,14 @@ class FlutterLocalNotificationDispatcher
     if (Platform.isAndroid) {
       final result = await _plugin
           .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
+              AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
       return result ?? false;
     }
     if (Platform.isIOS) {
       final result = await _plugin
           .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin
-          >()
+              IOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(alert: true, sound: true);
       return result ?? false;
     }
@@ -99,7 +97,8 @@ class FlutterLocalNotificationDispatcher
         android: AndroidNotificationDetails(
           'health_record_updates',
           'Health record updates',
-          channelDescription: 'Private alerts about newly imported records and measurement patterns.',
+          channelDescription:
+              'Private alerts about newly imported records and measurement patterns.',
           icon: 'ic_notification',
           visibility: NotificationVisibility.private,
         ),

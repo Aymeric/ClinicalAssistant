@@ -9,11 +9,11 @@ class ResultNotificationPreferences {
     this.patterns = true,
     this.trendThresholdPercent = 10,
   }) : assert(
-         trendThresholdPercent == 5 ||
-             trendThresholdPercent == 10 ||
-             trendThresholdPercent == 20 ||
-             trendThresholdPercent == 50,
-       );
+          trendThresholdPercent == 5 ||
+              trendThresholdPercent == 10 ||
+              trendThresholdPercent == 20 ||
+              trendThresholdPercent == 50,
+        );
 
   static const trendThresholdOptions = [5, 10, 20, 50];
 
@@ -44,13 +44,13 @@ class ResultNotificationPreferences {
   }
 
   String toJson() => jsonEncode({
-    'enabled': enabled,
-    'newLabResults': newLabResults,
-    'newMeasurements': newMeasurements,
-    'trends': trends,
-    'patterns': patterns,
-    'trendThresholdPercent': trendThresholdPercent,
-  });
+        'enabled': enabled,
+        'newLabResults': newLabResults,
+        'newMeasurements': newMeasurements,
+        'trends': trends,
+        'patterns': patterns,
+        'trendThresholdPercent': trendThresholdPercent,
+      });
 
   factory ResultNotificationPreferences.fromJson(String json) {
     final Object? decoded = jsonDecode(json);

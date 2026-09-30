@@ -16,22 +16,22 @@ void main() {
     () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-            expect(call.method, 'importLabRecords');
-            return [
-              {
-                'sourceId': 'org.example.hospital',
-                'sourceName': 'Example Hospital',
-                'resource': {
-                  'resourceType': 'Observation',
-                  'id': 'lab-1',
-                  'status': 'final',
-                  'code': {'text': 'Glucose'},
-                  'effectiveDateTime': '2026-09-20T14:30:00Z',
-                  'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
-                },
-              },
-            ];
-          });
+        expect(call.method, 'importLabRecords');
+        return [
+          {
+            'sourceId': 'org.example.hospital',
+            'sourceName': 'Example Hospital',
+            'resource': {
+              'resourceType': 'Observation',
+              'id': 'lab-1',
+              'status': 'final',
+              'code': {'text': 'Glucose'},
+              'effectiveDateTime': '2026-09-20T14:30:00Z',
+              'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
+            },
+          },
+        ];
+      });
 
       final records = await AppleClinicalRecordsImporter(channel: channel)
           .importLabRecords(since: DateTime.utc(2026, 1, 1));
@@ -49,22 +49,22 @@ void main() {
   test('applies the requested range to the observation date', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-          return [
-            for (final date in ['2025-12-31', '2026-01-01'])
-              {
-                'sourceId': 'org.example.hospital',
-                'sourceName': 'Example Hospital',
-                'resource': {
-                  'resourceType': 'Observation',
-                  'id': date,
-                  'status': 'final',
-                  'code': {'text': 'Glucose'},
-                  'effectiveDateTime': '${date}T14:30:00Z',
-                  'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
-                },
-              },
-          ];
-        });
+      return [
+        for (final date in ['2025-12-31', '2026-01-01'])
+          {
+            'sourceId': 'org.example.hospital',
+            'sourceName': 'Example Hospital',
+            'resource': {
+              'resourceType': 'Observation',
+              'id': date,
+              'status': 'final',
+              'code': {'text': 'Glucose'},
+              'effectiveDateTime': '${date}T14:30:00Z',
+              'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
+            },
+          },
+      ];
+    });
 
     final records = await AppleClinicalRecordsImporter(channel: channel)
         .importLabRecords(since: DateTime.utc(2026, 1, 1));

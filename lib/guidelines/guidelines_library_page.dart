@@ -63,7 +63,9 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
         children: [
           Text(
             'Evidence-based sources',
-            style: Theme.of(context).textTheme.headlineSmall
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
                 ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
@@ -71,9 +73,9 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
             'Browse guideline publishers and indexes. Each source has its own '
             'scope, review process, and jurisdiction.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              height: 1.45,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
           ),
           const SizedBox(height: 16),
           Card(
@@ -125,7 +127,9 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
           const SizedBox(height: 16),
           Text(
             'Topic',
-            style: Theme.of(context).textTheme.titleSmall
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
                 ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
@@ -169,8 +173,8 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
           Text(
             '${sources.length} ${sources.length == 1 ? 'source' : 'sources'}',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
           const SizedBox(height: 10),
           if (sources.isEmpty)
@@ -190,8 +194,8 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
             'This date reflects a link check, not a clinical update review of '
             'every document on a publisher’s site.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
         ],
       ),
@@ -222,7 +226,9 @@ class _GuidelineSourceCard extends StatelessWidget {
                 _SourceStatusLabel(status: source.status),
                 Text(
                   source.jurisdiction.label,
-                  style: Theme.of(context).textTheme.labelMedium
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelMedium
                       ?.copyWith(color: colors.onSurfaceVariant),
                 ),
               ],
@@ -230,13 +236,17 @@ class _GuidelineSourceCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               source.name,
-              style: Theme.of(context).textTheme.titleMedium
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
             Text(
               source.publisher,
-              style: Theme.of(context).textTheme.bodySmall
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
                   ?.copyWith(color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 10),
@@ -244,13 +254,17 @@ class _GuidelineSourceCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               'Scope: ${source.audience}',
-              style: Theme.of(context).textTheme.bodySmall
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
                   ?.copyWith(color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
             Text(
               source.statusNote,
-              style: Theme.of(context).textTheme.bodySmall
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
                   ?.copyWith(color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 6),
@@ -294,7 +308,9 @@ class _SourceStatusLabel extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             status.label,
-            style: Theme.of(context).textTheme.labelSmall
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
@@ -327,8 +343,8 @@ class _NoGuidelineSources extends StatelessWidget {
             Text(
               'Try another search or change the filters.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
               textAlign: TextAlign.center,
             ),
           ],

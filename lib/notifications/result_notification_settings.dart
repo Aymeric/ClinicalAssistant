@@ -104,10 +104,10 @@ class _ResultNotificationSettingsState
     final subtitle = _loading
         ? 'Loading settings...'
         : _error == null
-        ? _preferences.enabled
-              ? 'On · checked after imports'
-              : 'Off · checked after imports'
-        : 'Settings need attention';
+            ? _preferences.enabled
+                ? 'On · checked after imports'
+                : 'Off · checked after imports'
+            : 'Settings need attention';
     return Card(
       child: ExpansionTile(
         leading: const Icon(Icons.notifications_outlined),
@@ -174,8 +174,8 @@ class _ResultNotificationSettingsState
                   onChanged: _saving
                       ? null
                       : (value) => _update(
-                          _preferences.copyWith(newLabResults: value),
-                        ),
+                            _preferences.copyWith(newLabResults: value),
+                          ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -187,8 +187,8 @@ class _ResultNotificationSettingsState
                   onChanged: _saving
                       ? null
                       : (value) => _update(
-                          _preferences.copyWith(newMeasurements: value),
-                        ),
+                            _preferences.copyWith(newMeasurements: value),
+                          ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -200,7 +200,7 @@ class _ResultNotificationSettingsState
                   onChanged: _saving
                       ? null
                       : (value) =>
-                            _update(_preferences.copyWith(trends: value)),
+                          _update(_preferences.copyWith(trends: value)),
                 ),
                 DropdownButtonFormField<int>(
                   initialValue: _preferences.trendThresholdPercent,
@@ -239,7 +239,7 @@ class _ResultNotificationSettingsState
                   onChanged: _saving
                       ? null
                       : (value) =>
-                            _update(_preferences.copyWith(patterns: value)),
+                          _update(_preferences.copyWith(patterns: value)),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 4),

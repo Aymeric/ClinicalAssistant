@@ -494,16 +494,17 @@ HealthRecord _record(
   RecordCategory category, {
   DateTime? at,
   String? referenceRange,
-}) => HealthRecord(
-  id: id,
-  name: name,
-  value: value,
-  unit: unit,
-  recordedAt: at ?? DateTime.utc(2026, 9, 26),
-  category: category,
-  source: 'Test source',
-  referenceRange: referenceRange,
-);
+}) =>
+    HealthRecord(
+      id: id,
+      name: name,
+      value: value,
+      unit: unit,
+      recordedAt: at ?? DateTime.utc(2026, 9, 26),
+      category: category,
+      source: 'Test source',
+      referenceRange: referenceRange,
+    );
 
 HealthTrendPoint _point(
   String id,

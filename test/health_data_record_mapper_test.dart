@@ -43,7 +43,9 @@ void main() {
     });
   });
 
-  test('excludes TOTAL_CALORIES_BURNED on iOS due to Apple HealthKit incompatibility', () {
+  test(
+      'excludes TOTAL_CALORIES_BURNED on iOS due to Apple HealthKit incompatibility',
+      () {
     final importer = HealthPlatformImporter();
     expect(
       importer.isDataTypeAvailable(

@@ -93,7 +93,8 @@ List<HealthRecord> applyManualRecordEdits(
       );
     }
     return current.copyWith(value: edit.value, recordedAt: edit.recordedAt);
-  }).toList()..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+  }).toList()
+    ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
   return updated;
 }
 
@@ -139,12 +140,12 @@ class _ManualRecordEditSheetState extends State<ManualRecordEditSheet> {
       _medicationStatus == 'stopped' || _medicationStatus == 'completed';
 
   HealthRecord get _systolic => widget.records.firstWhere(
-    (record) => record.name == 'Systolic Blood Pressure',
-  );
+        (record) => record.name == 'Systolic Blood Pressure',
+      );
 
   HealthRecord get _diastolic => widget.records.firstWhere(
-    (record) => record.name == 'Diastolic Blood Pressure',
-  );
+        (record) => record.name == 'Diastolic Blood Pressure',
+      );
 
   @override
   void initState() {
@@ -170,8 +171,8 @@ class _ManualRecordEditSheetState extends State<ManualRecordEditSheet> {
     final status = widget.records.first.status;
     _medicationStatus =
         const {'active', 'stopped', 'on-hold', 'completed'}.contains(status)
-        ? status!
-        : 'active';
+            ? status!
+            : 'active';
   }
 
   @override
@@ -250,26 +251,26 @@ class _ManualRecordEditSheetState extends State<ManualRecordEditSheet> {
             ),
           ]
         : _isMedication
-        ? [
-            widget.records.first.copyWith(
-              value: _valueController.text.trim(),
-              recordedAt: timestamp,
-              status: _medicationStatus,
-              sourceData: ManualMedicationDetails(
-                frequency: _medicationFrequencyController.text.trim(),
-                route: _medicationRouteController.text.trim().isEmpty
-                    ? null
-                    : _medicationRouteController.text.trim(),
-                endDate: _medicationEndDate,
-              ).withSourceData(widget.records.first.sourceData),
-            ),
-          ]
-        : [
-            widget.records.first.copyWith(
-              value: _valueController.text.trim(),
-              recordedAt: timestamp,
-            ),
-          ];
+            ? [
+                widget.records.first.copyWith(
+                  value: _valueController.text.trim(),
+                  recordedAt: timestamp,
+                  status: _medicationStatus,
+                  sourceData: ManualMedicationDetails(
+                    frequency: _medicationFrequencyController.text.trim(),
+                    route: _medicationRouteController.text.trim().isEmpty
+                        ? null
+                        : _medicationRouteController.text.trim(),
+                    endDate: _medicationEndDate,
+                  ).withSourceData(widget.records.first.sourceData),
+                ),
+              ]
+            : [
+                widget.records.first.copyWith(
+                  value: _valueController.text.trim(),
+                  recordedAt: timestamp,
+                ),
+              ];
 
     try {
       await widget.onSave(edits);
@@ -287,8 +288,8 @@ class _ManualRecordEditSheetState extends State<ManualRecordEditSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final date = MaterialLocalizations.of(context)
-        .formatMediumDate(_recordedAt);
+    final date =
+        MaterialLocalizations.of(context).formatMediumDate(_recordedAt);
     final time = MaterialLocalizations.of(context)
         .formatTimeOfDay(TimeOfDay.fromDateTime(_recordedAt));
 
@@ -357,8 +358,8 @@ class _ManualRecordEditSheetState extends State<ManualRecordEditSheet> {
                   controller: _valueController,
                   keyboardType:
                       parseHealthRecordValue(widget.records.first.value) != null
-                      ? const TextInputType.numberWithOptions(decimal: true)
-                      : TextInputType.text,
+                          ? const TextInputType.numberWithOptions(decimal: true)
+                          : TextInputType.text,
                   decoration: InputDecoration(
                     labelText: _isMedication
                         ? 'Dose / instructions'
@@ -369,7 +370,7 @@ class _ManualRecordEditSheetState extends State<ManualRecordEditSheet> {
                     value,
                     requireNumeric:
                         parseHealthRecordValue(widget.records.first.value) !=
-                        null,
+                            null,
                   ),
                 ),
               const SizedBox(height: 12),
@@ -436,16 +437,15 @@ class _ManualRecordEditSheetState extends State<ManualRecordEditSheet> {
                   },
                   validator: (value) =>
                       (value == 'stopped' || value == 'completed') &&
-                          _medicationEndDate == null
-                      ? 'Choose an end date'
-                      : null,
+                              _medicationEndDate == null
+                          ? 'Choose an end date'
+                          : null,
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   key: const ValueKey('edit-medication-end-date'),
-                  onPressed: _medicationNeedsEndDate
-                      ? _pickMedicationEndDate
-                      : null,
+                  onPressed:
+                      _medicationNeedsEndDate ? _pickMedicationEndDate : null,
                   icon: const Icon(Icons.event_outlined),
                   label: Text(
                     _medicationEndDate == null
