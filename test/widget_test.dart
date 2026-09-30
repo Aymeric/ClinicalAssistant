@@ -78,6 +78,54 @@ void main() {
     expect(find.byKey(const ValueKey('record-search')), findsOneWidget);
   });
 
+  testWidgets('opens guidelines from Overview and Sources without a new tab', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final controller = HealthDataController(
+      store: _MemoryRecordStore(),
+      syncValueStore: _MemorySyncValueStore(),
+      fhirImporter: FhirPortalImporter(
+        client: MockClient((_) async {
+          throw StateError(
+            'No network request was expected in this widget test.',
+          );
+        }),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: HealthHome(controller: controller)),
+    );
+    await tester.pumpAndSettle();
+
+    final navigation = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    expect(navigation.destinations, hasLength(5));
+
+    await tester.tap(
+      find.byKey(const ValueKey('overview-guidelines-shortcut')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Evidence-based sources'), findsOneWidget);
+    expect(find.byKey(const ValueKey('guideline-search')), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.hub_outlined));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('sources-guidelines-entry')),
+    );
+    await tester.tap(find.byKey(const ValueKey('sources-guidelines-entry')));
+    await tester.pumpAndSettle();
+    expect(find.text('Evidence-based sources'), findsOneWidget);
+    expect(find.byKey(const ValueKey('guideline-search')), findsOneWidget);
+  });
+
   testWidgets('searches records and combines search with category filters', (
     tester,
   ) async {

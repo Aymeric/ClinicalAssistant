@@ -34,6 +34,7 @@ Patients connect the health sources they choose, download and review imported re
 - Patients can manually log measurements and correct the value or recorded date/time later. Blood-pressure values remain a paired systolic/diastolic entry; imported records stay read-only so their source data is preserved.
 - Patients can manually record medication name, dose/instructions, frequency, route, status, start date, optional end date, and notes. Medication entries remain on-device and can be included in FHIR exports as `MedicationStatement` resources.
 - Numeric lab results, vital measurements, and activity totals can be explored in category- and measurement-specific trend charts. Source-provided reference ranges are shown at the associated reading when numeric and unit-compatible. Trends show descriptive changes and ranges, not clinical interpretation; non-numeric results are not charted.
+- A bundled, offline directory links to selected international and jurisdiction-specific guideline publishers and discovery indexes. Entries identify publisher, jurisdiction, audience, source status, and link-verification date; short app-written descriptions are informational only. The directory is not a complete or live feed and does not provide patient-specific recommendations.
 - Available records and lab results depend on the connected platform, provider, and the patient's permissions; do not imply that every source exposes the same data.
 - Product-specific encryption, authentication, retention, deletion, and data-format requirements remain to be specified.
 

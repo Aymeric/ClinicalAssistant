@@ -20,6 +20,8 @@ PODS:
     - Flutter
   - share_plus (0.0.1):
     - Flutter
+  - url_launcher_ios (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
@@ -29,6 +31,7 @@ DEPENDENCIES:
   - flutter_secure_storage_darwin (from `.symlinks/plugins/flutter_secure_storage_darwin/darwin`)
   - health (from `.symlinks/plugins/health/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
+  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 SPEC REPOS:
   trunk:
@@ -49,6 +52,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/health/ios"
   share_plus:
     :path: ".symlinks/plugins/share_plus/ios"
+  url_launcher_ios:
+    :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
   AppAuth: ef4da5a3fc2e10b90c09a0a94a9baeaedc0341d5
@@ -59,6 +64,7 @@ SPEC CHECKSUMS:
   flutter_secure_storage_darwin: 79a377dfb00a246ccab2c64fe79d4d78c89e0fbc
   health: 80c2abadf98a612e988abeb5c0edaadffc057ed6
   share_plus: 8b6f8b3447e494cca5317c8c3073de39b3600d1f
+  url_launcher_ios: bb13df5870e8c4234ca12609d04010a21be43dfa
 
 PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82
 

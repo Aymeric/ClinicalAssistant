@@ -14,6 +14,7 @@ import 'data/synthetic_demonstration_data.dart';
 import 'data/vault_backup_service.dart';
 import 'exports/export_selection.dart';
 import 'exports/health_export_service.dart';
+import 'guidelines/guidelines_library_page.dart';
 import 'integrations/fhir_observation_parser.dart';
 import 'integrations/fhir_portal_importer.dart';
 import 'integrations/health_platform_importer.dart';
@@ -212,6 +213,14 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         _selectedIndex = 1;
       });
     }
+  }
+
+  void _openGuidelines() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const GuidelinesLibraryPage(),
+      ),
+    );
   }
 
   Future<void> _openManualRecordEntry() async {
@@ -822,6 +831,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onOpenTrends: () => setState(() => _selectedIndex = 1),
         onOpenRecords: () => setState(() => _selectedIndex = 2),
         onOpenExport: () => setState(() => _selectedIndex = 4),
+        onOpenGuidelines: _openGuidelines,
         onLogMeasurement: _openManualRecordEntry,
       ),
       HealthTrendsPage(
@@ -863,6 +873,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onProgress: _reportProgress,
         onRestoreVaultBackup: _restoreVaultBackup,
         onExportVaultBackup: _exportVaultBackup,
+        onOpenGuidelines: _openGuidelines,
       ),
       _ExportPage(
         records: _controller.records,
@@ -1585,6 +1596,7 @@ class _OverviewPage extends StatelessWidget {
     this.onOpenTrends,
     this.onOpenRecords,
     this.onOpenExport,
+    this.onOpenGuidelines,
     this.onLogMeasurement,
   });
 
@@ -1603,6 +1615,7 @@ class _OverviewPage extends StatelessWidget {
   final VoidCallback? onOpenTrends;
   final VoidCallback? onOpenRecords;
   final VoidCallback? onOpenExport;
+  final VoidCallback? onOpenGuidelines;
   final VoidCallback? onLogMeasurement;
 
   @override
@@ -1657,6 +1670,29 @@ class _OverviewPage extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              key: const ValueKey('overview-guidelines-shortcut'),
+              onTap: onOpenGuidelines,
+              leading: CircleAvatar(
+                backgroundColor:
+                    Theme.of(context).colorScheme.secondaryContainer,
+                child: Icon(
+                  Icons.menu_book_outlined,
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+              ),
+              title: const Text(
+                'Evidence-based guidelines',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: const Text(
+                'Browse trusted sources by topic and region',
+              ),
+              trailing: const Icon(Icons.chevron_right),
             ),
           ),
           const SizedBox(height: 24),
@@ -3620,6 +3656,7 @@ class _ConnectionsPage extends StatelessWidget {
     this.onImportFhirJson,
     this.onRestoreVaultBackup,
     this.onExportVaultBackup,
+    required this.onOpenGuidelines,
   });
 
   final bool busy;
@@ -3646,6 +3683,7 @@ class _ConnectionsPage extends StatelessWidget {
   final Future<void> Function(String json, {String source})? onImportFhirJson;
   final VoidCallback? onRestoreVaultBackup;
   final VoidCallback? onExportVaultBackup;
+  final VoidCallback onOpenGuidelines;
 
   @override
   Widget build(BuildContext context) {
@@ -3657,6 +3695,22 @@ class _ConnectionsPage extends StatelessWidget {
               ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 22),
+        Card(
+          child: ListTile(
+            key: const ValueKey('sources-guidelines-entry'),
+            leading: const Icon(Icons.menu_book_outlined),
+            title: const Text(
+              'Evidence-based guidelines',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: const Text(
+              'Browse source collections and check their jurisdiction and status.',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: onOpenGuidelines,
+          ),
+        ),
+        const SizedBox(height: 14),
         _ForegroundSyncPanel(
           state: syncState,
           loading: syncSettingsLoading,

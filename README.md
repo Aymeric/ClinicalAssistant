@@ -50,6 +50,33 @@ or CSV.
 - Creates PDF, FHIR Bundle JSON, and CSV exports in temporary device storage.
   Users choose which record categories to include, then choose whether and
   where to share each export in the OS share sheet.
+- Includes an offline directory of guideline publishers and discovery indexes.
+  The directory labels jurisdiction and source status, provides brief original
+  descriptions, and opens the publisher's site; it does not connect guidelines
+  to a person's records or provide individualized recommendations.
+
+## Guideline directory maintenance
+
+The bundled directory is a curated starting point, not a complete or live
+clinical guideline feed. Source links and directory metadata are checked when
+the catalog is maintained; that check does not verify that every linked
+recommendation is current. Users should confirm a document's population,
+jurisdiction, publication or review date, and status on the issuing body's
+website.
+
+When updating `lib/guidelines/guideline_source.dart`:
+
+- Prefer the issuing organization's own catalog or document page. Discovery
+  indexes such as G-I-N and PubMed are for finding sources, not substitutes for
+  publisher verification or evidence of endorsement.
+- Label archives and discovery indexes clearly; do not represent them as
+  current official recommendation portals.
+- Keep summaries original and descriptive. Do not copy recommendation text
+  into the app unless the publisher's terms explicitly permit that reuse.
+- Record the jurisdiction, intended population, link-check date, source status,
+  and any known update or licensing caveats. Re-check those details before a
+  release and seek clinical/editorial and licensing review for new clinical
+  content.
 
 ## Run
 
