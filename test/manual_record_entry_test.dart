@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('logs Blood Pressure as systolic and diastolic records', (tester) async {
+  testWidgets('logs Blood Pressure as systolic and diastolic records', (
+    tester,
+  ) async {
     List<HealthRecord>? savedRecords;
 
     await tester.pumpWidget(
@@ -35,8 +37,12 @@ void main() {
     expect(savedRecords, isNotNull);
     expect(savedRecords!.length, 2);
 
-    final sys = savedRecords!.firstWhere((r) => r.name == 'Systolic Blood Pressure');
-    final dia = savedRecords!.firstWhere((r) => r.name == 'Diastolic Blood Pressure');
+    final sys = savedRecords!.firstWhere(
+      (r) => r.name == 'Systolic Blood Pressure',
+    );
+    final dia = savedRecords!.firstWhere(
+      (r) => r.name == 'Diastolic Blood Pressure',
+    );
 
     expect(sys.value, '120');
     expect(sys.unit, 'mmHg');

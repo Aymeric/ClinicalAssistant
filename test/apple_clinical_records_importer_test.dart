@@ -33,8 +33,9 @@ void main() {
             ];
           });
 
-      final records = await AppleClinicalRecordsImporter(channel: channel)
-          .importLabRecords(since: DateTime.utc(2026, 1, 1));
+      final records = await AppleClinicalRecordsImporter(
+        channel: channel,
+      ).importLabRecords(since: DateTime.utc(2026, 1, 1));
 
       expect(records, hasLength(1));
       expect(records.single.id, 'health-clinical:org.example.hospital:lab-1');
@@ -66,8 +67,9 @@ void main() {
           ];
         });
 
-    final records = await AppleClinicalRecordsImporter(channel: channel)
-        .importLabRecords(since: DateTime.utc(2026, 1, 1));
+    final records = await AppleClinicalRecordsImporter(
+      channel: channel,
+    ).importLabRecords(since: DateTime.utc(2026, 1, 1));
 
     expect(records, hasLength(1));
     expect(records.single.sourceData?['id'], '2026-01-01');
@@ -80,8 +82,9 @@ void main() {
           .setMockMethodCallHandler(channel, (call) async => ['not a record']);
 
       await expectLater(
-        AppleClinicalRecordsImporter(channel: channel)
-            .importLabRecords(since: DateTime.utc(2026)),
+        AppleClinicalRecordsImporter(
+          channel: channel,
+        ).importLabRecords(since: DateTime.utc(2026)),
         throwsFormatException,
       );
     },
