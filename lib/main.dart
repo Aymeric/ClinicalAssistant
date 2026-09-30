@@ -5955,7 +5955,7 @@ class _SectionHeading extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
-        ?trailing,
+        if (trailing != null) trailing!,
       ],
     );
   }

@@ -885,8 +885,10 @@ class _TrendChartPainter extends CustomPainter {
     final values = [
       ...points.map((point) => point.value),
       ...averages,
-      for (final mark in referenceMarks) ?mark.range.lowerBound,
-      for (final mark in referenceMarks) ?mark.range.upperBound,
+      for (final mark in referenceMarks)
+        if (mark.range.lowerBound != null) mark.range.lowerBound!,
+      for (final mark in referenceMarks)
+        if (mark.range.upperBound != null) mark.range.upperBound!,
     ];
     var minimum = values.reduce((a, b) => a < b ? a : b);
     var maximum = values.reduce((a, b) => a > b ? a : b);
