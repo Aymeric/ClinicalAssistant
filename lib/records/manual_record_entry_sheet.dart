@@ -181,7 +181,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         break;
 
       case ManualEntryType.glucose:
-        final fullNote = ['Context: $_glucoseContext', ?userNote].join(' · ');
+        final fullNote = [
+          'Context: $_glucoseContext',
+          if (userNote != null) userNote,
+        ].join(' · ');
         records.add(
           HealthRecord(
             id: 'manual:glucose:$nowMs',
@@ -356,6 +359,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close),
+                    tooltip: 'Close',
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
