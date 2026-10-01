@@ -18,6 +18,13 @@ enum RecordCategory {
 /// - Small decimal values (< 0.1) allow up to 3 or 4 decimals so values like `0.005` aren't rounded to 0.
 /// - Trailing zeros after the decimal point are trimmed (e.g. `4.10` -> `4.1`).
 /// - Floating-point noise like `98.60000000000001` or `72.00000000001` is eliminated.
+// Hoisted static regex patterns to avoid re-compiling during frequent value formatting and parsing.
+final _trailingZerosRegExp = RegExp(r'0+$');
+final _trailingDotRegExp = RegExp(r'\.$');
+final _groupedNumberRegExp = RegExp(
+  r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
+);
+
 String formatSensibleNumber(num value, {int maxDecimals = 2}) {
   if (!value.isFinite) return value.toString();
   if (value == 0) return '0';
@@ -33,8 +40,8 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
   var fixed = value.toStringAsFixed(decimals);
   if (fixed.contains('.')) {
     fixed = fixed
-        .replaceFirst(RegExp(r'0+$'), '')
-        .replaceFirst(RegExp(r'\.$'), '');
+        .replaceFirst(_trailingZerosRegExp, '')
+        .replaceFirst(_trailingDotRegExp, '');
   }
 
   if (fixed == '-0') return '0';
@@ -45,9 +52,7 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
 /// (e.g. "10,000") and scientific notation. Returns null if non-numeric or non-finite.
 double? parseHealthRecordValue(String value) {
   final trimmed = value.trim();
-  final isGroupedNumber = RegExp(
-    r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
-  ).hasMatch(trimmed);
+  final isGroupedNumber = _groupedNumberRegExp.hasMatch(trimmed);
   final parsed = double.tryParse(
     isGroupedNumber ? trimmed.replaceAll(',', '') : trimmed,
   );

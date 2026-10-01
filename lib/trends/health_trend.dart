@@ -312,18 +312,26 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
   return series;
 }
 
+// Hoisted static regex patterns to avoid expensive re-compilation on repeated calls.
+const _numberPattern = r'[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?';
+final _rangeRegExp = RegExp(
+  '^\\s*(?<lower>$_numberPattern|[—–])\\s*(?:–|—|-|to)\\s*'
+  '(?<upper>$_numberPattern|[—–])\\s*(?<unit>.*?)\\s*\$',
+  caseSensitive: false,
+);
+final _thresholdRegExp = RegExp(
+  '^\\s*(?<operator><=|>=|<|>)\\s*(?<value>$_numberPattern)\\s*'
+  '(?<unit>.*?)\\s*\$',
+);
+final _whitespaceRegExp = RegExp(r'\s+');
+
 HealthReferenceRange? parseHealthReferenceRange(
   String? sourceText, {
   String expectedUnit = '',
 }) {
   if (sourceText == null || sourceText.trim().isEmpty) return null;
   final text = sourceText.trim();
-  const number = r'[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?';
-  final range = RegExp(
-    '^\\s*(?<lower>$number|[—–])\\s*(?:–|—|-|to)\\s*'
-    '(?<upper>$number|[—–])\\s*(?<unit>.*?)\\s*\$',
-    caseSensitive: false,
-  ).firstMatch(text);
+  final range = _rangeRegExp.firstMatch(text);
   if (range != null) {
     final unit = range.namedGroup('unit')!.trim();
     if (!_referenceUnitsMatch(unit, expectedUnit)) return null;
@@ -348,10 +356,7 @@ HealthReferenceRange? parseHealthReferenceRange(
     );
   }
 
-  final threshold = RegExp(
-    '^\\s*(?<operator><=|>=|<|>)\\s*(?<value>$number)\\s*'
-    '(?<unit>.*?)\\s*\$',
-  ).firstMatch(text);
+  final threshold = _thresholdRegExp.firstMatch(text);
   if (threshold == null ||
       !_referenceUnitsMatch(
         threshold.namedGroup('unit')!.trim(),
@@ -388,7 +393,7 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
   if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
-  String normalize(String unit) => unit.trim().replaceAll(RegExp(r'\s+'), ' ');
+  String normalize(String unit) => unit.trim().replaceAll(_whitespaceRegExp, ' ');
   return normalize(rangeUnit) == normalize(expectedUnit);
 }
 
