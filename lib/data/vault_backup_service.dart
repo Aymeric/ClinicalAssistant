@@ -107,6 +107,13 @@ class VaultBackupService {
     if (saltB64 == null) {
       throw const FormatException('Missing KDF salt in backup.');
     }
+
+    // Security check: ensure iterations count is safe against downgrade attacks and DoS
+    if (iterations < 100000 || iterations > 1000000) {
+      throw FormatException(
+        'Insecure or invalid PBKDF2 iteration count ($iterations). Expected between 100000 and 1000000.',
+      );
+    }
     final salt = base64Decode(saltB64);
 
     final nonceB64 = cipherMap['nonce'] as String?;

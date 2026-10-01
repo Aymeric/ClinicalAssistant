@@ -131,6 +131,28 @@ void main() {
       );
     });
 
+    test('rejects insecure or excessive PBKDF2 iteration counts', () async {
+      const password = 'my-vault-password';
+      final backupJson = await service.exportEncryptedBackup(
+        sampleRecords,
+        password,
+      );
+
+      final decodedLow = jsonDecode(backupJson) as Map<String, dynamic>;
+      (decodedLow['kdf'] as Map<String, dynamic>)['iterations'] = 1000;
+      expect(
+        () => service.restoreEncryptedBackup(jsonEncode(decodedLow), password),
+        throwsFormatException,
+      );
+
+      final decodedHigh = jsonDecode(backupJson) as Map<String, dynamic>;
+      (decodedHigh['kdf'] as Map<String, dynamic>)['iterations'] = 2000000;
+      expect(
+        () => service.restoreEncryptedBackup(jsonEncode(decodedHigh), password),
+        throwsFormatException,
+      );
+    });
+
     test('rejects invalid JSON or incompatible format', () async {
       const password = 'password123';
       expect(
