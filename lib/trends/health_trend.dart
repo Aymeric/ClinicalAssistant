@@ -313,7 +313,8 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
 }
 
 // Hoisted static regex patterns to avoid expensive re-compilation on repeated calls.
-const _numberPattern = r'[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?';
+const _numberPattern =
+    r'[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?';
 final _rangeRegExp = RegExp(
   '^\\s*(?<lower>$_numberPattern|[—–])\\s*(?:–|—|-|to)\\s*'
   '(?<upper>$_numberPattern|[—–])\\s*(?<unit>.*?)\\s*\$',
@@ -393,7 +394,8 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
   if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
-  String normalize(String unit) => unit.trim().replaceAll(_whitespaceRegExp, ' ');
+  String normalize(String unit) =>
+      unit.trim().replaceAll(_whitespaceRegExp, ' ');
   return normalize(rangeUnit) == normalize(expectedUnit);
 }
 
