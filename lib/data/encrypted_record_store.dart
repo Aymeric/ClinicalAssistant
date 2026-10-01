@@ -12,7 +12,7 @@ class EncryptedRecordStore {
     FlutterSecureStorage? secureStorage,
     Directory? directory,
   }) : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-       _directory = directory,
+       _directory = directory, // ignore: prefer_initializing_formals
        _algorithm = AesGcm.with256bits();
 
   static const _keyName = 'clinical_assistant_vault_key_v1';

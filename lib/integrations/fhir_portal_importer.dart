@@ -30,7 +30,7 @@ class FhirPortalImporter {
     FhirObservationParser parser = const FhirObservationParser(),
   }) : _appAuth = appAuth ?? const FlutterAppAuth(),
        _client = client ?? http.Client(),
-       _parser = parser;
+       _parser = parser; // ignore: prefer_initializing_formals
 
   static const redirectUri =
       'com.aymericgrassart.clinicalassistant:/oauth2redirect';
