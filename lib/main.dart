@@ -4271,6 +4271,9 @@ class _VaultRestoreSheetState extends State<_VaultRestoreSheet> {
                 labelText: 'Backup passphrase',
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
+                  tooltip: _obscurePassphrase
+                      ? 'Show passphrase'
+                      : 'Hide passphrase',
                   icon: Icon(
                     _obscurePassphrase
                         ? Icons.visibility_outlined
