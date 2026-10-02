@@ -8,10 +8,11 @@ void main() {
     WidgetTester tester,
   ) async {
     final sampleRecord = HealthRecord(
-      id: 'vitals-1',
+      id: 'vital-1',
       name: 'Heart Rate',
-      category: RecordCategory.vitals,
-      value: '72 bpm',
+      category: RecordCategory.vital,
+      value: '72',
+      unit: 'bpm',
       recordedAt: DateTime.now(),
       source: 'Test',
     );
