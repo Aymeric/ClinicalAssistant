@@ -4,17 +4,18 @@ import '../../exports/export_selection.dart';
 import '../../models/health_record.dart';
 import '../shared/record_widgets.dart';
 
-typedef DoctorVisitPdfCallback = void Function(
-  List<HealthRecord> records,
-  DateTimeRange? range,
-  String? questions, {
-  bool includeVitals,
-  bool includeLabs,
-  bool includeMedications,
-  bool includeConditions,
-  bool includeAllergies,
-  bool includeQuestions,
-});
+typedef DoctorVisitPdfCallback =
+    void Function(
+      List<HealthRecord> records,
+      DateTimeRange? range,
+      String? questions, {
+      bool includeVitals,
+      bool includeLabs,
+      bool includeMedications,
+      bool includeConditions,
+      bool includeAllergies,
+      bool includeQuestions,
+    });
 
 class ExportPage extends StatefulWidget {
   const ExportPage({
@@ -290,6 +291,9 @@ class _ExportPageState extends State<ExportPage> {
                     label: Text(
                       '${categoryLabel(category)} (${widget.records.where((record) => record.category == category).length})',
                     ),
+                    tooltip: _selectedCategories.contains(category)
+                        ? 'Exclude ${categoryLabel(category)} from export'
+                        : 'Include ${categoryLabel(category)} in export',
                     selected: _selectedCategories.contains(category),
                     onSelected: (selected) {
                       setState(() {
