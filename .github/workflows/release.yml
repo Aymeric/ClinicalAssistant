@@ -208,7 +208,7 @@ jobs:
           CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
           PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           EXPORT_OPTIONS_PLIST: ${{ secrets.IOS_EXPORT_OPTIONS_PLIST }}
-          BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID || 'com.example.clinicalAssistant' }}
+          BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID || 'com.aymericgrassart.clinicalAssistant' }}
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           if [ -n "$CERTIFICATE_BASE64" ] && [ -n "$PROVISIONING_PROFILE_BASE64" ]; then

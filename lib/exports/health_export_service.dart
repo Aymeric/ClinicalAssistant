@@ -12,6 +12,8 @@ import '../models/manual_medication_details.dart';
 import '../trends/health_trend.dart';
 
 class HealthExportService {
+  static final _idSanitizer = RegExp(r'[^A-Za-z0-9.-]');
+
   Map<String, Object?> buildFhirBundle(List<HealthRecord> records) {
     final bundle = {
       'resourceType': 'Bundle',
@@ -248,6 +250,12 @@ class HealthExportService {
     List<HealthRecord> records, {
     DateTimeRange? dateRange,
     String? patientQuestions,
+    bool includeVitals = true,
+    bool includeLabs = true,
+    bool includeMedications = true,
+    bool includeConditions = true,
+    bool includeAllergies = true,
+    bool includeQuestions = true,
   }) async {
     final pdf = pw.Document();
 
@@ -409,7 +417,7 @@ class HealthExportService {
           pw.SizedBox(height: 14),
 
           // Out-of-Range Lab Highlights Section
-          if (outOfRangeLabs.isNotEmpty) ...[
+          if (includeLabs && outOfRangeLabs.isNotEmpty) ...[
             pw.Text(
               'Currently Out-of-Range Lab Results (${outOfRangeLabs.length})',
               style: pw.TextStyle(
@@ -474,7 +482,7 @@ class HealthExportService {
           ],
 
           // Vitals Summary Section
-          if (vitalSeries.isNotEmpty) ...[
+          if (includeVitals && vitalSeries.isNotEmpty) ...[
             pw.Text(
               'Vital Signs Summary',
               style: pw.TextStyle(
@@ -548,7 +556,7 @@ class HealthExportService {
           ],
 
           // Other Recent Lab Results Section
-          if (otherLabs.isNotEmpty) ...[
+          if (includeLabs && otherLabs.isNotEmpty) ...[
             pw.Text(
               'Other Lab Observations (Recent ${otherLabs.take(12).length})',
               style: pw.TextStyle(
@@ -602,9 +610,9 @@ class HealthExportService {
           ],
 
           // Current Medications Section
-          if (medications.isNotEmpty) ...[
+          if (includeMedications && medications.isNotEmpty) ...[
             pw.Text(
-              'Reported Medications (${medications.take(10).length})',
+              'Reported Medications (${medications.take(12).length})',
               style: pw.TextStyle(
                 fontSize: 12,
                 fontWeight: pw.FontWeight.bold,
@@ -615,20 +623,34 @@ class HealthExportService {
             pw.TableHelper.fromTextArray(
               headers: const [
                 'Medication',
-                'Instructions / Status',
-                'Date',
-                'Source',
+                'Dosage & Schedule',
+                'Status / Adherence',
+                'Date / Source',
               ],
               data: medications
-                  .take(10)
-                  .map(
-                    (record) => [
+                  .take(12)
+                  .map((record) {
+                    final details = record.isManual
+                        ? ManualMedicationDetails.fromRecord(record)
+                        : null;
+                    final dosageSchedule = details != null
+                        ? [
+                            record.value,
+                            details.frequency,
+                            if (details.route != null) details.route!,
+                          ].where((s) => s.isNotEmpty).join(' · ')
+                        : record.displayValue;
+                    final adherenceInfo = details != null && details.adherenceLogs.isNotEmpty
+                        ? '${record.status ?? "active"} (${details.adherenceLogs.length} doses logged)'
+                        : (record.status ?? 'active');
+                    final dateSource = '${_formatDate(record.recordedAt)}\n${record.source}';
+                    return [
                       record.name,
-                      _medicationInstructions(record),
-                      _formatDate(record.recordedAt),
-                      record.source,
-                    ],
-                  )
+                      dosageSchedule,
+                      adherenceInfo,
+                      dateSource,
+                    ];
+                  })
                   .toList(),
               headerStyle: pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,
@@ -654,7 +676,7 @@ class HealthExportService {
           ],
 
           // Conditions & Diagnoses Section
-          if (conditions.isNotEmpty) ...[
+          if (includeConditions && conditions.isNotEmpty) ...[
             pw.Text(
               'Recorded Conditions & Diagnoses (${conditions.take(10).length})',
               style: pw.TextStyle(
@@ -706,7 +728,7 @@ class HealthExportService {
           ],
 
           // Allergies Section
-          if (allergies.isNotEmpty) ...[
+          if (includeAllergies && allergies.isNotEmpty) ...[
             pw.Text(
               'Known Allergies & Intolerances (${allergies.take(10).length})',
               style: pw.TextStyle(
@@ -758,60 +780,62 @@ class HealthExportService {
           ],
 
           // Patient Questions / Topics for the Doctor
-          pw.Text(
-            'Patient Discussion Topics & Questions',
-            style: pw.TextStyle(
-              fontSize: 12,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColor.fromHex('#183F46'),
-            ),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
-              border: pw.Border.all(
-                color: PdfColor.fromHex('#9E9E9E'),
-                width: 0.8,
+          if (includeQuestions) ...[
+            pw.Text(
+              'Patient Discussion Topics & Questions',
+              style: pw.TextStyle(
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColor.fromHex('#183F46'),
               ),
-              borderRadius: pw.BorderRadius.circular(4),
             ),
-            child:
-                patientQuestions != null && patientQuestions.trim().isNotEmpty
-                ? pw.Text(
-                    patientQuestions.trim(),
-                    style: const pw.TextStyle(fontSize: 9, lineSpacing: 2),
-                  )
-                : pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        '1. __________________________________________________________________________',
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
+            pw.SizedBox(height: 6),
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(10),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(
+                  color: PdfColor.fromHex('#9E9E9E'),
+                  width: 0.8,
+                ),
+                borderRadius: pw.BorderRadius.circular(4),
+              ),
+              child:
+                  patientQuestions != null && patientQuestions.trim().isNotEmpty
+                  ? pw.Text(
+                      patientQuestions.trim(),
+                      style: const pw.TextStyle(fontSize: 9, lineSpacing: 2),
+                    )
+                  : pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          '1. __________________________________________________________________________',
+                          style: const pw.TextStyle(
+                            fontSize: 9,
+                            color: PdfColors.grey600,
+                          ),
                         ),
-                      ),
-                      pw.SizedBox(height: 8),
-                      pw.Text(
-                        '2. __________________________________________________________________________',
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
+                        pw.SizedBox(height: 8),
+                        pw.Text(
+                          '2. __________________________________________________________________________',
+                          style: const pw.TextStyle(
+                            fontSize: 9,
+                            color: PdfColors.grey600,
+                          ),
                         ),
-                      ),
-                      pw.SizedBox(height: 8),
-                      pw.Text(
-                        '3. __________________________________________________________________________',
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
+                        pw.SizedBox(height: 8),
+                        pw.Text(
+                          '3. __________________________________________________________________________',
+                          style: const pw.TextStyle(
+                            fontSize: 9,
+                            color: PdfColors.grey600,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-          ),
+                      ],
+                    ),
+            ),
+          ],
         ],
       ),
     );
@@ -823,11 +847,23 @@ class HealthExportService {
     List<HealthRecord> records, {
     DateTimeRange? dateRange,
     String? patientQuestions,
+    bool includeVitals = true,
+    bool includeLabs = true,
+    bool includeMedications = true,
+    bool includeConditions = true,
+    bool includeAllergies = true,
+    bool includeQuestions = true,
   }) async {
     final pdf = await buildDoctorVisitSummaryPdfDocument(
       records,
       dateRange: dateRange,
       patientQuestions: patientQuestions,
+      includeVitals: includeVitals,
+      includeLabs: includeLabs,
+      includeMedications: includeMedications,
+      includeConditions: includeConditions,
+      includeAllergies: includeAllergies,
+      includeQuestions: includeQuestions,
     );
     final directory = await getTemporaryDirectory();
     final file = File(
@@ -840,7 +876,7 @@ class HealthExportService {
   Map<String, Object?> _observationFromRecord(HealthRecord record) {
     final numericValue = num.tryParse(record.value);
     final unitCode = _ucumCode(record.unit);
-    final id = record.id.replaceAll(RegExp(r'[^A-Za-z0-9.-]'), '-');
+    final id = record.id.replaceAll(_idSanitizer, '-');
     return {
       'resourceType': 'Observation',
       'id': id.isEmpty ? 'record' : id,
@@ -913,7 +949,7 @@ class HealthExportService {
 
   Map<String, Object?> _manualMedicationStatement(HealthRecord record) {
     final details = ManualMedicationDetails.fromRecord(record);
-    final id = record.id.replaceAll(RegExp(r'[^A-Za-z0-9.-]'), '-');
+    final id = record.id.replaceAll(_idSanitizer, '-');
     return {
       'resourceType': 'MedicationStatement',
       'id': id.isEmpty ? 'medication' : id,
