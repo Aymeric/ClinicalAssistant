@@ -92,8 +92,8 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
 
     final inspectedPoint =
         _inspectedIndex != null && _inspectedIndex! < points.length
-            ? points[_inspectedIndex!]
-            : null;
+        ? points[_inspectedIndex!]
+        : null;
 
     return Card(
       child: Padding(
@@ -159,7 +159,9 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                             referenceBand: widget.referenceBand,
                             secondaryPoints: secondaryChartPoints,
                             secondaryIndexes: secondaryChartIndexes,
-                            secondaryColor: Theme.of(context).colorScheme.tertiary,
+                            secondaryColor: Theme.of(
+                              context,
+                            ).colorScheme.tertiary,
                             averages: averages,
                             totalPoints: points.length,
                             inspectedIndex: _inspectedIndex,
@@ -255,15 +257,13 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                       width: 12,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .tertiary
-                            .withValues(alpha: 0.25),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.tertiary.withValues(alpha: 0.25),
                         border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .tertiary
-                              .withValues(alpha: 0.6),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.tertiary.withValues(alpha: 0.6),
                           width: 0.8,
                         ),
                         borderRadius: BorderRadius.circular(2),

@@ -31,9 +31,7 @@ class ManualMedicationDetails {
       for (final item in rawLogs) {
         if (item is Map) {
           logs.add(
-            MedicationAdherenceLog.fromJson(
-              Map<String, Object?>.from(item),
-            ),
+            MedicationAdherenceLog.fromJson(Map<String, Object?>.from(item)),
           );
         }
       }
