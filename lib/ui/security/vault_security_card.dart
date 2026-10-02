@@ -97,7 +97,9 @@ class _VaultSecurityCardState extends State<VaultSecurityCard> {
                 final pin = pinController.text.trim();
                 final confirm = confirmController.text.trim();
                 if (pin.length != 4) {
-                  setDialogState(() => errorText = 'PIN must be exactly 4 digits');
+                  setDialogState(
+                    () => errorText = 'PIN must be exactly 4 digits',
+                  );
                   return;
                 }
                 if (pin != confirm) {
@@ -239,9 +241,7 @@ class _VaultSecurityCardState extends State<VaultSecurityCard> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Enter your current PIN to turn off passcode lock.',
-              ),
+              const Text('Enter your current PIN to turn off passcode lock.'),
               const SizedBox(height: 16),
               TextField(
                 key: const ValueKey('remove-pin-input'),
@@ -343,8 +343,9 @@ class _VaultSecurityCardState extends State<VaultSecurityCard> {
                           color: _hasPin
                               ? colorScheme.primary
                               : colorScheme.onSurfaceVariant,
-                          fontWeight:
-                              _hasPin ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: _hasPin
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                         ),
                       ),
                     ],
