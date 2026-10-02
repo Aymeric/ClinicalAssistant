@@ -10,6 +10,7 @@ enum ManualEntryType {
   weight('Body Weight', Icons.scale_outlined),
   temperature('Temperature', Icons.thermostat_outlined),
   oxygen('Oxygen (SpO2)', Icons.air_outlined),
+  labResult('Lab Result', Icons.science_outlined),
   medication('Medication', Icons.medication_outlined),
   custom('Custom Measurement', Icons.tune_outlined);
 
@@ -17,6 +18,29 @@ enum ManualEntryType {
   final String label;
   final IconData icon;
 }
+
+class LabResultPreset {
+  const LabResultPreset({
+    required this.name,
+    required this.unit,
+    required this.defaultRefRange,
+  });
+
+  final String name;
+  final String unit;
+  final String defaultRefRange;
+}
+
+const kCommonLabPresets = [
+  LabResultPreset(name: 'Hemoglobin A1c', unit: '%', defaultRefRange: '4.0 – 5.6 %'),
+  LabResultPreset(name: 'Total Cholesterol', unit: 'mg/dL', defaultRefRange: '< 200 mg/dL'),
+  LabResultPreset(name: 'HDL Cholesterol', unit: 'mg/dL', defaultRefRange: '> 40 mg/dL'),
+  LabResultPreset(name: 'LDL Cholesterol', unit: 'mg/dL', defaultRefRange: '< 100 mg/dL'),
+  LabResultPreset(name: 'Triglycerides', unit: 'mg/dL', defaultRefRange: '< 150 mg/dL'),
+  LabResultPreset(name: 'TSH', unit: 'mIU/L', defaultRefRange: '0.4 – 4.0 mIU/L'),
+  LabResultPreset(name: 'Creatinine', unit: 'mg/dL', defaultRefRange: '0.6 – 1.2 mg/dL'),
+  LabResultPreset(name: 'Vitamin D (25-OH)', unit: 'ng/mL', defaultRefRange: '30 – 100 ng/mL'),
+];
 
 class ManualRecordEntrySheet extends StatefulWidget {
   const ManualRecordEntrySheet({super.key, required this.onSave});
@@ -87,6 +111,11 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
           _refRangeController.text = _tempUnit == '°F'
               ? '97.0 – 99.0 °F'
               : '36.1 – 37.2 °C';
+          break;
+        case ManualEntryType.labResult:
+          _customNameController.text = kCommonLabPresets.first.name;
+          _customUnitController.text = kCommonLabPresets.first.unit;
+          _refRangeController.text = kCommonLabPresets.first.defaultRefRange;
           break;
         case ManualEntryType.medication:
           _medicationStatus = 'active';
@@ -268,6 +297,23 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         );
         break;
 
+      case ManualEntryType.labResult:
+        final labRef = _refRangeController.text.trim();
+        records.add(
+          HealthRecord(
+            id: 'manual:lab:$nowMs',
+            name: _customNameController.text.trim(),
+            value: _valueController.text.trim(),
+            unit: _customUnitController.text.trim(),
+            recordedAt: timestamp,
+            category: RecordCategory.lab,
+            source: 'Manual Entry',
+            referenceRange: labRef.isEmpty ? null : labRef,
+            notes: userNote,
+          ),
+        );
+        break;
+
       case ManualEntryType.medication:
         final route = _medicationRouteController.text.trim();
         final details = ManualMedicationDetails(
@@ -348,6 +394,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                   Text(
                     _selectedType == ManualEntryType.medication
                         ? 'Log Medication'
+                        : _selectedType == ManualEntryType.labResult
+                        ? 'Log Lab Result'
                         : 'Log Health Measurement',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -469,6 +517,88 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                       ),
                     ),
                   ],
+                ),
+              ] else if (_selectedType == ManualEntryType.labResult) ...[
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final preset in kCommonLabPresets)
+                      ActionChip(
+                        key: ValueKey('manual-lab-preset-${preset.name}'),
+                        label: Text(preset.name),
+                        avatar: _customNameController.text == preset.name
+                            ? const Icon(Icons.check, size: 16)
+                            : null,
+                        onPressed: () {
+                          setState(() {
+                            _customNameController.text = preset.name;
+                            _customUnitController.text = preset.unit;
+                            _refRangeController.text = preset.defaultRefRange;
+                          });
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('manual-lab-name'),
+                  controller: _customNameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Lab test name',
+                    hintText: 'e.g. Hemoglobin A1c, Ferritin',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (val) =>
+                      val == null || val.trim().isEmpty ? 'Enter a lab name' : null,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        key: const ValueKey('manual-lab-value'),
+                        controller: _valueController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Result Value',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Required';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        key: const ValueKey('manual-lab-unit'),
+                        controller: _customUnitController,
+                        decoration: const InputDecoration(
+                          labelText: 'Unit',
+                          hintText: '% or mg/dL',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('manual-lab-ref-range'),
+                  controller: _refRangeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Reference Range (optional)',
+                    hintText: 'e.g. 4.0 – 5.6 %',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
               ] else if (_selectedType == ManualEntryType.medication) ...[
                 TextFormField(
@@ -741,6 +871,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                 label: Text(
                   _selectedType == ManualEntryType.medication
                       ? 'Save Medication to Vault'
+                      : _selectedType == ManualEntryType.labResult
+                      ? 'Save Lab Result to Vault'
                       : 'Save Measurement to Vault',
                 ),
                 onPressed: _submit,
@@ -758,6 +890,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
     ManualEntryType.weight => _weightUnit,
     ManualEntryType.temperature => _tempUnit,
     ManualEntryType.oxygen => '%',
+    ManualEntryType.labResult => _customUnitController.text,
     _ => '',
   };
 }

@@ -51,6 +51,9 @@ class HealthTrendSeries {
     required this.unit,
     required this.category,
     required this.points,
+    this.secondaryPoints = const [],
+    this.secondaryName,
+    this.referenceBand,
   });
 
   final String id;
@@ -58,7 +61,11 @@ class HealthTrendSeries {
   final String unit;
   final RecordCategory category;
   final List<HealthTrendPoint> points;
+  final List<HealthTrendPoint> secondaryPoints;
+  final String? secondaryName;
+  final HealthReferenceRange? referenceBand;
 
+  bool get hasSecondarySeries => secondaryPoints.isNotEmpty;
   String get label => unit.isEmpty ? name : '$name ($unit)';
 }
 
@@ -276,6 +283,25 @@ double _distanceFromRange(
   };
 }
 
+HealthReferenceRange? findReferenceBand(
+  List<HealthTrendPoint> points, {
+  String unit = '',
+}) {
+  for (final point in points.reversed) {
+    final rangeText = point.record.referenceRange;
+    if (rangeText != null && rangeText.trim().isNotEmpty) {
+      final range = parseHealthReferenceRange(
+        rangeText,
+        expectedUnit: unit.isEmpty ? point.record.unit : unit,
+      );
+      if (range != null && (range.lowerBound != null || range.upperBound != null)) {
+        return range;
+      }
+    }
+  }
+  return null;
+}
+
 List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
   final groups = <String, List<HealthRecord>>{};
   for (final record in records) {
@@ -289,23 +315,64 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
     final records = entry.value
       ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
     final first = records.first;
+    final points = [
+      for (final record in records)
+        HealthTrendPoint(
+          record: record,
+          value: parseHealthRecordValue(record.value)!,
+        ),
+    ];
+    final band = findReferenceBand(points, unit: first.unit);
     series.add(
       HealthTrendSeries(
         id: entry.key,
         name: first.name,
         unit: first.unit,
         category: first.category,
-        points: [
-          for (final record in records)
-            HealthTrendPoint(
-              record: record,
-              value: parseHealthRecordValue(record.value)!,
-            ),
-        ],
+        points: points,
+        referenceBand: band,
       ),
     );
   }
+
+  final systolic = series.cast<HealthTrendSeries?>().firstWhere(
+    (s) =>
+        s != null &&
+        s.category == RecordCategory.vital &&
+        s.name.toLowerCase().contains('systolic'),
+    orElse: () => null,
+  );
+  final diastolic = series.cast<HealthTrendSeries?>().firstWhere(
+    (s) =>
+        s != null &&
+        s.category == RecordCategory.vital &&
+        s.name.toLowerCase().contains('diastolic'),
+    orElse: () => null,
+  );
+
+  if (systolic != null && diastolic != null) {
+    series.insert(
+      0,
+      HealthTrendSeries(
+        id: 'combined_blood_pressure',
+        name: 'Blood Pressure',
+        unit: 'mmHg',
+        category: RecordCategory.vital,
+        points: systolic.points,
+        secondaryPoints: diastolic.points,
+        secondaryName: 'Diastolic',
+        referenceBand: const HealthReferenceRange(
+          lowerBound: 90,
+          upperBound: 120,
+          sourceText: '90 – 120 mmHg',
+        ),
+      ),
+    );
+  }
+
   series.sort((a, b) {
+    if (a.id == 'combined_blood_pressure') return -1;
+    if (b.id == 'combined_blood_pressure') return 1;
     final categoryOrder = a.category.index.compareTo(b.category.index);
     return categoryOrder != 0 ? categoryOrder : a.name.compareTo(b.name);
   });
@@ -315,16 +382,16 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
 // Hoisted static regex patterns to avoid expensive re-compilation on repeated calls.
 const _numberPattern =
     r'[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][+-]?\d+)?';
-final _rangeRegExp = RegExp(
+final _referenceRangePattern = RegExp(
   '^\\s*(?<lower>$_numberPattern|[—–])\\s*(?:–|—|-|to)\\s*'
   '(?<upper>$_numberPattern|[—–])\\s*(?<unit>.*?)\\s*\$',
   caseSensitive: false,
 );
-final _thresholdRegExp = RegExp(
+final _referenceThresholdPattern = RegExp(
   '^\\s*(?<operator><=|>=|<|>)\\s*(?<value>$_numberPattern)\\s*'
   '(?<unit>.*?)\\s*\$',
 );
-final _whitespaceRegExp = RegExp(r'\s+');
+final _multipleWhitespacePattern = RegExp(r'\s+');
 
 HealthReferenceRange? parseHealthReferenceRange(
   String? sourceText, {
@@ -332,7 +399,7 @@ HealthReferenceRange? parseHealthReferenceRange(
 }) {
   if (sourceText == null || sourceText.trim().isEmpty) return null;
   final text = sourceText.trim();
-  final range = _rangeRegExp.firstMatch(text);
+  final range = _referenceRangePattern.firstMatch(text);
   if (range != null) {
     final unit = range.namedGroup('unit')!.trim();
     if (!_referenceUnitsMatch(unit, expectedUnit)) return null;
@@ -357,7 +424,7 @@ HealthReferenceRange? parseHealthReferenceRange(
     );
   }
 
-  final threshold = _thresholdRegExp.firstMatch(text);
+  final threshold = _referenceThresholdPattern.firstMatch(text);
   if (threshold == null ||
       !_referenceUnitsMatch(
         threshold.namedGroup('unit')!.trim(),
@@ -395,7 +462,7 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
   if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
   String normalize(String unit) =>
-      unit.trim().replaceAll(_whitespaceRegExp, ' ');
+      unit.trim().replaceAll(_multipleWhitespacePattern, ' ');
   return normalize(rangeUnit) == normalize(expectedUnit);
 }
 

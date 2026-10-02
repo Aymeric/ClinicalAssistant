@@ -607,10 +607,12 @@ class FhirObservationParser {
     return null;
   }
 
+  static final _isoDatePattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
   DateTime? _parseFhirDate(Object? value) {
     if (value is String && value.trim().isNotEmpty) {
       final trimmed = value.trim();
-      if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(trimmed)) {
+      if (_isoDatePattern.hasMatch(trimmed)) {
         final parts = trimmed.split('-').map(int.parse).toList();
         return DateTime.utc(parts[0], parts[1], parts[2]);
       }

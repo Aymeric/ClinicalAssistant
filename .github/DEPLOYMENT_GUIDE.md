@@ -72,7 +72,7 @@ keytool -genkey -v -keystore android/app/upload-keystore.jks \
 | `IOS_DISTRIBUTION_CERTIFICATE_BASE64` | Base64-encoded Apple Distribution Certificate (`.p12`) | `openssl base64 < Certificates.p12 \| tr -d '\n'` |
 | `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD` | Password chosen when exporting `.p12` from Keychain | Export password |
 | `IOS_PROVISIONING_PROFILE_BASE64` | Base64-encoded App Store Provisioning Profile (`.mobileprovision`) | `openssl base64 < profile.mobileprovision \| tr -d '\n'` |
-| `IOS_BUNDLE_ID` *(optional)* | Bundle identifier of the app | Defaults to `com.example.clinicalAssistant` |
+| `IOS_BUNDLE_ID` *(optional)* | Bundle identifier of the app | Defaults to `com.aymericgrassart.clinicalAssistant` |
 
 #### Generating Apple Distribution Certificate & Profile:
 1. In macOS Keychain Access, create a Certificate Signing Request (CSR).

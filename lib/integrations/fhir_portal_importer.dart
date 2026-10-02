@@ -27,10 +27,11 @@ class FhirPortalImporter {
   FhirPortalImporter({
     FlutterAppAuth? appAuth,
     http.Client? client,
-    FhirObservationParser parser = const FhirObservationParser(),
+    this._parser = const FhirObservationParser(),
+    Future<void> Function(Duration duration)? sleeper,
   }) : _appAuth = appAuth ?? const FlutterAppAuth(),
        _client = client ?? http.Client(),
-       _parser = parser; // ignore: prefer_initializing_formals
+       _sleeper = sleeper ?? Future<void>.delayed;
 
   static const redirectUri =
       'com.aymericgrassart.clinicalassistant:/oauth2redirect';
@@ -57,6 +58,7 @@ class FhirPortalImporter {
   final FlutterAppAuth _appAuth;
   final http.Client _client;
   final FhirObservationParser _parser;
+  final Future<void> Function(Duration duration) _sleeper;
 
   void close() => _client.close();
 
@@ -155,7 +157,7 @@ class FhirPortalImporter {
     required String refreshToken,
     required String authorizationEndpoint,
     required String tokenEndpoint,
-    required DateTime since,
+    DateTime? since,
     required Future<void> Function(String refreshToken) onRefreshTokenUpdated,
     ImportProgressCallback? onProgress,
     List<String>? resourceTypes,
@@ -213,7 +215,7 @@ class FhirPortalImporter {
   }
 
   Future<AuthorizationServiceConfiguration> _loadConfiguration(Uri base) async {
-    final discovery = await _client.get(
+    final discovery = await _getWithRetry(
       base.resolve('.well-known/smart-configuration'),
       headers: const {'Accept': 'application/json'},
     );
@@ -339,7 +341,7 @@ class FhirPortalImporter {
           'The provider returned a pagination link to another server. Import stopped to protect your access token.',
         );
       }
-      final response = await _client.get(
+      final response = await _getWithRetry(
         nextUri,
         headers: {
           'Accept': 'application/fhir+json, application/json',
@@ -461,4 +463,54 @@ class FhirPortalImporter {
 
   String? _nonEmpty(String? value) =>
       value == null || value.isEmpty ? null : value;
+
+  Future<http.Response> _getWithRetry(
+    Uri uri, {
+    Map<String, String>? headers,
+    int maxRetries = 3,
+  }) async {
+    var attempts = 0;
+    while (true) {
+      final response = await _client.get(uri, headers: headers);
+      if ((response.statusCode == 429 || response.statusCode == 503) &&
+          attempts < maxRetries) {
+        attempts++;
+        final delay = parseRetryAfter(
+          response.headers['retry-after'],
+          fallbackAttempt: attempts,
+        );
+        await _sleeper(delay);
+        continue;
+      }
+      return response;
+    }
+  }
+
+  /// Parses the standard HTTP `Retry-After` header value (in integer seconds or HTTP-date).
+  /// If missing or unparseable, falls back to exponential backoff `1 << (fallbackAttempt - 1)` seconds.
+  static Duration parseRetryAfter(
+    String? headerValue, {
+    required int fallbackAttempt,
+    DateTime Function()? now,
+  }) {
+    if (headerValue != null && headerValue.trim().isNotEmpty) {
+      final trimmed = headerValue.trim();
+      final seconds = int.tryParse(trimmed);
+      if (seconds != null && seconds >= 0) {
+        return Duration(seconds: seconds.clamp(1, 30));
+      }
+      final date = DateTime.tryParse(trimmed);
+      if (date != null) {
+        final current = (now ?? DateTime.now)();
+        final diff = date.difference(current);
+        if (!diff.isNegative) {
+          return diff > const Duration(seconds: 30)
+              ? const Duration(seconds: 30)
+              : diff;
+        }
+      }
+    }
+    final exponentialSeconds = 1 << (fallbackAttempt - 1);
+    return Duration(seconds: exponentialSeconds);
+  }
 }

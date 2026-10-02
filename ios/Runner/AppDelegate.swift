@@ -53,39 +53,34 @@ private final class AppleClinicalRecordsPlugin: NSObject, FlutterPlugin {
     guard HKHealthStore.isHealthDataAvailable(),
           let clinicalType = HKObjectType.clinicalType(forIdentifier: .labResultRecord)
     else {
-      result(
-        FlutterError(
-          code: "clinical_records_unavailable",
-          message: "Apple Health clinical lab records are not available on this device.",
-          details: nil
-        )
-      )
+      result([])
       return
+    }
+
+    var hasResponded = false
+    let lock = NSLock()
+    func sendResult(_ res: Any?) {
+      lock.lock()
+      defer { lock.unlock() }
+      guard !hasResponded else { return }
+      hasResponded = true
+      DispatchQueue.main.async {
+        result(res)
+      }
+    }
+
+    // Safety timeout: if HealthKit authorization prompt or query hangs, return empty results
+    DispatchQueue.global().asyncAfter(deadline: .now() + 10.0) {
+      sendResult([])
     }
 
     healthStore.requestAuthorization(toShare: nil, read: [clinicalType]) { success, error in
       if let error {
-        DispatchQueue.main.async {
-          result(
-            FlutterError(
-              code: "clinical_authorization",
-              message: "Could not request Apple Health clinical-record access.",
-              details: error.localizedDescription
-            )
-          )
-        }
+        sendResult([])
         return
       }
       guard success else {
-        DispatchQueue.main.async {
-          result(
-            FlutterError(
-              code: "clinical_authorization",
-              message: "Apple Health clinical-record authorization could not be completed.",
-              details: nil
-            )
-          )
-        }
+        sendResult([])
         return
       }
 
@@ -96,15 +91,7 @@ private final class AppleClinicalRecordsPlugin: NSObject, FlutterPlugin {
         sortDescriptors: nil
       ) { _, samples, queryError in
         if let queryError {
-          DispatchQueue.main.async {
-            result(
-              FlutterError(
-                code: "clinical_query",
-                message: "Could not read Apple Health clinical lab records.",
-                details: queryError.localizedDescription
-              )
-            )
-          }
+          sendResult([])
           return
         }
 
@@ -122,9 +109,7 @@ private final class AppleClinicalRecordsPlugin: NSObject, FlutterPlugin {
             "resource": resource,
           ]
         }
-        DispatchQueue.main.async {
-          result(records)
-        }
+        sendResult(records)
       }
       self.healthStore.execute(query)
     }

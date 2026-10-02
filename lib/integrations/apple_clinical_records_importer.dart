@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 
 import '../models/health_record.dart';
@@ -15,10 +17,22 @@ class AppleClinicalRecordsImporter {
   final MethodChannel _channel;
   final FhirObservationParser _parser;
 
-  Future<List<HealthRecord>> importLabRecords({required DateTime since}) async {
-    final response = await _channel.invokeListMethod<Object?>(
-      'importLabRecords',
-    );
+  Future<List<HealthRecord>> importLabRecords({
+    required DateTime since,
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    final List<Object?>? response;
+    try {
+      response = await _channel
+          .invokeListMethod<Object?>('importLabRecords')
+          .timeout(timeout);
+    } on TimeoutException {
+      return const [];
+    } on PlatformException {
+      return const [];
+    } on MissingPluginException {
+      return const [];
+    }
     if (response == null) return const [];
 
     final records = <HealthRecord>[];
