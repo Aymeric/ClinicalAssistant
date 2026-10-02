@@ -134,4 +134,47 @@ void main() {
       expect(bytes.length, greaterThan(1000));
     },
   );
+
+  test(
+    'respects section visibility flags when certain sections are excluded',
+    () async {
+      final now = DateTime.utc(2026, 9, 20);
+      final records = [
+        HealthRecord(
+          id: 'med-1',
+          name: 'Metformin',
+          value: '500 mg oral tablet',
+          unit: '',
+          recordedAt: now,
+          category: RecordCategory.medication,
+          source: 'Provider Portal',
+        ),
+        HealthRecord(
+          id: 'vital-1',
+          name: 'Heart Rate',
+          value: '72',
+          unit: 'bpm',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Provider Portal',
+        ),
+      ];
+
+      // Exclude vitals and medications, include only questions
+      final doc = await exportService.buildDoctorVisitSummaryPdfDocument(
+        records,
+        includeVitals: false,
+        includeLabs: false,
+        includeMedications: false,
+        includeConditions: false,
+        includeAllergies: false,
+        includeQuestions: true,
+        patientQuestions: 'Can I exercise regularly?',
+      );
+
+      final bytes = await doc.save();
+      expect(bytes, isNotEmpty);
+      expect(bytes.length, greaterThan(500));
+    },
+  );
 }

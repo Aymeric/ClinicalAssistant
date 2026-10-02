@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
 
+final _manualBpPattern = RegExp(r'^manual:(sys|dia):(.+)$');
+
 List<HealthRecord> applyManualRecordEdits(
   List<HealthRecord> currentRecords,
   List<HealthRecord> editedRecords,
@@ -33,7 +35,7 @@ List<HealthRecord> applyManualRecordEdits(
   }
 
   for (final editedId in editedById.keys) {
-    final match = RegExp(r'^manual:(sys|dia):(.+)$').firstMatch(editedId);
+    final match = _manualBpPattern.firstMatch(editedId);
     if (match == null) continue;
     final siblingType = match[1] == 'sys' ? 'dia' : 'sys';
     final siblingId = 'manual:$siblingType:${match[2]}';

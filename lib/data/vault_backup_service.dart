@@ -115,6 +115,16 @@ class VaultBackupService {
       );
     }
     final salt = base64Decode(saltB64);
+    if (salt.length < saltLength) {
+      throw const FormatException(
+        'Invalid KDF salt length in backup. Expected at least $saltLength bytes.',
+      );
+    }
+    if (iterations < 100000 || iterations > 1000000) {
+      throw const FormatException(
+        'Invalid PBKDF2 iteration count in backup. Must be between 100,000 and 1,000,000.',
+      );
+    }
 
     final nonceB64 = cipherMap['nonce'] as String?;
     final cipherB64 = cipherMap['ciphertext'] as String?;

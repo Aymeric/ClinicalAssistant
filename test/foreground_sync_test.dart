@@ -45,14 +45,7 @@ void main() {
     final state = await controller.loadForegroundSyncState();
     expect(state.healthAutoSync, isTrue);
     expect(state.lastHealthSyncAt, isNotNull);
-    expect(
-      DateTime.now().difference(healthImporter.sinceValues.first),
-      greaterThan(const Duration(days: 29)),
-    );
-    expect(
-      DateTime.now().difference(healthImporter.sinceValues.first),
-      lessThan(const Duration(days: 31)),
-    );
+    expect(healthImporter.sinceValues.first.year, lessThanOrEqualTo(1900));
     expect(
       DateTime.now().difference(healthImporter.sinceValues.last),
       greaterThan(const Duration(days: 2)),
@@ -104,6 +97,46 @@ void main() {
       expect(disabledState.fhirAutoSync, isFalse);
       expect(disabledState.fhirRefreshTokenAvailable, isFalse);
       expect(syncValues.values.containsKey('fhir_refresh_token_v1'), isFalse);
+    },
+  );
+
+  test(
+    'FHIR sync downloads all history on initial sync and uses checkpoint thereafter',
+    () async {
+      final syncValues = _MemorySyncValueStore()
+        ..values.addAll({
+          'fhir_base_url_v1': 'https://portal.example/fhir',
+          'fhir_client_id_v1': 'registered-client',
+          'fhir_refresh_token_v1': 'saved-refresh-token',
+          'fhir_patient_id_v1': 'patient-7',
+          'fhir_authorization_endpoint_v1':
+              'https://login.portal.example/authorize',
+          'fhir_token_endpoint_v1': 'https://login.portal.example/token',
+        });
+      final fhirImporter = _FakeFhirImporter(
+        refreshRecords: [_record('fhir:initial')],
+      );
+      final controller = HealthDataController(
+        store: _MemoryRecordStore(),
+        fhirImporter: fhirImporter,
+        syncValueStore: syncValues,
+      );
+      addTearDown(controller.dispose);
+      await controller.load();
+
+      // Initial sync: lastFhirSyncKey is null -> since is null (all history)
+      final initialRecords = await controller.syncFhir();
+      expect(initialRecords.map((r) => r.id), ['fhir:initial']);
+      expect(fhirImporter.sinceValues.first, isNull);
+
+      // Subsequent sync: lastFhirSyncKey is set -> since has 3-day overlap checkpoint
+      await controller.syncFhir();
+      expect(fhirImporter.sinceValues.length, 2);
+      expect(fhirImporter.sinceValues.last, isNotNull);
+      expect(
+        DateTime.now().difference(fhirImporter.sinceValues.last!),
+        lessThan(const Duration(days: 4)),
+      );
     },
   );
 
@@ -374,6 +407,7 @@ class _FakeFhirImporter extends FhirPortalImporter {
   final Completer<void>? authorizationGate;
   var refreshCount = 0;
   String? lastRefreshToken;
+  final sinceValues = <DateTime?>[];
 
   @override
   Future<FhirPortalImportResult> authorizeAndImportLabResults({
@@ -407,13 +441,14 @@ class _FakeFhirImporter extends FhirPortalImporter {
     required String refreshToken,
     required String authorizationEndpoint,
     required String tokenEndpoint,
-    required DateTime since,
+    DateTime? since,
     required Future<void> Function(String refreshToken) onRefreshTokenUpdated,
     ImportProgressCallback? onProgress,
     List<String>? resourceTypes,
   }) async {
     refreshCount++;
     lastRefreshToken = refreshToken;
+    sinceValues.add(since);
     await onRefreshTokenUpdated('rotated-refresh');
     onProgress?.call(
       const ImportProgress(fraction: 0.6, message: 'Downloading test labs'),

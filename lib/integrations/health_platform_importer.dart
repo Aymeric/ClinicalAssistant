@@ -143,15 +143,41 @@ class HealthPlatformImporter {
       for (var index = 0; index < windows.length; index++) {
         final window = windows[index];
         final windowLabel = 'period ${index + 1} of ${windows.length}';
-        if (detailedTypes.isNotEmpty) {
+        if (detailedTypes.isNotEmpty && stepTypes.isNotEmpty) {
+          report('Reading health records · $windowLabel');
+          final detailedFuture = _readDetailedRecords(
+            detailedTypes,
+            window.start,
+            window.end,
+          );
+          final stepsFuture = _health.getHealthDataFromTypes(
+            types: stepTypes,
+            startTime: window.start,
+            endTime: window.end,
+          );
+          final results = await Future.wait([detailedFuture, stepsFuture]);
+          records.addAll(results[0] as List<HealthRecord>);
+          completedSteps++;
+          report('Read health records · $windowLabel');
+
+          final source = Platform.isIOS ? 'Apple Health' : 'Health Connect';
+          final points = results[1] as List<HealthDataPoint>;
+          records.addAll(
+            _stepAggregator.aggregate(
+              points.map(_dailyStepSampleFromPoint),
+              source: source,
+            ),
+          );
+          completedSteps++;
+          report('Read steps · $windowLabel');
+        } else if (detailedTypes.isNotEmpty) {
           report('Reading health records · $windowLabel');
           records.addAll(
             await _readDetailedRecords(detailedTypes, window.start, window.end),
           );
           completedSteps++;
           report('Read health records · $windowLabel');
-        }
-        if (stepTypes.isNotEmpty) {
+        } else if (stepTypes.isNotEmpty) {
           report('Reading steps · $windowLabel');
           final points = await _health.getHealthDataFromTypes(
             types: stepTypes,
@@ -173,9 +199,13 @@ class HealthPlatformImporter {
 
     if (Platform.isIOS) {
       report('Reading Apple Health clinical labs');
-      records.addAll(
-        await _appleClinicalRecords.importLabRecords(since: since),
-      );
+      try {
+        records.addAll(
+          await _appleClinicalRecords.importLabRecords(since: since),
+        );
+      } catch (_) {
+        // Clinical labs are optional; errors should not prevent basic health sync.
+      }
       completedSteps++;
       report('Read Apple Health clinical labs');
     }
