@@ -51,11 +51,15 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
 /// (e.g. "10,000") and scientific notation. Returns null if non-numeric or non-finite.
 double? parseHealthRecordValue(String value) {
   final trimmed = value.trim();
-  final isGroupedNumber = _groupedNumberPattern.hasMatch(trimmed);
-  final parsed = double.tryParse(
-    isGroupedNumber ? trimmed.replaceAll(',', '') : trimmed,
-  );
-  return parsed != null && parsed.isFinite ? parsed : null;
+  // Fast-path direct parsing for standard numeric values (avoids regex overhead).
+  final direct = double.tryParse(trimmed);
+  if (direct != null && direct.isFinite) return direct;
+  // Fall back to grouped number check only when commas are present.
+  if (trimmed.contains(',') && _groupedNumberPattern.hasMatch(trimmed)) {
+    final parsed = double.tryParse(trimmed.replaceAll(',', ''));
+    if (parsed != null && parsed.isFinite) return parsed;
+  }
+  return null;
 }
 
 /// Evaluates whether a measurement value is within, above, or below a reference range.
