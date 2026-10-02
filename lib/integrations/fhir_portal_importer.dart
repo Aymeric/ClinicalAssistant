@@ -27,11 +27,11 @@ class FhirPortalImporter {
   FhirPortalImporter({
     FlutterAppAuth? appAuth,
     http.Client? client,
-    FhirObservationParser parser = const FhirObservationParser(),
+    FhirObservationParser? parser,
     Future<void> Function(Duration duration)? sleeper,
   }) : _appAuth = appAuth ?? const FlutterAppAuth(),
        _client = client ?? http.Client(),
-       _parser = parser,
+       _parser = parser ?? const FhirObservationParser(),
        _sleeper = sleeper ?? Future<void>.delayed;
 
   static const redirectUri =
