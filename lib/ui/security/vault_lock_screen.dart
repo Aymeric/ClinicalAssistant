@@ -132,8 +132,7 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
         _enteredPin = '';
         if (lockout > 0) {
           _lockoutSeconds = lockout;
-          _errorMessage =
-              'Too many failed attempts. Try again in $lockout s';
+          _errorMessage = 'Too many failed attempts. Try again in $lockout s';
           _startLockoutCountdown();
         } else {
           final attempts = widget.securityService.failedAttempts;
@@ -222,7 +221,9 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
                           shape: BoxShape.circle,
                           color: isFilled
                               ? colorScheme.primary
-                              : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                              : colorScheme.outlineVariant.withValues(
+                                  alpha: 0.5,
+                                ),
                           border: Border.all(
                             color: isFilled
                                 ? colorScheme.primary
@@ -248,12 +249,12 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
                             ),
                           )
                         : _isVerifying
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : null,
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 24),
 
