@@ -45,25 +45,28 @@ void main() {
       expect(() => service.setPin('12'), throwsArgumentError);
     });
 
-    test('enforces rate limiting after 5 consecutive failed attempts', () async {
-      await service.setPin('4321');
+    test(
+      'enforces rate limiting after 5 consecutive failed attempts',
+      () async {
+        await service.setPin('4321');
 
-      for (var i = 0; i < 4; i++) {
-        final result = await service.verifyPin('0000');
-        expect(result, isFalse);
-        expect(service.isRateLimited, isFalse);
-      }
+        for (var i = 0; i < 4; i++) {
+          final result = await service.verifyPin('0000');
+          expect(result, isFalse);
+          expect(service.isRateLimited, isFalse);
+        }
 
-      // 5th failed attempt triggers lockout
-      final fifth = await service.verifyPin('0000');
-      expect(fifth, isFalse);
-      expect(service.isRateLimited, isTrue);
-      expect(service.remainingLockoutSeconds, greaterThan(0));
+        // 5th failed attempt triggers lockout
+        final fifth = await service.verifyPin('0000');
+        expect(fifth, isFalse);
+        expect(service.isRateLimited, isTrue);
+        expect(service.remainingLockoutSeconds, greaterThan(0));
 
-      // Even correct PIN is blocked during rate limit
-      final correctDuringLockout = await service.verifyPin('4321');
-      expect(correctDuringLockout, isFalse);
-    });
+        // Even correct PIN is blocked during rate limit
+        final correctDuringLockout = await service.verifyPin('4321');
+        expect(correctDuringLockout, isFalse);
+      },
+    );
 
     test('changes PIN when old PIN is correct', () async {
       await service.setPin('1111');
