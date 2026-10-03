@@ -63,54 +63,55 @@ void main() {
     expect(record.isManual, isTrue);
   });
 
-  testWidgets('logs a custom lab result with custom reference range and notes', (
-    tester,
-  ) async {
-    List<HealthRecord>? savedRecords;
+  testWidgets(
+    'logs a custom lab result with custom reference range and notes',
+    (tester) async {
+      List<HealthRecord>? savedRecords;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: ManualRecordEntrySheet(
-            onSave: (records) => savedRecords = records,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ManualRecordEntrySheet(
+              onSave: (records) => savedRecords = records,
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.ensureVisible(find.text('Lab Result'));
-    await tester.tap(find.text('Lab Result'));
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Lab Result'));
+      await tester.tap(find.text('Lab Result'));
+      await tester.pumpAndSettle();
 
-    // Custom test name
-    await tester.enterText(
-      find.byKey(const ValueKey('manual-lab-name')),
-      'Serum Ferritin',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('manual-lab-value')),
-      '45.2',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('manual-lab-unit')),
-      'ng/mL',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('manual-lab-ref-range')),
-      '30 – 400 ng/mL',
-    );
+      // Custom test name
+      await tester.enterText(
+        find.byKey(const ValueKey('manual-lab-name')),
+        'Serum Ferritin',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('manual-lab-value')),
+        '45.2',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('manual-lab-unit')),
+        'ng/mL',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('manual-lab-ref-range')),
+        '30 – 400 ng/mL',
+      );
 
-    // Save
-    await tester.ensureVisible(find.text('Save Lab Result to Vault'));
-    await tester.tap(find.text('Save Lab Result to Vault'));
-    await tester.pumpAndSettle();
+      // Save
+      await tester.ensureVisible(find.text('Save Lab Result to Vault'));
+      await tester.tap(find.text('Save Lab Result to Vault'));
+      await tester.pumpAndSettle();
 
-    expect(savedRecords, isNotNull);
-    final record = savedRecords!.single;
-    expect(record.name, 'Serum Ferritin');
-    expect(record.value, '45.2');
-    expect(record.unit, 'ng/mL');
-    expect(record.referenceRange, '30 – 400 ng/mL');
-    expect(record.category, RecordCategory.lab);
-  });
+      expect(savedRecords, isNotNull);
+      final record = savedRecords!.single;
+      expect(record.name, 'Serum Ferritin');
+      expect(record.value, '45.2');
+      expect(record.unit, 'ng/mL');
+      expect(record.referenceRange, '30 – 400 ng/mL');
+      expect(record.category, RecordCategory.lab);
+    },
+  );
 }

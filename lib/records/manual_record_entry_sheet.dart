@@ -32,14 +32,46 @@ class LabResultPreset {
 }
 
 const kCommonLabPresets = [
-  LabResultPreset(name: 'Hemoglobin A1c', unit: '%', defaultRefRange: '4.0 – 5.6 %'),
-  LabResultPreset(name: 'Total Cholesterol', unit: 'mg/dL', defaultRefRange: '< 200 mg/dL'),
-  LabResultPreset(name: 'HDL Cholesterol', unit: 'mg/dL', defaultRefRange: '> 40 mg/dL'),
-  LabResultPreset(name: 'LDL Cholesterol', unit: 'mg/dL', defaultRefRange: '< 100 mg/dL'),
-  LabResultPreset(name: 'Triglycerides', unit: 'mg/dL', defaultRefRange: '< 150 mg/dL'),
-  LabResultPreset(name: 'TSH', unit: 'mIU/L', defaultRefRange: '0.4 – 4.0 mIU/L'),
-  LabResultPreset(name: 'Creatinine', unit: 'mg/dL', defaultRefRange: '0.6 – 1.2 mg/dL'),
-  LabResultPreset(name: 'Vitamin D (25-OH)', unit: 'ng/mL', defaultRefRange: '30 – 100 ng/mL'),
+  LabResultPreset(
+    name: 'Hemoglobin A1c',
+    unit: '%',
+    defaultRefRange: '4.0 – 5.6 %',
+  ),
+  LabResultPreset(
+    name: 'Total Cholesterol',
+    unit: 'mg/dL',
+    defaultRefRange: '< 200 mg/dL',
+  ),
+  LabResultPreset(
+    name: 'HDL Cholesterol',
+    unit: 'mg/dL',
+    defaultRefRange: '> 40 mg/dL',
+  ),
+  LabResultPreset(
+    name: 'LDL Cholesterol',
+    unit: 'mg/dL',
+    defaultRefRange: '< 100 mg/dL',
+  ),
+  LabResultPreset(
+    name: 'Triglycerides',
+    unit: 'mg/dL',
+    defaultRefRange: '< 150 mg/dL',
+  ),
+  LabResultPreset(
+    name: 'TSH',
+    unit: 'mIU/L',
+    defaultRefRange: '0.4 – 4.0 mIU/L',
+  ),
+  LabResultPreset(
+    name: 'Creatinine',
+    unit: 'mg/dL',
+    defaultRefRange: '0.6 – 1.2 mg/dL',
+  ),
+  LabResultPreset(
+    name: 'Vitamin D (25-OH)',
+    unit: 'ng/mL',
+    defaultRefRange: '30 – 100 ng/mL',
+  ),
 ];
 
 class ManualRecordEntrySheet extends StatefulWidget {
@@ -550,8 +582,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     hintText: 'e.g. Hemoglobin A1c, Ferritin',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (val) =>
-                      val == null || val.trim().isEmpty ? 'Enter a lab name' : null,
+                  validator: (val) => val == null || val.trim().isEmpty
+                      ? 'Enter a lab name'
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 Row(
