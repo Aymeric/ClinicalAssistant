@@ -78,9 +78,9 @@ class _MedicationsPageState extends State<MedicationsPage> {
                 leading: const Icon(Icons.access_time),
                 title: const Text('Time taken'),
                 subtitle: Text(
-                  MaterialLocalizations.of(ctx).formatTimeOfDay(
-                    TimeOfDay.fromDateTime(chosenTime),
-                  ),
+                  MaterialLocalizations.of(
+                    ctx,
+                  ).formatTimeOfDay(TimeOfDay.fromDateTime(chosenTime)),
                 ),
                 trailing: TextButton(
                   onPressed: () async {
@@ -132,12 +132,14 @@ class _MedicationsPageState extends State<MedicationsPage> {
       await widget.controller.logMedicationDose(
         med,
         takenAt: chosenTime,
-        note: noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+        note: noteController.text.trim().isEmpty
+            ? null
+            : noteController.text.trim(),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Logged dose for ${med.name}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Logged dose for ${med.name}')));
       }
     }
   }
@@ -216,14 +218,20 @@ class _MedicationsPageState extends State<MedicationsPage> {
                     itemBuilder: (context, index) {
                       final log = logs[index];
                       final local = log.takenAt.toLocal();
-                      final dateStr = MaterialLocalizations.of(ctx).formatShortDate(local);
-                      final timeStr = MaterialLocalizations.of(ctx).formatTimeOfDay(
-                        TimeOfDay.fromDateTime(local),
-                      );
+                      final dateStr = MaterialLocalizations.of(
+                        ctx,
+                      ).formatShortDate(local);
+                      final timeStr = MaterialLocalizations.of(
+                        ctx,
+                      ).formatTimeOfDay(TimeOfDay.fromDateTime(local));
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: Theme.of(ctx).colorScheme.primaryContainer,
-                          foregroundColor: Theme.of(ctx).colorScheme.onPrimaryContainer,
+                          backgroundColor: Theme.of(
+                            ctx,
+                          ).colorScheme.primaryContainer,
+                          foregroundColor: Theme.of(
+                            ctx,
+                          ).colorScheme.onPrimaryContainer,
                           child: const Icon(Icons.check, size: 18),
                         ),
                         title: Text('$dateStr at $timeStr'),
@@ -316,8 +324,11 @@ class _MedicationsPageState extends State<MedicationsPage> {
                             _showPast ? Icons.visibility_off : Icons.history,
                             size: 18,
                           ),
-                          label: Text(_showPast ? 'Hide past' : 'Past (${past.length})'),
-                          onPressed: () => setState(() => _showPast = !_showPast),
+                          label: Text(
+                            _showPast ? 'Hide past' : 'Past (${past.length})',
+                          ),
+                          onPressed: () =>
+                              setState(() => _showPast = !_showPast),
                         ),
                       ],
                     ),
@@ -379,7 +390,8 @@ class _MedicationsPageState extends State<MedicationsPage> {
       } else if (diff.inHours < 24) {
         lastTakenLabel = 'Taken ${diff.inHours}h ago';
       } else {
-        lastTakenLabel = 'Last taken: ${MaterialLocalizations.of(context).formatShortDate(lastLog.takenAt.toLocal())}';
+        lastTakenLabel =
+            'Last taken: ${MaterialLocalizations.of(context).formatShortDate(lastLog.takenAt.toLocal())}';
       }
     }
 
@@ -436,11 +448,20 @@ class _MedicationsPageState extends State<MedicationsPage> {
                     } else if (action == 'log_with_note') {
                       await _logDoseWithDetails(med);
                     } else if (action == 'pause') {
-                      await widget.controller.updateMedicationStatus(med, 'paused');
+                      await widget.controller.updateMedicationStatus(
+                        med,
+                        'paused',
+                      );
                     } else if (action == 'discontinue') {
-                      await widget.controller.updateMedicationStatus(med, 'discontinued');
+                      await widget.controller.updateMedicationStatus(
+                        med,
+                        'discontinued',
+                      );
                     } else if (action == 'reactivate') {
-                      await widget.controller.updateMedicationStatus(med, 'active');
+                      await widget.controller.updateMedicationStatus(
+                        med,
+                        'active',
+                      );
                     } else if (action == 'delete') {
                       await widget.controller.deleteRecord(med.id);
                     }
@@ -503,7 +524,11 @@ class _MedicationsPageState extends State<MedicationsPage> {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                          Icon(
+                            Icons.delete_outline,
+                            size: 20,
+                            color: Colors.red,
+                          ),
                           SizedBox(width: 8),
                           Text('Delete', style: TextStyle(color: Colors.red)),
                         ],
@@ -523,8 +548,12 @@ class _MedicationsPageState extends State<MedicationsPage> {
                 if (details.route != null && details.route!.isNotEmpty)
                   _detailPill(Icons.alt_route, details.route!, colors),
                 if (lastTakenLabel != null)
-                  _detailPill(Icons.check_circle_outline, lastTakenLabel, colors,
-                      color: colors.primary),
+                  _detailPill(
+                    Icons.check_circle_outline,
+                    lastTakenLabel,
+                    colors,
+                    color: colors.primary,
+                  ),
                 if (logCount > 0)
                   InkWell(
                     onTap: () => _showAdherenceHistory(med),

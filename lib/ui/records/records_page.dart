@@ -330,7 +330,8 @@ class RecordsPageState extends State<RecordsPage> {
                     children: [
                       FilterChip(
                         label: const Text('All'),
-                        selected: _filter == null &&
+                        selected:
+                            _filter == null &&
                             !_filterOutOfRange &&
                             _sourceFilter == null,
                         onSelected: (_) => setState(() {
@@ -359,8 +360,9 @@ class RecordsPageState extends State<RecordsPage> {
                         ),
                         label: const Text('Out of range only'),
                         selected: _filterOutOfRange,
-                        selectedColor:
-                            Theme.of(context).colorScheme.errorContainer,
+                        selectedColor: Theme.of(
+                          context,
+                        ).colorScheme.errorContainer,
                         onSelected: (selected) =>
                             setState(() => _filterOutOfRange = selected),
                       ),
@@ -371,8 +373,7 @@ class RecordsPageState extends State<RecordsPage> {
                             label: Text('Source: $src'),
                             selected: _sourceFilter == src,
                             onSelected: (_) => setState(() {
-                              _sourceFilter =
-                                  _sourceFilter == src ? null : src;
+                              _sourceFilter = _sourceFilter == src ? null : src;
                             }),
                           ),
                           const SizedBox(width: 6),
@@ -715,7 +716,11 @@ class DatePresetChip extends StatelessWidget {
 }
 
 class DateSectionHeader extends StatelessWidget {
-  const DateSectionHeader({super.key, required this.title, this.isFirst = false});
+  const DateSectionHeader({
+    super.key,
+    required this.title,
+    this.isFirst = false,
+  });
 
   final String title;
   final bool isFirst;
