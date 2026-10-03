@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:clinical_assistant/data/encrypted_record_store.dart';
+import 'package:clinical_assistant/data/vault_security_service.dart';
 import 'package:clinical_assistant/integrations/fhir_portal_importer.dart';
 import 'package:clinical_assistant/main.dart';
 import 'package:clinical_assistant/models/health_record.dart';
+import 'package:clinical_assistant/ui/security/vault_lock_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
@@ -746,6 +748,38 @@ void main() {
       await tester.tap(find.text('Resting Heart Rate'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Edit manual record'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'vault lock screen and restore sheet icon buttons render descriptive tooltips',
+    (tester) async {
+      tester.view.physicalSize = const Size(420, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final dummySecurityService = VaultSecurityService();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: VaultLockScreen(
+            securityService: dummySecurityService,
+            onUnlocked: () {},
+            canCancel: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Check Cancel tooltip on close button
+      expect(find.byTooltip('Cancel'), findsOneWidget);
+
+      // Enter 1 digit to reveal backspace button
+      await tester.tap(find.byKey(const ValueKey('vault-pin-digit-1')));
+      await tester.pump();
+
+      expect(find.byTooltip('Delete digit'), findsOneWidget);
     },
   );
 }
