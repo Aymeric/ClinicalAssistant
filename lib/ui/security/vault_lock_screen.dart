@@ -132,8 +132,7 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
         _enteredPin = '';
         if (lockout > 0) {
           _lockoutSeconds = lockout;
-          _errorMessage =
-              'Too many failed attempts. Try again in $lockout s';
+          _errorMessage = 'Too many failed attempts. Try again in $lockout s';
           _startLockoutCountdown();
         } else {
           final attempts = widget.securityService.failedAttempts;
@@ -160,6 +159,7 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
         appBar: widget.canCancel
             ? AppBar(
                 leading: IconButton(
+                  tooltip: 'Close',
                   icon: const Icon(Icons.close),
                   onPressed: () {
                     widget.onCancel?.call();
@@ -222,7 +222,9 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
                           shape: BoxShape.circle,
                           color: isFilled
                               ? colorScheme.primary
-                              : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                              : colorScheme.outlineVariant.withValues(
+                                  alpha: 0.5,
+                                ),
                           border: Border.all(
                             color: isFilled
                                 ? colorScheme.primary
@@ -248,12 +250,12 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
                             ),
                           )
                         : _isVerifying
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : null,
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 24),
 
@@ -299,6 +301,7 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
           child: _enteredPin.length > 4
               ? IconButton(
                   key: const ValueKey('vault-pin-submit-key'),
+                  tooltip: 'Submit PIN',
                   onPressed: _lockoutSeconds > 0 ? null : _verify,
                   icon: const Icon(Icons.check_circle_outline, size: 28),
                 )
@@ -313,6 +316,7 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
           height: 72,
           child: IconButton(
             key: const ValueKey('vault-pin-backspace-key'),
+            tooltip: 'Backspace',
             onPressed: _enteredPin.isNotEmpty ? _onBackspacePressed : null,
             icon: const Icon(Icons.backspace_outlined, size: 24),
           ),
