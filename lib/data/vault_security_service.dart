@@ -30,20 +30,27 @@ class VaultSecurityService {
     SyncValueStore? storage,
     FlutterSecureStorage? secureStorage,
     Pbkdf2? pbkdf2,
-  })  : _storage = storage ??
-            SecureSyncValueStore(
-              storage: secureStorage ?? const FlutterSecureStorage(),
-            ),
-        _pbkdf2 = pbkdf2 ??
-            Pbkdf2(
-              macAlgorithm: Hmac.sha256(),
-              iterations: 10000,
-              bits: 256,
-            );
+  }) : _storage =
+           storage ??
+           SecureSyncValueStore(
+             storage: secureStorage ?? const FlutterSecureStorage(),
+           ),
+       _pbkdf2 =
+           pbkdf2 ??
+           Pbkdf2(
+             macAlgorithm: Hmac.sha256(),
+             // OWASP recommended minimum iterations for PBKDF2-HMAC-SHA256 to mitigate brute-force attacks on PINs
+             iterations: 100000,
+             bits: 256,
+           );
 
   static const _pinHashKey = 'vault_pin_hash_v1';
   static const _pinSaltKey = 'vault_pin_salt_v1';
+  static const _pinIterationsKey = 'vault_pin_iterations_v1';
   static const _timeoutKey = 'vault_autolock_timeout_v1';
+
+  static const int _defaultIterations = 100000;
+  static const int _legacyIterations = 10000;
 
   final SyncValueStore _storage;
   final Pbkdf2 _pbkdf2;
@@ -78,9 +85,10 @@ class VaultSecurityService {
       throw ArgumentError('PIN must be at least 4 digits');
     }
     final salt = _generateSalt();
-    final hash = await _hashPin(pin, salt);
+    final hash = await _hashPin(pin, salt, iterations: _defaultIterations);
     await _storage.write(_pinSaltKey, base64Encode(salt));
     await _storage.write(_pinHashKey, base64Encode(hash));
+    await _storage.write(_pinIterationsKey, _defaultIterations.toString());
     _failedAttempts = 0;
     _lockoutUntil = null;
     _isLocked = false;
@@ -99,15 +107,29 @@ class VaultSecurityService {
         return false;
       }
 
+      final storedIterStr = await _storage.read(_pinIterationsKey);
+      final storedIterations =
+          int.tryParse(storedIterStr ?? '') ?? _legacyIterations;
+
       final salt = base64Decode(storedSaltBase64);
       final expectedHash = base64Decode(storedHashBase64);
-      final actualHash = await _hashPin(enteredPin, salt);
+      final actualHash = await _hashPin(
+        enteredPin,
+        salt,
+        iterations: storedIterations,
+      );
 
       final isValid = _constantTimeCompare(expectedHash, actualHash);
       if (isValid) {
         _failedAttempts = 0;
         _lockoutUntil = null;
         _isLocked = false;
+
+        // Auto-upgrade legacy hashes (10,000 iterations) to current standard (100,000 iterations)
+        if (storedIterations < _defaultIterations) {
+          await setPin(enteredPin);
+        }
+
         return true;
       } else {
         _failedAttempts++;
@@ -134,6 +156,7 @@ class VaultSecurityService {
     try {
       await _storage.delete(_pinHashKey);
       await _storage.delete(_pinSaltKey);
+      await _storage.delete(_pinIterationsKey);
     } catch (_) {}
     _failedAttempts = 0;
     _lockoutUntil = null;
@@ -206,12 +229,20 @@ class VaultSecurityService {
     return List<int>.generate(length, (_) => random.nextInt(256));
   }
 
-  Future<List<int>> _hashPin(String pin, List<int> salt) async {
+  Future<List<int>> _hashPin(
+    String pin,
+    List<int> salt, {
+    int iterations = _defaultIterations,
+  }) async {
     final secretKey = SecretKey(utf8.encode(pin));
-    final derived = await _pbkdf2.deriveKey(
-      secretKey: secretKey,
-      nonce: salt,
-    );
+    final kdf = iterations == _defaultIterations
+        ? _pbkdf2
+        : Pbkdf2(
+            macAlgorithm: Hmac.sha256(),
+            iterations: iterations,
+            bits: 256,
+          );
+    final derived = await kdf.deriveKey(secretKey: secretKey, nonce: salt);
     return derived.extractBytes();
   }
 

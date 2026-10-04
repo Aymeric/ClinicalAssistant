@@ -1,5 +1,6 @@
 import 'package:clinical_assistant/data/vault_security_service.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _MemorySyncValueStore implements SyncValueStore {
@@ -45,25 +46,28 @@ void main() {
       expect(() => service.setPin('12'), throwsArgumentError);
     });
 
-    test('enforces rate limiting after 5 consecutive failed attempts', () async {
-      await service.setPin('4321');
+    test(
+      'enforces rate limiting after 5 consecutive failed attempts',
+      () async {
+        await service.setPin('4321');
 
-      for (var i = 0; i < 4; i++) {
-        final result = await service.verifyPin('0000');
-        expect(result, isFalse);
-        expect(service.isRateLimited, isFalse);
-      }
+        for (var i = 0; i < 4; i++) {
+          final result = await service.verifyPin('0000');
+          expect(result, isFalse);
+          expect(service.isRateLimited, isFalse);
+        }
 
-      // 5th failed attempt triggers lockout
-      final fifth = await service.verifyPin('0000');
-      expect(fifth, isFalse);
-      expect(service.isRateLimited, isTrue);
-      expect(service.remainingLockoutSeconds, greaterThan(0));
+        // 5th failed attempt triggers lockout
+        final fifth = await service.verifyPin('0000');
+        expect(fifth, isFalse);
+        expect(service.isRateLimited, isTrue);
+        expect(service.remainingLockoutSeconds, greaterThan(0));
 
-      // Even correct PIN is blocked during rate limit
-      final correctDuringLockout = await service.verifyPin('4321');
-      expect(correctDuringLockout, isFalse);
-    });
+        // Even correct PIN is blocked during rate limit
+        final correctDuringLockout = await service.verifyPin('4321');
+        expect(correctDuringLockout, isFalse);
+      },
+    );
 
     test('changes PIN when old PIN is correct', () async {
       await service.setPin('1111');
@@ -90,6 +94,33 @@ void main() {
       expect(successfulRemove, isTrue);
       expect(await service.isPinConfigured(), isFalse);
     });
+
+    test(
+      'verifies and transparently upgrades legacy 10,000 iteration PIN hashes',
+      () async {
+        final legacyService = VaultSecurityService(
+          storage: memoryStore,
+          pbkdf2: Pbkdf2(
+            macAlgorithm: Hmac.sha256(),
+            iterations: 10000,
+            bits: 256,
+          ),
+        );
+        // Simulate existing stored hash created prior to upgrade (with no stored iterations key)
+        await legacyService.setPin('8888');
+        await memoryStore.delete('vault_pin_iterations_v1');
+
+        // Verify with VaultSecurityService that defaults to 100,000 iterations
+        final verified = await service.verifyPin('8888');
+        expect(verified, isTrue);
+
+        // Verify iteration key was upgraded in storage
+        final iterationsStored = await memoryStore.read(
+          'vault_pin_iterations_v1',
+        );
+        expect(iterationsStored, equals('100000'));
+      },
+    );
 
     test('persists and parses auto-lock timeouts', () async {
       expect(await service.getTimeout(), AutoLockTimeout.immediate);
