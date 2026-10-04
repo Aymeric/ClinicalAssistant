@@ -41,10 +41,10 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
     // Benchmark impact: ~32.6% faster formatting time (from 2721ms down to 1833ms per 1M calls)
     // without invoking the RegExp engine.
     var end = fixed.length;
-    while (end > 0 && fixed.codeUnitAt(end - 1) == 0x30 /* '0' */) {
+    while (end > 0 && fixed.codeUnitAt(end - 1) == 0x30 /* '0' */ ) {
       end--;
     }
-    if (end > 0 && fixed.codeUnitAt(end - 1) == 0x2E /* '.' */) {
+    if (end > 0 && fixed.codeUnitAt(end - 1) == 0x2E /* '.' */ ) {
       end--;
     }
     fixed = fixed.substring(0, end);

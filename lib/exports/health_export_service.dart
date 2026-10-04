@@ -627,31 +627,25 @@ class HealthExportService {
                 'Status / Adherence',
                 'Date / Source',
               ],
-              data: medications
-                  .take(12)
-                  .map((record) {
-                    final details = record.isManual
-                        ? ManualMedicationDetails.fromRecord(record)
-                        : null;
-                    final dosageSchedule = details != null
-                        ? [
-                            record.value,
-                            details.frequency,
-                            if (details.route != null) details.route!,
-                          ].where((s) => s.isNotEmpty).join(' · ')
-                        : record.displayValue;
-                    final adherenceInfo = details != null && details.adherenceLogs.isNotEmpty
-                        ? '${record.status ?? "active"} (${details.adherenceLogs.length} doses logged)'
-                        : (record.status ?? 'active');
-                    final dateSource = '${_formatDate(record.recordedAt)}\n${record.source}';
-                    return [
-                      record.name,
-                      dosageSchedule,
-                      adherenceInfo,
-                      dateSource,
-                    ];
-                  })
-                  .toList(),
+              data: medications.take(12).map((record) {
+                final details = record.isManual
+                    ? ManualMedicationDetails.fromRecord(record)
+                    : null;
+                final dosageSchedule = details != null
+                    ? [
+                        record.value,
+                        details.frequency,
+                        if (details.route != null) details.route!,
+                      ].where((s) => s.isNotEmpty).join(' · ')
+                    : record.displayValue;
+                final adherenceInfo =
+                    details != null && details.adherenceLogs.isNotEmpty
+                    ? '${record.status ?? "active"} (${details.adherenceLogs.length} doses logged)'
+                    : (record.status ?? 'active');
+                final dateSource =
+                    '${_formatDate(record.recordedAt)}\n${record.source}';
+                return [record.name, dosageSchedule, adherenceInfo, dateSource];
+              }).toList(),
               headerStyle: pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,
                 color: PdfColors.white,
