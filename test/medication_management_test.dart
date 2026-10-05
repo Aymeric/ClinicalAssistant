@@ -69,39 +69,42 @@ void main() {
       expect(deserialized.notes, log.notes);
     });
 
-    test('serializes and extracts ManualMedicationDetails with adherenceLogs', () {
-      final log = MedicationAdherenceLog(
-        id: 'log-10',
-        medicationId: 'med-10',
-        medicationName: 'Lisinopril',
-        takenAt: DateTime.utc(2026, 9, 30, 12, 0),
-        notes: 'Noon dose',
-      );
-      final details = ManualMedicationDetails(
-        frequency: 'Daily',
-        route: 'Oral',
-        adherenceLogs: [log],
-      );
+    test(
+      'serializes and extracts ManualMedicationDetails with adherenceLogs',
+      () {
+        final log = MedicationAdherenceLog(
+          id: 'log-10',
+          medicationId: 'med-10',
+          medicationName: 'Lisinopril',
+          takenAt: DateTime.utc(2026, 9, 30, 12, 0),
+          notes: 'Noon dose',
+        );
+        final details = ManualMedicationDetails(
+          frequency: 'Daily',
+          route: 'Oral',
+          adherenceLogs: [log],
+        );
 
-      final sourceData = details.withSourceData(null);
-      final record = HealthRecord(
-        id: 'med-10',
-        name: 'Lisinopril',
-        value: '10mg',
-        unit: '',
-        recordedAt: DateTime.utc(2026, 9, 1),
-        category: RecordCategory.medication,
-        source: 'Manual Entry',
-        sourceData: sourceData,
-      );
+        final sourceData = details.withSourceData(null);
+        final record = HealthRecord(
+          id: 'med-10',
+          name: 'Lisinopril',
+          value: '10mg',
+          unit: '',
+          recordedAt: DateTime.utc(2026, 9, 1),
+          category: RecordCategory.medication,
+          source: 'Manual Entry',
+          sourceData: sourceData,
+        );
 
-      final parsed = ManualMedicationDetails.fromRecord(record);
-      expect(parsed.frequency, 'Daily');
-      expect(parsed.route, 'Oral');
-      expect(parsed.adherenceLogs.length, 1);
-      expect(parsed.adherenceLogs.first.id, 'log-10');
-      expect(parsed.adherenceLogs.first.notes, 'Noon dose');
-    });
+        final parsed = ManualMedicationDetails.fromRecord(record);
+        expect(parsed.frequency, 'Daily');
+        expect(parsed.route, 'Oral');
+        expect(parsed.adherenceLogs.length, 1);
+        expect(parsed.adherenceLogs.first.id, 'log-10');
+        expect(parsed.adherenceLogs.first.notes, 'Noon dose');
+      },
+    );
   });
 
   group('HealthDataController Medication Management', () {
@@ -155,7 +158,9 @@ void main() {
 
     test('logs dose adherence for a medication', () async {
       final testTime = DateTime.utc(2026, 9, 30, 21, 0);
-      final med = controller.records.firstWhere((r) => r.id == 'med-atorvastatin');
+      final med = controller.records.firstWhere(
+        (r) => r.id == 'med-atorvastatin',
+      );
       await controller.logMedicationDose(
         med,
         takenAt: testTime,
@@ -174,7 +179,9 @@ void main() {
     });
 
     test('updates medication status between active and past', () async {
-      final med = controller.records.firstWhere((r) => r.id == 'med-atorvastatin');
+      final med = controller.records.firstWhere(
+        (r) => r.id == 'med-atorvastatin',
+      );
       await controller.updateMedicationStatus(med, 'stopped');
 
       expect(controller.activeMedications.length, 1);
@@ -182,7 +189,9 @@ void main() {
       expect(controller.pastMedications.first.id, 'med-atorvastatin');
 
       // Reactivate
-      final stoppedMed = controller.records.firstWhere((r) => r.id == 'med-atorvastatin');
+      final stoppedMed = controller.records.firstWhere(
+        (r) => r.id == 'med-atorvastatin',
+      );
       await controller.updateMedicationStatus(stoppedMed, 'active');
 
       expect(controller.activeMedications.length, 2);
