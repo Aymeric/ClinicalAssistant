@@ -198,6 +198,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
+                    tooltip: 'Close',
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -442,6 +443,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                 ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
+                  tooltip: 'Medication options',
                   onSelected: (action) async {
                     if (action == 'history') {
                       _showAdherenceHistory(med);
