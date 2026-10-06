@@ -117,8 +117,16 @@ class TrendChartPainter extends CustomPainter {
         final bandBorderPaint = Paint()
           ..color = referenceColor.withValues(alpha: 0.35)
           ..strokeWidth = 1.0;
-        canvas.drawLine(Offset(plot.left, top), Offset(plot.right, top), bandBorderPaint);
-        canvas.drawLine(Offset(plot.left, bottom), Offset(plot.right, bottom), bandBorderPaint);
+        canvas.drawLine(
+          Offset(plot.left, top),
+          Offset(plot.right, top),
+          bandBorderPaint,
+        );
+        canvas.drawLine(
+          Offset(plot.left, bottom),
+          Offset(plot.right, bottom),
+          bandBorderPaint,
+        );
       } else if (lower != null || upper != null) {
         final bound = lower ?? upper!;
         final y = pointOffset(0, bound).dy.clamp(plot.top, plot.bottom);
@@ -249,12 +257,20 @@ class TrendChartPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
       final secLine = Path();
-      final secIndexes = secondaryIndexes ?? List.generate(secondaryPoints!.length, (i) => i);
-      final secTotal = secondaryIndexes != null ? totalPoints : secondaryPoints!.length;
+      final secIndexes =
+          secondaryIndexes ?? List.generate(secondaryPoints!.length, (i) => i);
+      final secTotal = secondaryIndexes != null
+          ? totalPoints
+          : secondaryPoints!.length;
       for (var index = 0; index < secondaryPoints!.length; index++) {
         final secOffset = Offset(
-          plot.left + (secTotal <= 1 ? 0.5 : secIndexes[index] / (secTotal - 1)) * plot.width,
-          plot.bottom - (secondaryPoints![index].value - minimum) / (maximum - minimum) * plot.height,
+          plot.left +
+              (secTotal <= 1 ? 0.5 : secIndexes[index] / (secTotal - 1)) *
+                  plot.width,
+          plot.bottom -
+              (secondaryPoints![index].value - minimum) /
+                  (maximum - minimum) *
+                  plot.height,
         );
         if (index == 0) {
           secLine.moveTo(secOffset.dx, secOffset.dy);
@@ -267,8 +283,13 @@ class TrendChartPainter extends CustomPainter {
       for (var index = 0; index < secondaryPoints!.length; index++) {
         if (index % 8 == 0 || index == secondaryPoints!.length - 1) {
           final secOffset = Offset(
-            plot.left + (secTotal <= 1 ? 0.5 : secIndexes[index] / (secTotal - 1)) * plot.width,
-            plot.bottom - (secondaryPoints![index].value - minimum) / (maximum - minimum) * plot.height,
+            plot.left +
+                (secTotal <= 1 ? 0.5 : secIndexes[index] / (secTotal - 1)) *
+                    plot.width,
+            plot.bottom -
+                (secondaryPoints![index].value - minimum) /
+                    (maximum - minimum) *
+                    plot.height,
           );
           canvas.drawCircle(secOffset, 3.0, secMarkerPaint);
         }
