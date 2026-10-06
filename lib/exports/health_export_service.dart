@@ -33,6 +33,22 @@ class HealthExportService {
     );
   }
 
+  static final _csvFormulaTrigger = RegExp(r'^[=+\-@\t\r]');
+
+  /// Sanitizes CSV cell values to prevent CSV / Formula Injection attacks when exported
+  /// data is opened in spreadsheet software (e.g. Excel, Calc, Google Sheets).
+  static String _sanitizeCsvCell(String value) {
+    if (value.isEmpty) return value;
+    if (_csvFormulaTrigger.hasMatch(value)) {
+      // Allow legitimate negative numbers (e.g., -12.5) without prefixing
+      if (value.startsWith('-') && double.tryParse(value) != null) {
+        return value;
+      }
+      return "'$value";
+    }
+    return value;
+  }
+
   String buildCsv(List<HealthRecord> records) {
     final rows = <List<Object?>>[
       [
@@ -50,16 +66,16 @@ class HealthExportService {
       ],
       ...records.map(
         (record) => [
-          record.name,
-          record.value,
-          record.unit,
+          _sanitizeCsvCell(record.name),
+          _sanitizeCsvCell(record.value),
+          _sanitizeCsvCell(record.unit),
           record.recordedAt.toUtc().toIso8601String(),
           record.category.name,
-          record.source,
-          record.sourceId ?? '',
-          record.code ?? '',
-          record.referenceRange ?? '',
-          record.status ?? '',
+          _sanitizeCsvCell(record.source),
+          _sanitizeCsvCell(record.sourceId ?? ''),
+          _sanitizeCsvCell(record.code ?? ''),
+          _sanitizeCsvCell(record.referenceRange ?? ''),
+          _sanitizeCsvCell(record.status ?? ''),
           if (record.sourceData == null) '' else jsonEncode(record.sourceData),
         ],
       ),

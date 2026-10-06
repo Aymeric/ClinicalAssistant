@@ -56,14 +56,13 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
 double? parseHealthRecordValue(String value) {
   final trimmed = value.trim();
   if (trimmed.isEmpty) return null;
-  final fastParsed = double.tryParse(trimmed);
-  if (fastParsed != null) return fastParsed.isFinite ? fastParsed : null;
-  if (trimmed.contains(',')) {
-    final isGroupedNumber = _groupedNumberPattern.hasMatch(trimmed);
-    if (isGroupedNumber) {
-      final parsed = double.tryParse(trimmed.replaceAll(',', ''));
-      return parsed != null && parsed.isFinite ? parsed : null;
-    }
+  // Fast-path direct parsing for standard numeric values (avoids regex overhead).
+  final direct = double.tryParse(trimmed);
+  if (direct != null && direct.isFinite) return direct;
+  // Fall back to grouped number check only when commas are present.
+  if (trimmed.contains(',') && _groupedNumberPattern.hasMatch(trimmed)) {
+    final parsed = double.tryParse(trimmed.replaceAll(',', ''));
+    if (parsed != null && parsed.isFinite) return parsed;
   }
   return null;
 }

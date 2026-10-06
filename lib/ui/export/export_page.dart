@@ -291,6 +291,9 @@ class _ExportPageState extends State<ExportPage> {
                     label: Text(
                       '${categoryLabel(category)} (${widget.records.where((record) => record.category == category).length})',
                     ),
+                    tooltip: _selectedCategories.contains(category)
+                        ? 'Exclude ${categoryLabel(category)} from export'
+                        : 'Include ${categoryLabel(category)} in export',
                     selected: _selectedCategories.contains(category),
                     onSelected: (selected) {
                       setState(() {

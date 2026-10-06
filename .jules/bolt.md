@@ -1,3 +1,3 @@
-## 2026-03-31 - Fast-Path Parsing for Health Record Numeric Values
-**Learning:** Running RegExp checks on every record value evaluation in lists/charts creates unnecessary overhead for non-grouped numbers and text values. Checking `double.tryParse` first before RegExp matching provides a ~3-5x speedup for numeric parsing hot paths.
-**Action:** Use fast-path `tryParse` or string fast-checks before executing complex regular expressions on high-frequency parsing paths.
+## 2026-10-24 - Fast-path direct numeric parsing before regex evaluation
+**Learning:** In Flutter/Dart apps processing large collections of health metrics, running `RegExp.hasMatch` on every record value before attempting `double.tryParse` creates regex execution overhead across rendering, signal analysis, and trend calculation hot loops.
+**Action:** Always attempt `double.tryParse` first for standard numeric values, and reserve grouped number regex pattern matching for inputs that actually contain commas.
