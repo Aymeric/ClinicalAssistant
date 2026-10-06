@@ -247,10 +247,9 @@ class VaultSecurityService {
   }
 
   bool _constantTimeCompare(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    var result = 0;
+    var result = a.length ^ b.length;
     for (var i = 0; i < a.length; i++) {
-      result |= a[i] ^ b[i];
+      result |= a[i] ^ (i < b.length ? b[i] : 0);
     }
     return result == 0;
   }
