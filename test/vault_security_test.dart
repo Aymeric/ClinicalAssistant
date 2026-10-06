@@ -1,5 +1,6 @@
 import 'package:clinical_assistant/data/vault_security_service.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _MemorySyncValueStore implements SyncValueStore {
@@ -30,16 +31,43 @@ void main() {
       expect(service.isRateLimited, isFalse);
     });
 
-    test('sets and verifies correct PIN', () async {
-      await service.setPin('1234');
-      expect(await service.isPinConfigured(), isTrue);
+    test(
+      'sets and verifies correct PIN using strengthened PBKDF2 iteration count',
+      () async {
+        await service.setPin('1234');
+        expect(await service.isPinConfigured(), isTrue);
 
-      final isValid = await service.verifyPin('1234');
-      expect(isValid, isTrue);
+        final isValid = await service.verifyPin('1234');
+        expect(isValid, isTrue);
 
-      final isInvalid = await service.verifyPin('9999');
-      expect(isInvalid, isFalse);
-    });
+        final isInvalid = await service.verifyPin('9999');
+        expect(isInvalid, isFalse);
+      },
+    );
+
+    test(
+      'verifies and transparently upgrades legacy PIN hashed with 10,000 iterations',
+      () async {
+        // Create a service instance with 10,000 iterations (simulating legacy setup)
+        final legacyService = VaultSecurityService(
+          storage: memoryStore,
+          pbkdf2: Pbkdf2(
+            macAlgorithm: Hmac.sha256(),
+            iterations: 10000,
+            bits: 256,
+          ),
+        );
+        await legacyService.setPin('9876');
+
+        // Now verify using the default service (which uses 100,000 iterations and supports legacy fallback)
+        final isValid = await service.verifyPin('9876');
+        expect(isValid, isTrue);
+
+        // Verify that subsequent attempts succeed with the updated hash
+        final isStillValid = await service.verifyPin('9876');
+        expect(isStillValid, isTrue);
+      },
+    );
 
     test('rejects PINs shorter than 4 digits', () async {
       expect(() => service.setPin('12'), throwsArgumentError);

@@ -30,6 +30,7 @@ class VaultSecurityService {
     SyncValueStore? storage,
     FlutterSecureStorage? secureStorage,
     Pbkdf2? pbkdf2,
+    Pbkdf2? legacyPbkdf2,
   }) : _storage =
            storage ??
            SecureSyncValueStore(
@@ -37,6 +38,15 @@ class VaultSecurityService {
            ),
        _pbkdf2 =
            pbkdf2 ??
+           Pbkdf2(
+             macAlgorithm: Hmac.sha256(),
+             // Security: 100,000 PBKDF2-HMAC-SHA256 iterations strengthens PIN key derivation
+             // against offline brute-force attacks on short PINs, aligning with OWASP guidelines.
+             iterations: 100000,
+             bits: 256,
+           ),
+       _legacyPbkdf2 =
+           legacyPbkdf2 ??
            Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: 10000, bits: 256);
 
   static const _pinHashKey = 'vault_pin_hash_v1';
@@ -45,6 +55,7 @@ class VaultSecurityService {
 
   final SyncValueStore _storage;
   final Pbkdf2 _pbkdf2;
+  final Pbkdf2 _legacyPbkdf2;
 
   bool _isLocked = false;
   DateTime? _backgroundedAt;
@@ -101,7 +112,24 @@ class VaultSecurityService {
       final expectedHash = base64Decode(storedHashBase64);
       final actualHash = await _hashPin(enteredPin, salt);
 
-      final isValid = _constantTimeCompare(expectedHash, actualHash);
+      var isValid = _constantTimeCompare(expectedHash, actualHash);
+      if (!isValid) {
+        // Fallback for legacy PINs hashed with 10,000 iterations
+        final legacyHash = await _hashPinWithKdf(
+          _legacyPbkdf2,
+          enteredPin,
+          salt,
+        );
+        if (_constantTimeCompare(expectedHash, legacyHash)) {
+          isValid = true;
+          // Upgrade stored PIN hash transparently to 100,000 iterations
+          final newSalt = _generateSalt();
+          final newHash = await _hashPin(enteredPin, newSalt);
+          await _storage.write(_pinSaltKey, base64Encode(newSalt));
+          await _storage.write(_pinHashKey, base64Encode(newHash));
+        }
+      }
+
       if (isValid) {
         _failedAttempts = 0;
         _lockoutUntil = null;
@@ -205,8 +233,16 @@ class VaultSecurityService {
   }
 
   Future<List<int>> _hashPin(String pin, List<int> salt) async {
+    return _hashPinWithKdf(_pbkdf2, pin, salt);
+  }
+
+  Future<List<int>> _hashPinWithKdf(
+    Pbkdf2 kdf,
+    String pin,
+    List<int> salt,
+  ) async {
     final secretKey = SecretKey(utf8.encode(pin));
-    final derived = await _pbkdf2.deriveKey(secretKey: secretKey, nonce: salt);
+    final derived = await kdf.deriveKey(secretKey: secretKey, nonce: salt);
     return derived.extractBytes();
   }
 
