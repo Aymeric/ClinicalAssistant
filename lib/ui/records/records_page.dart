@@ -373,6 +373,9 @@ class RecordsPageState extends State<RecordsPage> {
                               : Theme.of(context).colorScheme.error,
                         ),
                         label: const Text('Out of range only'),
+                        tooltip: _filterOutOfRange
+                            ? 'Showing out of range records only'
+                            : 'Filter to show out of range records only',
                         selected: _filterOutOfRange,
                         selectedColor: Theme.of(
                           context,

@@ -269,77 +269,82 @@ class OverviewPage extends StatelessWidget {
                   for (final record in pinnedRecords)
                     Padding(
                       padding: const EdgeInsets.only(right: 10),
-                      child: InkWell(
-                        onTap: () => onRecordTap?.call(record),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          width: 170,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
+                      child: Tooltip(
+                        message: 'View details for ${record.name}',
+                        child: InkWell(
+                          onTap: () => onRecordTap?.call(record),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: 170,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
                               color: Theme.of(context)
                                   .colorScheme
-                                  .outlineVariant
-                                  .withValues(alpha: 0.6),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.push_pin,
-                                    size: 14,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      record.name,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outlineVariant
+                                    .withValues(alpha: 0.6),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                record.displayValue,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.push_pin,
+                                      size: 14,
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.primary,
                                     ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                MaterialLocalizations.of(
-                                  context,
-                                ).formatShortDate(record.recordedAt.toLocal()),
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        record.name,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                              ),
-                            ],
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  record.displayValue,
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  MaterialLocalizations.of(
+                                    context,
+                                  ).formatShortDate(
+                                    record.recordedAt.toLocal(),
+                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -400,39 +405,42 @@ class OverviewPage extends StatelessWidget {
             const SizedBox(height: 24),
             SectionHeading(
               title: 'Flagged lab results',
-              trailing: InkWell(
-                key: const ValueKey('overview-view-out-of-range-button'),
-                onTap: onViewOutOfRangeLabs,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${outOfRangeLabs.length} currently out of range',
-                        style: TextStyle(
-                          color: Colors.red.shade900,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
+              trailing: Tooltip(
+                message: 'View flagged lab results in Records',
+                child: InkWell(
+                  key: const ValueKey('overview-view-out-of-range-button'),
+                  onTap: onViewOutOfRangeLabs,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${outOfRangeLabs.length} currently out of range',
+                          style: TextStyle(
+                            color: Colors.red.shade900,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
-                      if (onViewOutOfRangeLabs != null) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.arrow_forward,
-                          size: 12,
-                          color: Colors.red.shade900,
-                        ),
+                        if (onViewOutOfRangeLabs != null) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward,
+                            size: 12,
+                            color: Colors.red.shade900,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -745,45 +753,48 @@ class OverviewTrendRow extends StatelessWidget {
         ? '${categoryLabel(series.category)} · One reading so far'
         : '${categoryLabel(series.category)} · Previous ${previous.record.displayValue} on $previousDate';
 
-    return ListTile(
-      key: ValueKey('overview-trend-${latest.record.id}'),
-      minVerticalPadding: 12,
-      leading: Icon(trendIcon, color: colors.primary),
-      onTap: onTap,
-      title: Text(
-        series.name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w700,
+    return Tooltip(
+      message: 'View ${series.name} in Trends',
+      child: ListTile(
+        key: ValueKey('overview-trend-${latest.record.id}'),
+        minVerticalPadding: 12,
+        leading: Icon(trendIcon, color: colors.primary),
+        onTap: onTap,
+        title: Text(
+          series.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(previousText, maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text(changeText),
-        ],
-      ),
-      trailing: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            latest.record.displayValue,
-            textAlign: TextAlign.end,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: colors.primary,
-              fontWeight: FontWeight.w700,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(previousText, maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(changeText),
+          ],
+        ),
+        trailing: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              latest.record.displayValue,
+              textAlign: TextAlign.end,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: colors.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-          Text(
-            latestDate,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colors.onSurfaceVariant,
+            Text(
+              latestDate,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -860,43 +871,46 @@ class OverviewQuickButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Material(
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.6)),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 20, color: colors.primary),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
+    return Tooltip(
+      message: '$label — $subtitle',
+      child: Material(
+        color: colors.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.6)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 20, color: colors.primary),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 10,
-                    color: colors.onSurfaceVariant,
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 10,
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -973,44 +987,50 @@ class CategorySummaryBadge extends StatelessWidget {
     final catColor = categoryColor(category, colors);
     final catIcon = categoryIcon(category);
 
-    return Material(
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(catIcon, size: 16, color: catColor),
-              const SizedBox(width: 6),
-              Text(
-                categoryLabel(category),
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: catColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$count',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: catColor,
+    return Tooltip(
+      message: 'Filter records by ${categoryLabel(category)}',
+      child: Material(
+        color: colors.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(catIcon, size: 16, color: catColor),
+                const SizedBox(width: 6),
+                Text(
+                  categoryLabel(category),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: catColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: catColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
