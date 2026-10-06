@@ -197,8 +197,8 @@ class _MedicationsPageState extends State<MedicationsPage> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Close',
                     icon: const Icon(Icons.close),
+                    tooltip: 'Close',
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
