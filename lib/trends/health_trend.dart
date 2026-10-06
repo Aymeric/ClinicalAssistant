@@ -461,9 +461,18 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
   if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
+  final rangeTrimmed = rangeUnit.trim();
+  final expectedTrimmed = expectedUnit.trim();
+  // Fast-path direct comparison when trimmed units match exactly (avoids regex execution).
+  if (rangeTrimmed == expectedTrimmed) return true;
+  // If neither unit contains multi-space sequences, direct mismatch means false without running regex.
+  if (!rangeTrimmed.contains('  ') && !expectedTrimmed.contains('  ')) {
+    return false;
+  }
+  // Fall back to regex whitespace normalization only when multi-space padding exists.
   String normalize(String unit) =>
-      unit.trim().replaceAll(_multipleWhitespacePattern, ' ');
-  return normalize(rangeUnit) == normalize(expectedUnit);
+      unit.replaceAll(_multipleWhitespacePattern, ' ');
+  return normalize(rangeTrimmed) == normalize(expectedTrimmed);
 }
 
 List<HealthTrendPoint> pointsWithinRange(
