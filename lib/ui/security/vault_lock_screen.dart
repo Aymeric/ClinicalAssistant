@@ -159,7 +159,7 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
         appBar: widget.canCancel
             ? AppBar(
                 leading: IconButton(
-                  tooltip: 'Cancel',
+                  tooltip: 'Close',
                   icon: const Icon(Icons.close),
                   onPressed: () {
                     widget.onCancel?.call();
@@ -316,7 +316,7 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
           height: 72,
           child: IconButton(
             key: const ValueKey('vault-pin-backspace-key'),
-            tooltip: 'Delete digit',
+            tooltip: 'Backspace',
             onPressed: _enteredPin.isNotEmpty ? _onBackspacePressed : null,
             icon: const Icon(Icons.backspace_outlined, size: 24),
           ),

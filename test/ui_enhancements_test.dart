@@ -772,14 +772,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Check Cancel tooltip on close button
-      expect(find.byTooltip('Cancel'), findsOneWidget);
+      // Check Close tooltip on close button
+      expect(find.byTooltip('Close'), findsOneWidget);
 
       // Enter 1 digit to reveal backspace button
       await tester.tap(find.byKey(const ValueKey('vault-pin-digit-1')));
       await tester.pump();
 
-      expect(find.byTooltip('Delete digit'), findsOneWidget);
+      expect(find.byTooltip('Backspace'), findsOneWidget);
     },
   );
 }
