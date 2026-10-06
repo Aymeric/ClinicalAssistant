@@ -412,9 +412,7 @@ class HealthDataController extends ChangeNotifier {
       notes: note,
     );
     final updatedDetails = ManualMedicationDetails(
-      frequency: details.frequency.trim().isEmpty
-          ? 'As directed'
-          : details.frequency,
+      frequency: details.frequency.trim().isEmpty ? 'As directed' : details.frequency,
       route: details.route,
       endDate: details.endDate,
       adherenceLogs: [...details.adherenceLogs, log],
@@ -433,9 +431,7 @@ class HealthDataController extends ChangeNotifier {
   }) async {
     final details = ManualMedicationDetails.fromRecord(med);
     final updatedDetails = ManualMedicationDetails(
-      frequency: details.frequency.trim().isEmpty
-          ? 'As directed'
-          : details.frequency,
+      frequency: details.frequency.trim().isEmpty ? 'As directed' : details.frequency,
       route: details.route,
       endDate: (newStatus == 'active' || newStatus == 'on-hold')
           ? null

@@ -97,11 +97,12 @@ void main() {
           return [];
         });
 
-    final records = await AppleClinicalRecordsImporter(channel: channel)
-        .importLabRecords(
-          since: DateTime.utc(2026),
-          timeout: const Duration(milliseconds: 5),
-        );
+    final records = await AppleClinicalRecordsImporter(
+      channel: channel,
+    ).importLabRecords(
+      since: DateTime.utc(2026),
+      timeout: const Duration(milliseconds: 5),
+    );
 
     expect(records, isEmpty);
   });
@@ -109,10 +110,7 @@ void main() {
   test('returns empty list when PlatformException is thrown', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-          throw PlatformException(
-            code: 'UNAVAILABLE',
-            message: 'HealthKit unavailable',
-          );
+          throw PlatformException(code: 'UNAVAILABLE', message: 'HealthKit unavailable');
         });
 
     final records = await AppleClinicalRecordsImporter(

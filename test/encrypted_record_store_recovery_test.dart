@@ -74,60 +74,54 @@ void main() {
     expect(await store.verifyIntegrity(), isTrue);
   });
 
-  test(
-    'recovers from .tmp file if primary file was removed before rename',
-    () async {
-      final record = HealthRecord(
-        id: 'rec:3',
-        name: 'Serum Glucose',
-        value: '95',
-        unit: 'mg/dL',
-        recordedAt: DateTime.utc(2026, 9, 22),
-        category: RecordCategory.lab,
-        source: 'Hospital Lab',
-      );
+  test('recovers from .tmp file if primary file was removed before rename', () async {
+    final record = HealthRecord(
+      id: 'rec:3',
+      name: 'Serum Glucose',
+      value: '95',
+      unit: 'mg/dL',
+      recordedAt: DateTime.utc(2026, 9, 22),
+      category: RecordCategory.lab,
+      source: 'Hospital Lab',
+    );
 
-      await store.save([record]);
+    await store.save([record]);
 
-      final primaryFile = File('${directory.path}/records.enc');
-      final tmpFile = File('${directory.path}/records.enc.tmp');
+    final primaryFile = File('${directory.path}/records.enc');
+    final tmpFile = File('${directory.path}/records.enc.tmp');
 
-      // Move primary file to .tmp simulating mid-rename failure
-      await primaryFile.rename(tmpFile.path);
-      expect(await primaryFile.exists(), isFalse);
-      expect(await tmpFile.exists(), isTrue);
+    // Move primary file to .tmp simulating mid-rename failure
+    await primaryFile.rename(tmpFile.path);
+    expect(await primaryFile.exists(), isFalse);
+    expect(await tmpFile.exists(), isTrue);
 
-      // Load should recover and recreate primary file
-      final recovered = await store.load();
-      expect(recovered.length, 1);
-      expect(recovered.first.id, 'rec:3');
-      expect(await primaryFile.exists(), isTrue);
-    },
-  );
+    // Load should recover and recreate primary file
+    final recovered = await store.load();
+    expect(recovered.length, 1);
+    expect(recovered.first.id, 'rec:3');
+    expect(await primaryFile.exists(), isTrue);
+  });
 
-  test(
-    'verifyIntegrity reports true for valid vault and false for missing key',
-    () async {
-      expect(await store.verifyIntegrity(), isTrue);
+  test('verifyIntegrity reports true for valid vault and false for missing key', () async {
+    expect(await store.verifyIntegrity(), isTrue);
 
-      await store.save([
-        HealthRecord(
-          id: 'rec:4',
-          name: 'Heart Rate',
-          value: '72',
-          unit: 'bpm',
-          recordedAt: DateTime.utc(2026, 9, 24),
-          category: RecordCategory.vital,
-          source: 'Watch',
-        ),
-      ]);
-      expect(await store.verifyIntegrity(), isTrue);
+    await store.save([
+      HealthRecord(
+        id: 'rec:4',
+        name: 'Heart Rate',
+        value: '72',
+        unit: 'bpm',
+        recordedAt: DateTime.utc(2026, 9, 24),
+        category: RecordCategory.vital,
+        source: 'Watch',
+      ),
+    ]);
+    expect(await store.verifyIntegrity(), isTrue);
 
-      // Remove key
-      secureStorage.values.clear();
-      expect(await store.verifyIntegrity(), isFalse);
-    },
-  );
+    // Remove key
+    secureStorage.values.clear();
+    expect(await store.verifyIntegrity(), isFalse);
+  });
 }
 
 class _MemorySecureStorage extends FlutterSecureStorage {

@@ -202,9 +202,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                                 days: _range.days,
                               )
                             : const [],
-                        primaryName: selectedSeries.hasSecondarySeries
-                            ? 'Systolic'
-                            : null,
+                        primaryName: selectedSeries.hasSecondarySeries ? 'Systolic' : null,
                         secondaryName: selectedSeries.secondaryName,
                         onRecordTap: widget.onRecordTap,
                       ),

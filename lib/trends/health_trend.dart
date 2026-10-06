@@ -294,8 +294,7 @@ HealthReferenceRange? findReferenceBand(
         rangeText,
         expectedUnit: unit.isEmpty ? point.record.unit : unit,
       );
-      if (range != null &&
-          (range.lowerBound != null || range.upperBound != null)) {
+      if (range != null && (range.lowerBound != null || range.upperBound != null)) {
         return range;
       }
     }

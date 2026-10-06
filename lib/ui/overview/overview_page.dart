@@ -245,7 +245,9 @@ class OverviewPage extends StatelessWidget {
                           ),
                         if (onOpenMedications != null)
                           FilledButton.tonalIcon(
-                            key: const ValueKey('overview-medications-button'),
+                            key: const ValueKey(
+                              'overview-medications-button',
+                            ),
                             onPressed: onOpenMedications,
                             icon: const Icon(Icons.medication_outlined),
                             label: const Text('Medications'),
@@ -372,21 +374,12 @@ class OverviewPage extends StatelessWidget {
                   final med = activeMeds[index];
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer,
-                      foregroundColor: Theme.of(
-                        context,
-                      ).colorScheme.onPrimaryContainer,
+                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
                       child: const Icon(Icons.medication_outlined, size: 20),
                     ),
-                    title: Text(
-                      med.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      med.value.isNotEmpty ? med.value : 'No dose instructions',
-                    ),
+                    title: Text(med.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(med.value.isNotEmpty ? med.value : 'No dose instructions'),
                     trailing: const Icon(Icons.chevron_right, size: 18),
                     onTap: onOpenMedications,
                   );
@@ -405,10 +398,7 @@ class OverviewPage extends StatelessWidget {
                 onTap: onViewOutOfRangeLabs,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.red.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
@@ -704,11 +694,7 @@ class OverviewMetricStrip extends StatelessWidget {
 }
 
 class OverviewTrendRow extends StatelessWidget {
-  const OverviewTrendRow({
-    super.key,
-    required this.series,
-    required this.onTap,
-  });
+  const OverviewTrendRow({super.key, required this.series, required this.onTap});
 
   final HealthTrendSeries series;
   final VoidCallback? onTap;

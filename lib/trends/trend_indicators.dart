@@ -60,11 +60,7 @@ class SelectedReadingHeading extends StatelessWidget {
 
 /// Responsive grid of summary metrics: Change, Average, Observed Range, Readings count.
 class TrendIndicators extends StatelessWidget {
-  const TrendIndicators({
-    super.key,
-    required this.summary,
-    required this.count,
-  });
+  const TrendIndicators({super.key, required this.summary, required this.count});
 
   final HealthTrendSummary summary;
   final int count;

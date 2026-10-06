@@ -26,8 +26,7 @@ class MedicationAdherenceLog {
       id: json['id'] as String? ?? '',
       medicationId: json['medicationId'] as String? ?? '',
       medicationName: json['medicationName'] as String? ?? '',
-      takenAt:
-          DateTime.tryParse(json['takenAt'] as String? ?? '') ?? DateTime.now(),
+      takenAt: DateTime.tryParse(json['takenAt'] as String? ?? '') ?? DateTime.now(),
       notes: json['notes'] as String?,
     );
   }
