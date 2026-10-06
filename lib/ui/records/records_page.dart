@@ -49,11 +49,29 @@ class RecordsPageState extends State<RecordsPage> {
   String _searchQuery = '';
   RecordSortOrder _sortOrder = RecordSortOrder.newestFirst;
 
+  // Memoized metadata to prevent re-mapping, set-creating, and sorting
+  // on every UI build (e.g. per keystroke during search typing).
+  List<DateTime> _availableDates = const [];
+  List<String> _availableSources = const [];
+
   @override
   void initState() {
     super.initState();
     _filter = widget.initialCategory;
     _filterOutOfRange = widget.initialOutOfRangeOnly;
+    _updateAvailableMetadata();
+  }
+
+  void _updateAvailableMetadata() {
+    _availableDates =
+        widget.records
+            .map((record) => DateUtils.dateOnly(record.recordedAt.toLocal()))
+            .toSet()
+            .toList()
+          ..sort((a, b) => b.compareTo(a));
+
+    _availableSources = widget.records.map((r) => r.source).toSet().toList()
+      ..sort();
   }
 
   @override
@@ -65,6 +83,9 @@ class RecordsPageState extends State<RecordsPage> {
     }
     if (widget.initialOutOfRangeOnly != oldWidget.initialOutOfRangeOnly) {
       _filterOutOfRange = widget.initialOutOfRangeOnly;
+    }
+    if (widget.records != oldWidget.records) {
+      _updateAvailableMetadata();
     }
     if (_selectedDateRange != null &&
         !widget.records.any((record) {
@@ -89,15 +110,8 @@ class RecordsPageState extends State<RecordsPage> {
   @override
   Widget build(BuildContext context) {
     final query = _searchQuery.trim().toLowerCase();
-    final availableDates =
-        widget.records
-            .map((record) => DateUtils.dateOnly(record.recordedAt.toLocal()))
-            .toSet()
-            .toList()
-          ..sort((a, b) => b.compareTo(a));
-
-    final availableSources =
-        widget.records.map((r) => r.source).toSet().toList()..sort();
+    final availableDates = _availableDates;
+    final availableSources = _availableSources;
 
     final filtered = widget.records.where((record) {
       if (_filter != null && record.category != _filter) return false;
@@ -125,16 +139,16 @@ class RecordsPageState extends State<RecordsPage> {
         }
       }
       if (query.isEmpty) return true;
-      final searchable = [
-        record.name,
-        record.displayValue,
-        record.source,
-        record.code,
-        record.referenceRange,
-        record.status,
-        record.notes,
-      ].whereType<String>().join(' ').toLowerCase();
-      return searchable.contains(query);
+
+      // Lazy short-circuit search check: avoids allocating lists, joining strings,
+      // and lowercasing unused fields on every record per keystroke.
+      return record.name.toLowerCase().contains(query) ||
+          record.displayValue.toLowerCase().contains(query) ||
+          record.source.toLowerCase().contains(query) ||
+          (record.code?.toLowerCase().contains(query) ?? false) ||
+          (record.referenceRange?.toLowerCase().contains(query) ?? false) ||
+          (record.status?.toLowerCase().contains(query) ?? false) ||
+          (record.notes?.toLowerCase().contains(query) ?? false);
     }).toList();
 
     switch (_sortOrder) {
