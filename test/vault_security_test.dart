@@ -42,6 +42,10 @@ void main() {
 
         final isInvalid = await service.verifyPin('9999');
         expect(isInvalid, isFalse);
+
+        // Verify handling when entering PINs with different length
+        final isMismatchedLengthInvalid = await service.verifyPin('123456');
+        expect(isMismatchedLengthInvalid, isFalse);
       },
     );
 
