@@ -170,4 +170,43 @@ void main() {
     expect(csv, contains('once daily'));
     expect(summary, contains('10 mg · once daily · oral · stopped'));
   });
+
+  test('sanitizes CSV cell values against CSV formula injection', () {
+    final unsafeRecord = HealthRecord(
+      id: 'lab:unsafe',
+      name: '=HYPERLINK("http://evil.com","Click")',
+      value: '+100',
+      unit: '@mg/dL',
+      recordedAt: DateTime.utc(2026, 9, 20),
+      category: RecordCategory.lab,
+      source: '=EVIL()',
+      code: '\t1234',
+      referenceRange: '-10% drop',
+      status: '\rfinal',
+    );
+
+    final safeNegativeRecord = HealthRecord(
+      id: 'vital:negative',
+      name: 'Base Deficit',
+      value: '-3.5',
+      unit: 'mEq/L',
+      recordedAt: DateTime.utc(2026, 9, 20),
+      category: RecordCategory.vital,
+      source: 'Hospital Lab',
+    );
+
+    final csv = exporter.buildCsv([unsafeRecord, safeNegativeRecord]);
+
+    // Unsafe formula triggers must be sanitized with a leading single quote
+    expect(csv, contains("'=HYPERLINK"));
+    expect(csv, contains("'+100"));
+    expect(csv, contains("'@mg/dL"));
+    expect(csv, contains("'=EVIL()"));
+    expect(csv, contains("'\t1234"));
+    expect(csv, contains("'-10% drop"));
+    expect(csv, contains("'\rfinal"));
+
+    // Standard negative numbers should not be prefixed with a single quote
+    expect(csv, contains("Base Deficit,-3.5,mEq/L"));
+  });
 }
