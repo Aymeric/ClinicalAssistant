@@ -246,10 +246,13 @@ class VaultSecurityService {
     return derived.extractBytes();
   }
 
+  /// Compares two byte sequences in constant time to prevent timing side-channel attacks.
+  /// Even if the lengths differ, the loop executes over all available bytes to avoid
+  /// early-exit execution timing leakage.
   bool _constantTimeCompare(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    var result = 0;
-    for (var i = 0; i < a.length; i++) {
+    var result = a.length ^ b.length;
+    final minLength = a.length < b.length ? a.length : b.length;
+    for (var i = 0; i < minLength; i++) {
       result |= a[i] ^ b[i];
     }
     return result == 0;
