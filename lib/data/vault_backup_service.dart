@@ -129,6 +129,13 @@ class VaultBackupService {
       );
     }
 
+    final nonce = base64Decode(nonceB64);
+    if (nonce.length < 12) {
+      throw const FormatException(
+        'Invalid cipher nonce length in backup. Expected at least 12 bytes.',
+      );
+    }
+
     final kdf = iterations == 100000
         ? _kdf
         : Pbkdf2(
@@ -144,7 +151,7 @@ class VaultBackupService {
 
     final secretBox = SecretBox(
       base64Decode(cipherB64),
-      nonce: base64Decode(nonceB64),
+      nonce: nonce,
       mac: Mac(base64Decode(macB64)),
     );
 

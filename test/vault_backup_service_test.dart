@@ -185,6 +185,17 @@ void main() {
           () => service.restoreEncryptedBackup(jsonEncode(shortSalt), password),
           throwsFormatException,
         );
+
+        // Test short nonce
+        final shortNonce = Map<String, dynamic>.from(decoded);
+        shortNonce['cipher'] = Map<String, dynamic>.from(
+          decoded['cipher'] as Map,
+        )..['nonce'] = base64Encode([1, 2, 3]);
+        expect(
+          () =>
+              service.restoreEncryptedBackup(jsonEncode(shortNonce), password),
+          throwsFormatException,
+        );
       },
     );
   });
