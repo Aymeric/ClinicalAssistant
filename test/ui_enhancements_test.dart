@@ -4,6 +4,7 @@ import 'package:clinical_assistant/data/encrypted_record_store.dart';
 import 'package:clinical_assistant/integrations/fhir_portal_importer.dart';
 import 'package:clinical_assistant/main.dart';
 import 'package:clinical_assistant/models/health_record.dart';
+import 'package:clinical_assistant/ui/shared/record_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
@@ -746,6 +747,37 @@ void main() {
       await tester.tap(find.text('Resting Heart Rate'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Edit manual record'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'RecordRow renders cohesive semantics label and button state for screen readers',
+    (tester) async {
+      final record = HealthRecord(
+        id: 'lab:k',
+        name: 'Serum Potassium',
+        value: '6.2',
+        unit: 'mmol/L',
+        recordedAt: DateTime.utc(2026, 3, 15),
+        category: RecordCategory.lab,
+        source: 'Hospital Lab',
+        referenceRange: '3.5 - 5.0 mmol/L',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RecordRow(record: record, isLast: true, onTap: () {}),
+          ),
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.byType(RecordRow)).label,
+        contains(
+          'Serum Potassium, 6.2 mmol/L, High (out of range), 2026-03-15, Hospital Lab',
+        ),
+      );
     },
   );
 }

@@ -283,114 +283,133 @@ class RecordRow extends StatelessWidget {
         trimmedValue.contains(' · ') ||
         trimmedValue.contains('\n');
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 40,
-              child: Column(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    margin: const EdgeInsets.only(top: 5),
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  if (!isLast)
-                    Container(
-                      width: 1,
-                      height: 50,
-                      margin: const EdgeInsets.only(top: 5),
-                      color: colors.outlineVariant,
-                    ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+    final semanticParts = [
+      record.name,
+      if (trimmedValue.isNotEmpty) trimmedValue,
+      if (isOutOfRange)
+        status == HealthReferenceStatus.above
+            ? 'High (out of range)'
+            : 'Low (out of range)',
+      formatRecordDate(record.recordedAt),
+      record.source,
+    ];
+
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null,
+      label: semanticParts.join(', '),
+      child: ExcludeSemantics(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 40,
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: Text(
-                          record.name,
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                      Container(
+                        width: 10,
+                        height: 10,
+                        margin: const EdgeInsets.only(top: 5),
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
                         ),
                       ),
-                      if (isOutOfRange) ...[
-                        const SizedBox(width: 6),
+                      if (!isLast)
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.errorContainer,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            status == HealthReferenceStatus.above
-                                ? 'High'
-                                : 'Low',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: colors.onErrorContainer,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 10,
-                                ),
-                          ),
+                          width: 1,
+                          height: 50,
+                          margin: const EdgeInsets.only(top: 5),
+                          color: colors.outlineVariant,
                         ),
-                      ],
                     ],
                   ),
-                  if (isLongValue && trimmedValue.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      trimmedValue,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.onSurface,
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              record.name,
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          if (isOutOfRange) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.errorContainer,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                status == HealthReferenceStatus.above
+                                    ? 'High'
+                                    : 'Low',
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: colors.onErrorContainer,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 10,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 3),
-                  Text(
-                    '${formatRecordDate(record.recordedAt)}  ·  ${record.source}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
+                      if (isLongValue && trimmedValue.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          trimmedValue,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.onSurface,
+                              ),
+                        ),
+                      ],
+                      const SizedBox(height: 3),
+                      Text(
+                        '${formatRecordDate(record.recordedAt)}  ·  ${record.source}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isLongValue && trimmedValue.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 130),
+                    child: Text(
+                      trimmedValue,
+                      textAlign: TextAlign.end,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-            if (!isLongValue && trimmedValue.isNotEmpty) ...[
-              const SizedBox(width: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 130),
-                child: Text(
-                  trimmedValue,
-                  textAlign: TextAlign.end,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
