@@ -127,11 +127,8 @@ class HealthLabResultSummary {
   final HealthLabTrendDirection direction;
 }
 
-String healthTrendSeriesId(HealthRecord record) => [
-  record.category.name,
-  record.name.trim().toLowerCase(),
-  record.unit,
-].join('\u0000');
+String healthTrendSeriesId(HealthRecord record) =>
+    '${record.category.name}\u0000${record.name.trim().toLowerCase()}\u0000${record.unit}';
 
 List<HealthLabResultSummary> buildLatestLabResultSummaries(
   Iterable<HealthRecord> records, {
@@ -142,9 +139,9 @@ List<HealthLabResultSummary> buildLatestLabResultSummaries(
     if (record.category != RecordCategory.lab) continue;
     final value = parseHealthRecordValue(record.value);
     if (value == null) continue;
-    recordsBySeries
-        .putIfAbsent(healthTrendSeriesId(record), () => [])
-        .add(HealthTrendPoint(record: record, value: value));
+    (recordsBySeries[healthTrendSeriesId(record)] ??= []).add(
+      HealthTrendPoint(record: record, value: value),
+    );
   }
   for (final series in recordsBySeries.values) {
     series.sort(_compareHealthTrendPoints);
@@ -153,23 +150,21 @@ List<HealthLabResultSummary> buildLatestLabResultSummaries(
   final candidatesBySeries = <String, List<HealthRecord>>{};
   for (final record in candidates ?? records) {
     if (record.category != RecordCategory.lab) continue;
-    candidatesBySeries
-        .putIfAbsent(healthTrendSeriesId(record), () => [])
-        .add(record);
+    (candidatesBySeries[healthTrendSeriesId(record)] ??= []).add(record);
   }
 
   final summaries = <HealthLabResultSummary>[];
   for (final entry in candidatesBySeries.entries) {
-    final candidates = entry.value..sort(_compareHealthRecords);
-    final latestRecord = candidates.last;
+    final candidateRecords = entry.value..sort(_compareHealthRecords);
+    final latestRecord = candidateRecords.last;
     final latestValue = parseHealthRecordValue(latestRecord.value);
     if (latestValue == null) continue;
     final latest = HealthTrendPoint(record: latestRecord, value: latestValue);
-    final earlierPoints = recordsBySeries[entry.key] ?? const [];
-    final earlierIndex = earlierPoints.lastIndexWhere(
+    final seriesPoints = recordsBySeries[entry.key] ?? const [];
+    final earlierIndex = seriesPoints.lastIndexWhere(
       (point) => point.record.recordedAt.isBefore(latest.record.recordedAt),
     );
-    final previous = earlierIndex < 0 ? null : earlierPoints[earlierIndex];
+    final previous = earlierIndex < 0 ? null : seriesPoints[earlierIndex];
     final latestRange = parseHealthReferenceRange(
       latest.record.referenceRange,
       expectedUnit: latest.record.unit,
@@ -304,25 +299,19 @@ HealthReferenceRange? findReferenceBand(
 }
 
 List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
-  final groups = <String, List<HealthRecord>>{};
+  final groups = <String, List<HealthTrendPoint>>{};
   for (final record in records) {
-    if (parseHealthRecordValue(record.value) == null) continue;
+    final value = parseHealthRecordValue(record.value);
+    if (value == null) continue;
     final key = healthTrendSeriesId(record);
-    groups.putIfAbsent(key, () => []).add(record);
+    (groups[key] ??= []).add(HealthTrendPoint(record: record, value: value));
   }
 
   final series = <HealthTrendSeries>[];
   for (final entry in groups.entries) {
-    final records = entry.value
-      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final first = records.first;
-    final points = [
-      for (final record in records)
-        HealthTrendPoint(
-          record: record,
-          value: parseHealthRecordValue(record.value)!,
-        ),
-    ];
+    final points = entry.value
+      ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
+    final first = points.first.record;
     final band = findReferenceBand(points, unit: first.unit);
     series.add(
       HealthTrendSeries(
@@ -393,12 +382,33 @@ final _referenceThresholdPattern = RegExp(
 );
 final _multipleWhitespacePattern = RegExp(r'\s+');
 
+// Cache parsed reference ranges to avoid repeated Regex evaluations.
+final _referenceRangeCache = <String, HealthReferenceRange?>{};
+const _maxReferenceRangeCacheSize = 256;
+
 HealthReferenceRange? parseHealthReferenceRange(
   String? sourceText, {
   String expectedUnit = '',
 }) {
   if (sourceText == null || sourceText.trim().isEmpty) return null;
   final text = sourceText.trim();
+  final cacheKey = '$text\u0000$expectedUnit';
+  if (_referenceRangeCache.containsKey(cacheKey)) {
+    return _referenceRangeCache[cacheKey];
+  }
+
+  final parsed = _parseHealthReferenceRangeUncached(text, expectedUnit);
+  if (_referenceRangeCache.length >= _maxReferenceRangeCacheSize) {
+    _referenceRangeCache.clear();
+  }
+  _referenceRangeCache[cacheKey] = parsed;
+  return parsed;
+}
+
+HealthReferenceRange? _parseHealthReferenceRangeUncached(
+  String text,
+  String expectedUnit,
+) {
   final range = _referenceRangePattern.firstMatch(text);
   if (range != null) {
     final unit = range.namedGroup('unit')!.trim();
