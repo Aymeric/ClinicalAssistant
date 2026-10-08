@@ -103,4 +103,14 @@ void main() {
     expect(find.text('Australian Immunisation Handbook'), findsOneWidget);
     expect(find.text('International Guidelines Library'), findsNothing);
   });
+
+  test('bundled guideline sources all use secure https URLs', () {
+    for (final source in GuidelineCatalog.sources) {
+      expect(
+        source.url.scheme,
+        'https',
+        reason: 'Guideline source ${source.id} should use https URL',
+      );
+    }
+  });
 }

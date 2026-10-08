@@ -23,6 +23,17 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
   }
 
   Future<void> _openSource(GuidelineSource source) async {
+    // Security: Only allow http and https URI schemes to prevent arbitrary scheme execution or deep link manipulation.
+    final scheme = source.url.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Could not open the source website.')),
+        );
+      return;
+    }
+
     try {
       final opened = await launchUrl(
         source.url,
