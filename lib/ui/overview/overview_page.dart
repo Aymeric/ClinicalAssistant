@@ -115,13 +115,23 @@ class OverviewPage extends StatelessWidget {
 
     // Pinned metrics
     final pinnedRecords = <HealthRecord>[];
-    for (final seriesId in pinnedSeries) {
-      final matches = records
-          .where((r) => healthTrendSeriesId(r) == seriesId)
-          .toList();
-      if (matches.isNotEmpty) {
-        matches.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-        pinnedRecords.add(matches.first);
+    if (pinnedSeries.isNotEmpty) {
+      final latestBySeries = <String, HealthRecord>{};
+      for (final record in records) {
+        final seriesId = healthTrendSeriesId(record);
+        if (pinnedSeries.contains(seriesId)) {
+          final existing = latestBySeries[seriesId];
+          if (existing == null ||
+              record.recordedAt.isAfter(existing.recordedAt)) {
+            latestBySeries[seriesId] = record;
+          }
+        }
+      }
+      for (final seriesId in pinnedSeries) {
+        final latest = latestBySeries[seriesId];
+        if (latest != null) {
+          pinnedRecords.add(latest);
+        }
       }
     }
 

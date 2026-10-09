@@ -127,86 +127,153 @@ class HealthLabResultSummary {
   final HealthLabTrendDirection direction;
 }
 
-String healthTrendSeriesId(HealthRecord record) => [
-  record.category.name,
-  record.name.trim().toLowerCase(),
-  record.unit,
-].join('\u0000');
+// Uses string interpolation to avoid intermediate list allocations.
+String healthTrendSeriesId(HealthRecord record) =>
+    '${record.category.name}\u0000${record.name.trim().toLowerCase()}\u0000${record.unit}';
 
+// Single-pass processing collects valid numeric points and tracks latest candidates
+// without redundant sorts or repeated record value parses.
 List<HealthLabResultSummary> buildLatestLabResultSummaries(
   Iterable<HealthRecord> records, {
   Iterable<HealthRecord>? candidates,
 }) {
   final recordsBySeries = <String, List<HealthTrendPoint>>{};
+  final latestCandidateBySeries = <String, HealthRecord>{};
+
   for (final record in records) {
     if (record.category != RecordCategory.lab) continue;
+    final seriesId = healthTrendSeriesId(record);
+
+    if (candidates == null) {
+      final existingLatest = latestCandidateBySeries[seriesId];
+      if (existingLatest == null ||
+          _compareHealthRecords(record, existingLatest) > 0) {
+        latestCandidateBySeries[seriesId] = record;
+      }
+    }
+
     final value = parseHealthRecordValue(record.value);
     if (value == null) continue;
     recordsBySeries
-        .putIfAbsent(healthTrendSeriesId(record), () => [])
+        .putIfAbsent(seriesId, () => [])
         .add(HealthTrendPoint(record: record, value: value));
   }
+
   for (final series in recordsBySeries.values) {
     series.sort(_compareHealthTrendPoints);
   }
 
-  final candidatesBySeries = <String, List<HealthRecord>>{};
-  for (final record in candidates ?? records) {
-    if (record.category != RecordCategory.lab) continue;
-    candidatesBySeries
-        .putIfAbsent(healthTrendSeriesId(record), () => [])
-        .add(record);
-  }
-
   final summaries = <HealthLabResultSummary>[];
-  for (final entry in candidatesBySeries.entries) {
-    final candidates = entry.value..sort(_compareHealthRecords);
-    final latestRecord = candidates.last;
-    final latestValue = parseHealthRecordValue(latestRecord.value);
-    if (latestValue == null) continue;
-    final latest = HealthTrendPoint(record: latestRecord, value: latestValue);
-    final earlierPoints = recordsBySeries[entry.key] ?? const [];
-    final earlierIndex = earlierPoints.lastIndexWhere(
-      (point) => point.record.recordedAt.isBefore(latest.record.recordedAt),
-    );
-    final previous = earlierIndex < 0 ? null : earlierPoints[earlierIndex];
-    final latestRange = parseHealthReferenceRange(
-      latest.record.referenceRange,
-      expectedUnit: latest.record.unit,
-    );
-    final previousRange = previous == null
-        ? null
-        : parseHealthReferenceRange(
-            previous.record.referenceRange,
-            expectedUnit: previous.record.unit,
-          );
-    final latestStatus =
-        latestRange?.evaluate(latest.value) ??
-        HealthReferenceStatus.unspecified;
-    final previousStatus = previous == null
-        ? null
-        : previousRange?.evaluate(previous.value) ??
-              HealthReferenceStatus.unspecified;
 
-    summaries.add(
-      HealthLabResultSummary(
-        latest: latest,
-        latestRange: latestRange,
-        latestStatus: latestStatus,
-        previous: previous,
-        previousRange: previousRange,
-        previousStatus: previousStatus,
-        direction: _labTrendDirection(
+  if (candidates == null) {
+    for (final entry in latestCandidateBySeries.entries) {
+      final latestRecord = entry.value;
+      final latestValue = parseHealthRecordValue(latestRecord.value);
+      if (latestValue == null) continue;
+
+      final latest = HealthTrendPoint(record: latestRecord, value: latestValue);
+      final points = recordsBySeries[entry.key] ?? const [];
+      final earlierIndex = points.lastIndexWhere(
+        (point) => point.record.recordedAt.isBefore(latest.record.recordedAt),
+      );
+      final previous = earlierIndex < 0 ? null : points[earlierIndex];
+
+      final latestRange = parseHealthReferenceRange(
+        latest.record.referenceRange,
+        expectedUnit: latest.record.unit,
+      );
+      final previousRange = previous == null
+          ? null
+          : parseHealthReferenceRange(
+              previous.record.referenceRange,
+              expectedUnit: previous.record.unit,
+            );
+      final latestStatus =
+          latestRange?.evaluate(latest.value) ??
+          HealthReferenceStatus.unspecified;
+      final previousStatus = previous == null
+          ? null
+          : previousRange?.evaluate(previous.value) ??
+                HealthReferenceStatus.unspecified;
+
+      summaries.add(
+        HealthLabResultSummary(
           latest: latest,
           latestRange: latestRange,
           latestStatus: latestStatus,
           previous: previous,
           previousRange: previousRange,
           previousStatus: previousStatus,
+          direction: _labTrendDirection(
+            latest: latest,
+            latestRange: latestRange,
+            latestStatus: latestStatus,
+            previous: previous,
+            previousRange: previousRange,
+            previousStatus: previousStatus,
+          ),
         ),
-      ),
-    );
+      );
+    }
+  } else {
+    final candidatesBySeries = <String, List<HealthRecord>>{};
+    for (final record in candidates) {
+      if (record.category != RecordCategory.lab) continue;
+      candidatesBySeries
+          .putIfAbsent(healthTrendSeriesId(record), () => [])
+          .add(record);
+    }
+
+    for (final entry in candidatesBySeries.entries) {
+      final candList = entry.value..sort(_compareHealthRecords);
+      final latestRecord = candList.last;
+      final latestValue = parseHealthRecordValue(latestRecord.value);
+      if (latestValue == null) continue;
+      final latest = HealthTrendPoint(record: latestRecord, value: latestValue);
+      final earlierPoints = recordsBySeries[entry.key] ?? const [];
+      final earlierIndex = earlierPoints.lastIndexWhere(
+        (point) => point.record.recordedAt.isBefore(latest.record.recordedAt),
+      );
+      final previous = earlierIndex < 0 ? null : earlierPoints[earlierIndex];
+      final latestRange = parseHealthReferenceRange(
+        latest.record.referenceRange,
+        expectedUnit: latest.record.unit,
+      );
+      final previousRange = previous == null
+          ? null
+          : parseHealthReferenceRange(
+              previous.record.referenceRange,
+              expectedUnit: previous.record.unit,
+            );
+      final latestStatus =
+          latestRange?.evaluate(latest.value) ??
+          HealthReferenceStatus.unspecified;
+      final previousStatus = previous == null
+          ? null
+          : previousRange?.evaluate(previous.value) ??
+                HealthReferenceStatus.unspecified;
+
+      summaries.add(
+        HealthLabResultSummary(
+          latest: latest,
+          latestRange: latestRange,
+          latestStatus: latestStatus,
+          previous: previous,
+          previousRange: previousRange,
+          previousStatus: previousStatus,
+          direction: _labTrendDirection(
+            latest: latest,
+            latestRange: latestRange,
+            latestStatus: latestStatus,
+            previous: previous,
+            previousRange: previousRange,
+            previousStatus: previousStatus,
+          ),
+        ),
+      );
+    }
   }
+
   summaries.sort((a, b) => _compareHealthTrendPoints(b.latest, a.latest));
   return summaries;
 }
@@ -303,53 +370,46 @@ HealthReferenceRange? findReferenceBand(
   return null;
 }
 
+// Group records into HealthTrendPoints directly, parsing each record's double value only once.
 List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
-  final groups = <String, List<HealthRecord>>{};
+  final groups = <String, List<HealthTrendPoint>>{};
   for (final record in records) {
-    if (parseHealthRecordValue(record.value) == null) continue;
+    final value = parseHealthRecordValue(record.value);
+    if (value == null) continue;
     final key = healthTrendSeriesId(record);
-    groups.putIfAbsent(key, () => []).add(record);
+    groups
+        .putIfAbsent(key, () => [])
+        .add(HealthTrendPoint(record: record, value: value));
   }
 
   final series = <HealthTrendSeries>[];
-  for (final entry in groups.entries) {
-    final records = entry.value
-      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final first = records.first;
-    final points = [
-      for (final record in records)
-        HealthTrendPoint(
-          record: record,
-          value: parseHealthRecordValue(record.value)!,
-        ),
-    ];
-    final band = findReferenceBand(points, unit: first.unit);
-    series.add(
-      HealthTrendSeries(
-        id: entry.key,
-        name: first.name,
-        unit: first.unit,
-        category: first.category,
-        points: points,
-        referenceBand: band,
-      ),
-    );
-  }
+  HealthTrendSeries? systolic;
+  HealthTrendSeries? diastolic;
 
-  final systolic = series.cast<HealthTrendSeries?>().firstWhere(
-    (s) =>
-        s != null &&
-        s.category == RecordCategory.vital &&
-        s.name.toLowerCase().contains('systolic'),
-    orElse: () => null,
-  );
-  final diastolic = series.cast<HealthTrendSeries?>().firstWhere(
-    (s) =>
-        s != null &&
-        s.category == RecordCategory.vital &&
-        s.name.toLowerCase().contains('diastolic'),
-    orElse: () => null,
-  );
+  for (final entry in groups.entries) {
+    final points = entry.value
+      ..sort((a, b) => _compareHealthRecords(a.record, b.record));
+    final firstRecord = points.first.record;
+    final band = findReferenceBand(points, unit: firstRecord.unit);
+    final s = HealthTrendSeries(
+      id: entry.key,
+      name: firstRecord.name,
+      unit: firstRecord.unit,
+      category: firstRecord.category,
+      points: points,
+      referenceBand: band,
+    );
+    series.add(s);
+
+    if (firstRecord.category == RecordCategory.vital) {
+      final nameLower = firstRecord.name.toLowerCase();
+      if (systolic == null && nameLower.contains('systolic')) {
+        systolic = s;
+      } else if (diastolic == null && nameLower.contains('diastolic')) {
+        diastolic = s;
+      }
+    }
+  }
 
   if (systolic != null && diastolic != null) {
     series.insert(
@@ -393,12 +453,34 @@ final _referenceThresholdPattern = RegExp(
 );
 final _multipleWhitespacePattern = RegExp(r'\s+');
 
+// Bounded LRU-style cache for parsed reference ranges to avoid re-evaluating regexes
+// on frequent duplicate reference range strings across records.
+final Map<String, HealthReferenceRange?> _referenceRangeCache = {};
+const int _maxReferenceRangeCacheSize = 256;
+
 HealthReferenceRange? parseHealthReferenceRange(
   String? sourceText, {
   String expectedUnit = '',
 }) {
   if (sourceText == null || sourceText.trim().isEmpty) return null;
   final text = sourceText.trim();
+  final cacheKey = '$text\u0000$expectedUnit';
+  if (_referenceRangeCache.containsKey(cacheKey)) {
+    return _referenceRangeCache[cacheKey];
+  }
+
+  final range = _parseHealthReferenceRangeUncached(text, expectedUnit);
+  if (_referenceRangeCache.length >= _maxReferenceRangeCacheSize) {
+    _referenceRangeCache.clear();
+  }
+  _referenceRangeCache[cacheKey] = range;
+  return range;
+}
+
+HealthReferenceRange? _parseHealthReferenceRangeUncached(
+  String text,
+  String expectedUnit,
+) {
   final range = _referenceRangePattern.firstMatch(text);
   if (range != null) {
     final unit = range.namedGroup('unit')!.trim();
@@ -459,8 +541,11 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
   return marks;
 }
 
+// Fast-path unit equality check avoids RegExp whitespace replacement when units match directly.
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
-  if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
+  if (expectedUnit.isEmpty || rangeUnit.isEmpty || rangeUnit == expectedUnit) {
+    return true;
+  }
   String normalize(String unit) =>
       unit.trim().replaceAll(_multipleWhitespacePattern, ' ');
   return normalize(rangeUnit) == normalize(expectedUnit);
