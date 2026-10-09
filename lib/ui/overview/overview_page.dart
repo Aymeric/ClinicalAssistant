@@ -741,6 +741,11 @@ class OverviewTrendRow extends StatelessWidget {
       final value when value > 0 => Icons.trending_up,
       _ => Icons.trending_down,
     };
+    final trendSemanticLabel = switch (difference) {
+      null || 0 => 'Flat trend',
+      final value when value > 0 => 'Upward trend',
+      _ => 'Downward trend',
+    };
     final previousText = previous == null
         ? '${categoryLabel(series.category)} · One reading so far'
         : '${categoryLabel(series.category)} · Previous ${previous.record.displayValue} on $previousDate';
@@ -748,7 +753,11 @@ class OverviewTrendRow extends StatelessWidget {
     return ListTile(
       key: ValueKey('overview-trend-${latest.record.id}'),
       minVerticalPadding: 12,
-      leading: Icon(trendIcon, color: colors.primary),
+      leading: Icon(
+        trendIcon,
+        color: colors.primary,
+        semanticLabel: trendSemanticLabel,
+      ),
       onTap: onTap,
       title: Text(
         series.name,
@@ -973,44 +982,50 @@ class CategorySummaryBadge extends StatelessWidget {
     final catColor = categoryColor(category, colors);
     final catIcon = categoryIcon(category);
 
-    return Material(
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(catIcon, size: 16, color: catColor),
-              const SizedBox(width: 6),
-              Text(
-                categoryLabel(category),
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: catColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$count',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: catColor,
+    return Tooltip(
+      message: 'Filter by ${categoryLabel(category)}',
+      child: Material(
+        color: colors.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(catIcon, size: 16, color: catColor),
+                const SizedBox(width: 6),
+                Text(
+                  categoryLabel(category),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: catColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: catColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

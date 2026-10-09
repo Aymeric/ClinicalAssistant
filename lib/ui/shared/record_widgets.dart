@@ -329,25 +329,30 @@ class RecordRow extends StatelessWidget {
                       ),
                       if (isOutOfRange) ...[
                         const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.errorContainer,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            status == HealthReferenceStatus.above
-                                ? 'High'
-                                : 'Low',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: colors.onErrorContainer,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 10,
-                                ),
+                        Tooltip(
+                          message: status == HealthReferenceStatus.above
+                              ? 'Above reference range'
+                              : 'Below reference range',
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.errorContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              status == HealthReferenceStatus.above
+                                  ? 'High'
+                                  : 'Low',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colors.onErrorContainer,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 10,
+                                  ),
+                            ),
                           ),
                         ),
                       ],
