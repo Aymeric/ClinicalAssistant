@@ -93,6 +93,7 @@ class VaultSecurityService {
     _failedAttempts = 0;
     _lockoutUntil = null;
     _isLocked = false;
+    _backgroundedAt = null;
   }
 
   Future<bool> verifyPin(String enteredPin) async {
@@ -134,6 +135,7 @@ class VaultSecurityService {
         _failedAttempts = 0;
         _lockoutUntil = null;
         _isLocked = false;
+        _backgroundedAt = null;
         return true;
       } else {
         _failedAttempts++;
@@ -164,6 +166,7 @@ class VaultSecurityService {
     _failedAttempts = 0;
     _lockoutUntil = null;
     _isLocked = false;
+    _backgroundedAt = null;
     return true;
   }
 
@@ -190,6 +193,7 @@ class VaultSecurityService {
     _isLocked = false;
     _failedAttempts = 0;
     _lockoutUntil = null;
+    _backgroundedAt = null;
   }
 
   void onAppBackgrounded() {
@@ -200,6 +204,7 @@ class VaultSecurityService {
     final hasPin = await isPinConfigured();
     if (!hasPin) {
       _isLocked = false;
+      _backgroundedAt = null;
       return false;
     }
 
@@ -207,16 +212,20 @@ class VaultSecurityService {
 
     final timeout = await getTimeout();
     if (timeout == AutoLockTimeout.never) {
+      _backgroundedAt = null;
       return false;
     }
 
     if (timeout == AutoLockTimeout.immediate) {
       _isLocked = true;
+      _backgroundedAt = null;
       return true;
     }
 
-    if (_backgroundedAt != null) {
-      final elapsed = DateTime.now().difference(_backgroundedAt!);
+    final backgroundedAt = _backgroundedAt;
+    _backgroundedAt = null;
+    if (backgroundedAt != null) {
+      final elapsed = DateTime.now().difference(backgroundedAt);
       final duration = timeout.duration;
       if (duration != null && elapsed >= duration) {
         _isLocked = true;
