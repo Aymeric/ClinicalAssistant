@@ -151,5 +151,23 @@ void main() {
       await service.setTimeout(AutoLockTimeout.never);
       expect(await service.shouldLockOnResume(), isFalse);
     });
+
+    test(
+      'clears backgroundedAt timestamp after shouldLockOnResume check',
+      () async {
+        await service.setPin('8888');
+        await service.setTimeout(AutoLockTimeout.fiveMinutes);
+
+        service.onAppBackgrounded();
+
+        // First check consumes background timestamp when within duration
+        final initialCheck = await service.shouldLockOnResume();
+        expect(initialCheck, isFalse);
+
+        // Subsequent checks should return false because stale timestamp was consumed
+        final subsequentCheck = await service.shouldLockOnResume();
+        expect(subsequentCheck, isFalse);
+      },
+    );
   });
 }
