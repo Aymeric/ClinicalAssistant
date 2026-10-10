@@ -454,6 +454,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           selected: _selectedType == type,
                           label: Text(type.label),
                           avatar: Icon(type.icon, size: 16),
+                          tooltip: 'Select ${type.label} measurement type',
                           onSelected: (_) => _onTypeChanged(type),
                         ),
                       ),
