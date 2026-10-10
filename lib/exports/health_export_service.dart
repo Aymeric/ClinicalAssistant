@@ -33,15 +33,16 @@ class HealthExportService {
     );
   }
 
-  static final _csvFormulaTrigger = RegExp(r'^[=+\-@\t\r]');
+  static final _csvFormulaTrigger = RegExp(r'^[=+\-@%\t\r|]');
 
   /// Sanitizes CSV cell values to prevent CSV / Formula Injection attacks when exported
   /// data is opened in spreadsheet software (e.g. Excel, Calc, Google Sheets).
   static String _sanitizeCsvCell(String value) {
     if (value.isEmpty) return value;
-    if (_csvFormulaTrigger.hasMatch(value)) {
-      // Allow legitimate negative numbers (e.g., -12.5) without prefixing
-      if (value.startsWith('-') && double.tryParse(value) != null) {
+    final trimmed = value.replaceFirst(RegExp(r'^ +'), '');
+    if (_csvFormulaTrigger.hasMatch(trimmed)) {
+      // Allow legitimate negative numbers (e.g., -12.5 or " -3.5") without prefixing
+      if (trimmed.startsWith('-') && double.tryParse(trimmed) != null) {
         return value;
       }
       return "'$value";

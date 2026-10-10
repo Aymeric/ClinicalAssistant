@@ -1,0 +1,4 @@
+## 2026-03-09 - CSV Formula Injection Leading-Whitespace Bypass
+**Vulnerability:** RegEx anchors (`^`) on CSV formula triggers (`=`, `+`, `-`, `@`, `%`, `|`, `\t`, `\r`) could be bypassed by prefixing cell strings with leading spaces (e.g. `"  =HYPERLINK(...)"`). Spreadsheet applications (Excel, Calc) trim leading space when interpreting cell contents as formulas, leading to formula execution upon opening CSV exports.
+**Learning:** `String.trimLeft()` in Dart strips ASCII whitespace including `\t` and `\r`, which are themselves CSV formula injection triggers. Trimming all whitespace before testing regex would strip leading tab/carriage-return triggers and fail sanitization.
+**Prevention:** Remove only leading space characters (`replaceFirst(RegExp(r'^ +'), '')`) before testing against `_csvFormulaTrigger`.

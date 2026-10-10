@@ -195,7 +195,23 @@ void main() {
       source: 'Hospital Lab',
     );
 
-    final csv = exporter.buildCsv([unsafeRecord, safeNegativeRecord]);
+    final leadingSpaceRecord = HealthRecord(
+      id: 'lab:whitespace-unsafe',
+      name: '  =HYPERLINK("http://evil.com","Click")',
+      value: '   +100',
+      unit: '  % concentration',
+      recordedAt: DateTime.utc(2026, 9, 20),
+      category: RecordCategory.lab,
+      source: ' | cmd',
+      code: '  -10% drop',
+      referenceRange: '  -3.5',
+    );
+
+    final csv = exporter.buildCsv([
+      unsafeRecord,
+      safeNegativeRecord,
+      leadingSpaceRecord,
+    ]);
 
     // Unsafe formula triggers must be sanitized with a leading single quote
     expect(csv, contains("'=HYPERLINK"));
@@ -206,7 +222,15 @@ void main() {
     expect(csv, contains("'-10% drop"));
     expect(csv, contains("'\rfinal"));
 
-    // Standard negative numbers should not be prefixed with a single quote
+    // Whitespace-padded formula triggers should also be sanitized
+    expect(csv, contains("'  =HYPERLINK"));
+    expect(csv, contains("'   +100"));
+    expect(csv, contains("'  % concentration"));
+    expect(csv, contains("' | cmd"));
+    expect(csv, contains("'  -10% drop"));
+
+    // Standard negative numbers (including with leading space) should not be prefixed
     expect(csv, contains("Base Deficit,-3.5,mEq/L"));
+    expect(csv, contains("  -3.5"));
   });
 }
