@@ -219,6 +219,11 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
                   icon: const Icon(Icons.copy_all, size: 20),
                   onPressed: () => _copyAllDetails(context),
                 ),
+                IconButton(
+                  tooltip: 'Close',
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ],
             ),
             const SizedBox(height: 12),
