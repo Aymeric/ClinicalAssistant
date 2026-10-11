@@ -52,6 +52,9 @@ class VaultSecurityService {
   static const _pinHashKey = 'vault_pin_hash_v1';
   static const _pinSaltKey = 'vault_pin_salt_v1';
   static const _timeoutKey = 'vault_autolock_timeout_v1';
+  static final _pinRegex = RegExp(r'^\d{4,32}$');
+
+  static bool _isValidPinFormat(String pin) => _pinRegex.hasMatch(pin);
 
   final SyncValueStore _storage;
   final Pbkdf2 _pbkdf2;
@@ -83,8 +86,8 @@ class VaultSecurityService {
   }
 
   Future<void> setPin(String pin) async {
-    if (pin.length < 4) {
-      throw ArgumentError('PIN must be at least 4 digits');
+    if (!_isValidPinFormat(pin)) {
+      throw ArgumentError('PIN must be between 4 and 32 digits');
     }
     final salt = _generateSalt();
     final hash = await _hashPin(pin, salt);
@@ -96,7 +99,7 @@ class VaultSecurityService {
   }
 
   Future<bool> verifyPin(String enteredPin) async {
-    if (isRateLimited) {
+    if (isRateLimited || !_isValidPinFormat(enteredPin)) {
       return false;
     }
 
@@ -148,6 +151,9 @@ class VaultSecurityService {
   }
 
   Future<bool> changePin(String oldPin, String newPin) async {
+    if (!_isValidPinFormat(newPin)) {
+      throw ArgumentError('PIN must be between 4 and 32 digits');
+    }
     final isOldValid = await verifyPin(oldPin);
     if (!isOldValid) return false;
     await setPin(newPin);

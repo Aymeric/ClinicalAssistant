@@ -69,9 +69,34 @@ void main() {
       },
     );
 
-    test('rejects PINs shorter than 4 digits', () async {
-      expect(() => service.setPin('12'), throwsArgumentError);
-    });
+    test(
+      'rejects PINs shorter than 4 digits, longer than 32 digits, or with non-digits',
+      () async {
+        expect(() => service.setPin('12'), throwsArgumentError);
+        expect(() => service.setPin('1234a'), throwsArgumentError);
+        expect(() => service.setPin('abcd'), throwsArgumentError);
+        expect(() => service.setPin('1' * 33), throwsArgumentError);
+      },
+    );
+
+    test(
+      'verifyPin fast-rejects invalid PIN formats without processing',
+      () async {
+        await service.setPin('1234');
+        expect(await service.verifyPin('12'), isFalse);
+        expect(await service.verifyPin('abcd'), isFalse);
+        expect(await service.verifyPin('1' * 33), isFalse);
+      },
+    );
+
+    test(
+      'changePin pre-validates new PIN format before verifying old PIN',
+      () async {
+        await service.setPin('1111');
+        expect(() => service.changePin('1111', 'bad_pin'), throwsArgumentError);
+        expect(await service.verifyPin('1111'), isTrue);
+      },
+    );
 
     test(
       'enforces rate limiting after 5 consecutive failed attempts',
