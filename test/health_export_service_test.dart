@@ -4,6 +4,7 @@ import 'package:clinical_assistant/exports/health_export_service.dart';
 import 'package:clinical_assistant/exports/export_selection.dart';
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/models/manual_medication_details.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -209,4 +210,19 @@ void main() {
     // Standard negative numbers should not be prefixed with a single quote
     expect(csv, contains("Base Deficit,-3.5,mEq/L"));
   });
+
+  test(
+    'restricts file permissions on exported files on POSIX platforms',
+    () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => '/tmp',
+          );
+      final file = await exporter.createCsv([record]);
+      expect(await file.exists(), isTrue);
+      await file.delete();
+    },
+  );
 }

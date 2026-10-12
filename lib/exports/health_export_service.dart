@@ -259,6 +259,7 @@ class HealthExportService {
       '${directory.path}/health-records-${DateTime.now().millisecondsSinceEpoch}.pdf',
     );
     await file.writeAsBytes(await pdf.save(), flush: true);
+    await _restrictFilePermissions(file);
     return file;
   }
 
@@ -880,6 +881,7 @@ class HealthExportService {
       '${directory.path}/doctor-visit-summary-${DateTime.now().millisecondsSinceEpoch}.pdf',
     );
     await file.writeAsBytes(await pdf.save(), flush: true);
+    await _restrictFilePermissions(file);
     return file;
   }
 
@@ -1017,7 +1019,18 @@ class HealthExportService {
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/$fileName');
     await file.writeAsString(contents, encoding: utf8, flush: true);
+    await _restrictFilePermissions(file);
     return file;
+  }
+
+  Future<void> _restrictFilePermissions(File file) async {
+    // Restrict permissions to user read/write only (0600) on POSIX platforms
+    // to safeguard exported health data and vault backups against local process access.
+    if (!Platform.isWindows) {
+      try {
+        await Process.run('chmod', ['600', file.path]);
+      } catch (_) {}
+    }
   }
 
   String _formatDate(DateTime date) {
