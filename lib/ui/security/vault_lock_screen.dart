@@ -209,31 +209,35 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
                   const SizedBox(height: 32),
 
                   // PIN dots indicator
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (index) {
-                      final isFilled = index < _enteredPin.length;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        margin: const EdgeInsets.symmetric(horizontal: 10),
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isFilled
-                              ? colorScheme.primary
-                              : colorScheme.outlineVariant.withValues(
-                                  alpha: 0.5,
-                                ),
-                          border: Border.all(
+                  Semantics(
+                    label: '${_enteredPin.length} of 4 digits entered',
+                    liveRegion: true,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(4, (index) {
+                        final isFilled = index < _enteredPin.length;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          margin: const EdgeInsets.symmetric(horizontal: 10),
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
                             color: isFilled
                                 ? colorScheme.primary
-                                : colorScheme.outline,
-                            width: 1.5,
+                                : colorScheme.outlineVariant.withValues(
+                                    alpha: 0.5,
+                                  ),
+                            border: Border.all(
+                              color: isFilled
+                                  ? colorScheme.primary
+                                  : colorScheme.outline,
+                              width: 1.5,
+                            ),
                           ),
-                        ),
-                      );
-                    }),
+                        );
+                      }),
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -335,16 +339,20 @@ class _VaultLockScreenState extends State<VaultLockScreen> {
       child: Material(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         shape: const CircleBorder(),
-        child: InkWell(
-          key: ValueKey('vault-pin-digit-$digit'),
-          customBorder: const CircleBorder(),
-          onTap: _lockoutSeconds > 0 ? null : () => _onDigitPressed(digit),
-          child: Center(
-            child: Text(
-              digit,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: colorScheme.onSurface,
+        child: Semantics(
+          label: 'Digit $digit',
+          button: true,
+          child: InkWell(
+            key: ValueKey('vault-pin-digit-$digit'),
+            customBorder: const CircleBorder(),
+            onTap: _lockoutSeconds > 0 ? null : () => _onDigitPressed(digit),
+            child: Center(
+              child: Text(
+                digit,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: colorScheme.onSurface,
+                ),
               ),
             ),
           ),
