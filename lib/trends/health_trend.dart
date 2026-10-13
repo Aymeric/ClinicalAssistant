@@ -138,30 +138,51 @@ List<HealthLabResultSummary> buildLatestLabResultSummaries(
   Iterable<HealthRecord>? candidates,
 }) {
   final recordsBySeries = <String, List<HealthTrendPoint>>{};
-  for (final record in records) {
-    if (record.category != RecordCategory.lab) continue;
-    final value = parseHealthRecordValue(record.value);
-    if (value == null) continue;
-    recordsBySeries
-        .putIfAbsent(healthTrendSeriesId(record), () => [])
-        .add(HealthTrendPoint(record: record, value: value));
+  final latestRecordBySeries = <String, HealthRecord>{};
+
+  if (candidates == null) {
+    for (final record in records) {
+      if (record.category != RecordCategory.lab) continue;
+      final key = healthTrendSeriesId(record);
+      final value = parseHealthRecordValue(record.value);
+      if (value != null) {
+        recordsBySeries
+            .putIfAbsent(key, () => [])
+            .add(HealthTrendPoint(record: record, value: value));
+      }
+      final existingLatest = latestRecordBySeries[key];
+      if (existingLatest == null ||
+          _compareHealthRecords(record, existingLatest) > 0) {
+        latestRecordBySeries[key] = record;
+      }
+    }
+  } else {
+    for (final record in records) {
+      if (record.category != RecordCategory.lab) continue;
+      final value = parseHealthRecordValue(record.value);
+      if (value == null) continue;
+      recordsBySeries
+          .putIfAbsent(healthTrendSeriesId(record), () => [])
+          .add(HealthTrendPoint(record: record, value: value));
+    }
+    for (final record in candidates) {
+      if (record.category != RecordCategory.lab) continue;
+      final key = healthTrendSeriesId(record);
+      final existingLatest = latestRecordBySeries[key];
+      if (existingLatest == null ||
+          _compareHealthRecords(record, existingLatest) > 0) {
+        latestRecordBySeries[key] = record;
+      }
+    }
   }
+
   for (final series in recordsBySeries.values) {
     series.sort(_compareHealthTrendPoints);
   }
 
-  final candidatesBySeries = <String, List<HealthRecord>>{};
-  for (final record in candidates ?? records) {
-    if (record.category != RecordCategory.lab) continue;
-    candidatesBySeries
-        .putIfAbsent(healthTrendSeriesId(record), () => [])
-        .add(record);
-  }
-
   final summaries = <HealthLabResultSummary>[];
-  for (final entry in candidatesBySeries.entries) {
-    final candidates = entry.value..sort(_compareHealthRecords);
-    final latestRecord = candidates.last;
+  for (final entry in latestRecordBySeries.entries) {
+    final latestRecord = entry.value;
     final latestValue = parseHealthRecordValue(latestRecord.value);
     if (latestValue == null) continue;
     final latest = HealthTrendPoint(record: latestRecord, value: latestValue);
@@ -304,32 +325,29 @@ HealthReferenceRange? findReferenceBand(
 }
 
 List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
-  final groups = <String, List<HealthRecord>>{};
+  // Fast-path: store HealthTrendPoint directly to eliminate re-parsing numeric strings during series assembly.
+  final groups = <String, List<HealthTrendPoint>>{};
   for (final record in records) {
-    if (parseHealthRecordValue(record.value) == null) continue;
+    final value = parseHealthRecordValue(record.value);
+    if (value == null) continue;
     final key = healthTrendSeriesId(record);
-    groups.putIfAbsent(key, () => []).add(record);
+    groups
+        .putIfAbsent(key, () => [])
+        .add(HealthTrendPoint(record: record, value: value));
   }
 
   final series = <HealthTrendSeries>[];
   for (final entry in groups.entries) {
-    final records = entry.value
-      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final first = records.first;
-    final points = [
-      for (final record in records)
-        HealthTrendPoint(
-          record: record,
-          value: parseHealthRecordValue(record.value)!,
-        ),
-    ];
-    final band = findReferenceBand(points, unit: first.unit);
+    final points = entry.value
+      ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
+    final firstRecord = points.first.record;
+    final band = findReferenceBand(points, unit: firstRecord.unit);
     series.add(
       HealthTrendSeries(
         id: entry.key,
-        name: first.name,
-        unit: first.unit,
-        category: first.category,
+        name: firstRecord.name,
+        unit: firstRecord.unit,
+        category: firstRecord.category,
         points: points,
         referenceBand: band,
       ),
