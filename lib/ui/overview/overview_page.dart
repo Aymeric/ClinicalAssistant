@@ -115,13 +115,22 @@ class OverviewPage extends StatelessWidget {
 
     // Pinned metrics
     final pinnedRecords = <HealthRecord>[];
-    for (final seriesId in pinnedSeries) {
-      final matches = records
-          .where((r) => healthTrendSeriesId(r) == seriesId)
-          .toList();
-      if (matches.isNotEmpty) {
-        matches.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-        pinnedRecords.add(matches.first);
+    if (pinnedSeries.isNotEmpty) {
+      final latestPinnedBySeries = <String, HealthRecord>{};
+      for (final r in records) {
+        final seriesId = healthTrendSeriesId(r);
+        if (pinnedSeries.contains(seriesId)) {
+          final existing = latestPinnedBySeries[seriesId];
+          if (existing == null || r.recordedAt.isAfter(existing.recordedAt)) {
+            latestPinnedBySeries[seriesId] = r;
+          }
+        }
+      }
+      for (final seriesId in pinnedSeries) {
+        final match = latestPinnedBySeries[seriesId];
+        if (match != null) {
+          pinnedRecords.add(match);
+        }
       }
     }
 
@@ -918,8 +927,14 @@ class OverviewCategoryBreakdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final categoryCounts = <RecordCategory, int>{};
+    for (final record in records) {
+      categoryCounts[record.category] =
+          (categoryCounts[record.category] ?? 0) + 1;
+    }
+
     final availableCategories = RecordCategory.values
-        .where((cat) => records.any((r) => r.category == cat))
+        .where(categoryCounts.containsKey)
         .toList();
 
     if (availableCategories.isEmpty) return const SizedBox.shrink();
@@ -942,7 +957,7 @@ class OverviewCategoryBreakdown extends StatelessWidget {
             for (final category in availableCategories)
               CategorySummaryBadge(
                 category: category,
-                count: records.where((r) => r.category == category).length,
+                count: categoryCounts[category]!,
                 onTap: onSelectCategory == null
                     ? null
                     : () => onSelectCategory!(category),
