@@ -69,9 +69,23 @@ void main() {
       },
     );
 
-    test('rejects PINs shorter than 4 digits', () async {
-      expect(() => service.setPin('12'), throwsArgumentError);
-    });
+    test(
+      'rejects PINs shorter than 4 characters or longer than 32 characters',
+      () async {
+        expect(() => service.setPin('12'), throwsArgumentError);
+        final longPin = '1' * 33;
+        expect(() => service.setPin(longPin), throwsArgumentError);
+      },
+    );
+
+    test(
+      'verifyPin rejects PINs longer than 32 characters immediately',
+      () async {
+        await service.setPin('1234');
+        final longPin = '1' * 33;
+        expect(await service.verifyPin(longPin), isFalse);
+      },
+    );
 
     test(
       'enforces rate limiting after 5 consecutive failed attempts',
@@ -93,6 +107,53 @@ void main() {
         // Even correct PIN is blocked during rate limit
         final correctDuringLockout = await service.verifyPin('4321');
         expect(correctDuringLockout, isFalse);
+      },
+    );
+
+    test(
+      'escalates rate limiting lockout duration progressively at higher failure thresholds',
+      () async {
+        var simulatedNow = DateTime(2026, 1, 1, 12, 0);
+        final timeService = VaultSecurityService(
+          storage: memoryStore,
+          clock: () => simulatedNow,
+        );
+        await timeService.setPin('1234');
+
+        // At 5 failed attempts: lockout is 30s
+        for (var i = 0; i < 5; i++) {
+          await timeService.verifyPin('0000');
+        }
+        expect(timeService.failedAttempts, 5);
+        expect(timeService.remainingLockoutSeconds, 30);
+
+        // Advance simulated time past the 30s lockout
+        simulatedNow = simulatedNow.add(const Duration(seconds: 31));
+        expect(timeService.isRateLimited, isFalse);
+
+        // At failed attempts 6 through 10: each failure triggers lockout
+        for (var i = 0; i < 5; i++) {
+          await timeService.verifyPin('0000');
+          if (timeService.failedAttempts < 10) {
+            simulatedNow = simulatedNow.add(const Duration(seconds: 31));
+          }
+        }
+        expect(timeService.failedAttempts, 10);
+        expect(timeService.remainingLockoutSeconds, 300);
+
+        // Advance simulated time past the 300s lockout
+        simulatedNow = simulatedNow.add(const Duration(seconds: 301));
+        expect(timeService.isRateLimited, isFalse);
+
+        // At failed attempts 11 through 15: each failure triggers 5m lockout
+        for (var i = 0; i < 5; i++) {
+          await timeService.verifyPin('0000');
+          if (timeService.failedAttempts < 15) {
+            simulatedNow = simulatedNow.add(const Duration(seconds: 301));
+          }
+        }
+        expect(timeService.failedAttempts, 15);
+        expect(timeService.remainingLockoutSeconds, 900);
       },
     );
 
