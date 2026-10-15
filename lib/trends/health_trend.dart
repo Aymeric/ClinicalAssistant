@@ -127,11 +127,8 @@ class HealthLabResultSummary {
   final HealthLabTrendDirection direction;
 }
 
-String healthTrendSeriesId(HealthRecord record) => [
-  record.category.name,
-  record.name.trim().toLowerCase(),
-  record.unit,
-].join('\u0000');
+String healthTrendSeriesId(HealthRecord record) =>
+    '${record.category.name}\u0000${record.name.trim().toLowerCase()}\u0000${record.unit}';
 
 List<HealthLabResultSummary> buildLatestLabResultSummaries(
   Iterable<HealthRecord> records, {
@@ -304,52 +301,46 @@ HealthReferenceRange? findReferenceBand(
 }
 
 List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
-  final groups = <String, List<HealthRecord>>{};
+  // Avoid re-parsing record values by mapping directly to HealthTrendPoint during grouping.
+  final groups = <String, List<HealthTrendPoint>>{};
   for (final record in records) {
-    if (parseHealthRecordValue(record.value) == null) continue;
+    final value = parseHealthRecordValue(record.value);
+    if (value == null) continue;
     final key = healthTrendSeriesId(record);
-    groups.putIfAbsent(key, () => []).add(record);
+    groups
+        .putIfAbsent(key, () => [])
+        .add(HealthTrendPoint(record: record, value: value));
   }
 
   final series = <HealthTrendSeries>[];
-  for (final entry in groups.entries) {
-    final records = entry.value
-      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final first = records.first;
-    final points = [
-      for (final record in records)
-        HealthTrendPoint(
-          record: record,
-          value: parseHealthRecordValue(record.value)!,
-        ),
-    ];
-    final band = findReferenceBand(points, unit: first.unit);
-    series.add(
-      HealthTrendSeries(
-        id: entry.key,
-        name: first.name,
-        unit: first.unit,
-        category: first.category,
-        points: points,
-        referenceBand: band,
-      ),
-    );
-  }
+  HealthTrendSeries? systolic;
+  HealthTrendSeries? diastolic;
 
-  final systolic = series.cast<HealthTrendSeries?>().firstWhere(
-    (s) =>
-        s != null &&
-        s.category == RecordCategory.vital &&
-        s.name.toLowerCase().contains('systolic'),
-    orElse: () => null,
-  );
-  final diastolic = series.cast<HealthTrendSeries?>().firstWhere(
-    (s) =>
-        s != null &&
-        s.category == RecordCategory.vital &&
-        s.name.toLowerCase().contains('diastolic'),
-    orElse: () => null,
-  );
+  for (final entry in groups.entries) {
+    final points = entry.value
+      ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
+    final first = points.first.record;
+    final band = findReferenceBand(points, unit: first.unit);
+    final s = HealthTrendSeries(
+      id: entry.key,
+      name: first.name,
+      unit: first.unit,
+      category: first.category,
+      points: points,
+      referenceBand: band,
+    );
+    series.add(s);
+
+    // Identify systolic/diastolic in a single pass during series aggregation
+    if (first.category == RecordCategory.vital) {
+      final nameLower = first.name.toLowerCase();
+      if (systolic == null && nameLower.contains('systolic')) {
+        systolic = s;
+      } else if (diastolic == null && nameLower.contains('diastolic')) {
+        diastolic = s;
+      }
+    }
+  }
 
   if (systolic != null && diastolic != null) {
     series.insert(
@@ -461,6 +452,7 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
   if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
+  if (rangeUnit == expectedUnit) return true;
   String normalize(String unit) =>
       unit.trim().replaceAll(_multipleWhitespacePattern, ' ');
   return normalize(rangeUnit) == normalize(expectedUnit);
