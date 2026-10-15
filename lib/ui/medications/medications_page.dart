@@ -41,6 +41,40 @@ class _MedicationsPageState extends State<MedicationsPage> {
     );
   }
 
+  Future<void> _confirmDelete(HealthRecord med) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Delete medication?'),
+        content: Text(
+          'Are you sure you want to delete ${med.name}? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await widget.controller.deleteRecord(med.id);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Deleted ${med.name}')));
+      }
+    }
+  }
+
   Future<void> _quickLogDose(HealthRecord med) async {
     await widget.controller.logMedicationDose(med);
     if (mounted) {
@@ -465,7 +499,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                         'active',
                       );
                     } else if (action == 'delete') {
-                      await widget.controller.deleteRecord(med.id);
+                      await _confirmDelete(med);
                     }
                   },
                   itemBuilder: (ctx) => [
@@ -473,10 +507,11 @@ class _MedicationsPageState extends State<MedicationsPage> {
                       const PopupMenuItem(
                         value: 'log_with_note',
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.edit_note, size: 20),
                             SizedBox(width: 8),
-                            Text('Log dose with note...'),
+                            Flexible(child: Text('Log dose with note...')),
                           ],
                         ),
                       ),
@@ -515,10 +550,11 @@ class _MedicationsPageState extends State<MedicationsPage> {
                     const PopupMenuItem(
                       value: 'history',
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.history, size: 20),
                           SizedBox(width: 8),
-                          Text('Adherence history'),
+                          Flexible(child: Text('Adherence history')),
                         ],
                       ),
                     ),

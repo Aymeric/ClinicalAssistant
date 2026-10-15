@@ -6,6 +6,8 @@ import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/models/manual_medication_details.dart';
 import 'package:clinical_assistant/models/medication_adherence_log.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
+import 'package:clinical_assistant/ui/medications/medications_page.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeRecordStore implements EncryptedRecordStore {
@@ -197,5 +199,60 @@ void main() {
       expect(controller.activeMedications.length, 2);
       expect(controller.pastMedications.length, 0);
     });
+
+    testWidgets(
+      'deleting medication shows confirmation dialog before removing record',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: MedicationsPage(controller: controller)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Atorvastatin'), findsOneWidget);
+
+        // Open options popup menu
+        await tester.tap(find.byIcon(Icons.more_vert).first);
+        await tester.pumpAndSettle();
+
+        // Tap Delete in options menu
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+
+        // Verify confirmation dialog appears
+        expect(find.text('Delete medication?'), findsOneWidget);
+        expect(
+          find.text(
+            'Are you sure you want to delete Atorvastatin? This action cannot be undone.',
+          ),
+          findsOneWidget,
+        );
+
+        // Cancel deletion
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        // Record should still exist
+        expect(
+          controller.records.any((r) => r.id == 'med-atorvastatin'),
+          isTrue,
+        );
+
+        // Open options popup menu again and confirm delete
+        await tester.tap(find.byIcon(Icons.more_vert).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+        await tester.pumpAndSettle();
+
+        // Record should be deleted from controller
+        expect(
+          controller.records.any((r) => r.id == 'med-atorvastatin'),
+          isFalse,
+        );
+        expect(find.text('Deleted Atorvastatin'), findsOneWidget);
+      },
+    );
   });
 }
