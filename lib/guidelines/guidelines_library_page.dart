@@ -23,6 +23,18 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
   }
 
   Future<void> _openSource(GuidelineSource source) async {
+    if (source.url.scheme != 'https') {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Only HTTPS links are supported for external launch.',
+            ),
+          ),
+        );
+      return;
+    }
     try {
       final opened = await launchUrl(
         source.url,

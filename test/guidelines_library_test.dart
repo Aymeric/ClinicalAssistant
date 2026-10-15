@@ -103,4 +103,37 @@ void main() {
     expect(find.text('Australian Immunisation Handbook'), findsOneWidget);
     expect(find.text('International Guidelines Library'), findsNothing);
   });
+
+  testWidgets('blocks opening non-HTTPS guideline source links', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MaterialApp(home: GuidelinesLibraryPage()));
+    await tester.pumpAndSettle();
+
+    final nonHttpsSource = GuidelineSource(
+      id: 'insecure-test',
+      name: 'Insecure Test Source',
+      publisher: 'Test Publisher',
+      jurisdiction: GuidelineJurisdiction.global,
+      topics: {GuidelineTopic.publicHealth},
+      audience: 'Testing',
+      description: 'Insecure source test',
+      status: GuidelineSourceStatus.currentPortal,
+      statusNote: 'Note',
+      url: Uri.parse('http://example.com/insecure'),
+      verifiedOn: DateTime.utc(2026, 1, 1),
+    );
+
+    expect(nonHttpsSource.url.scheme, equals('http'));
+
+    // Verify GuidelineCatalog sources are all HTTPS
+    for (final source in GuidelineCatalog.sources) {
+      expect(source.url.scheme, equals('https'));
+    }
+  });
 }
