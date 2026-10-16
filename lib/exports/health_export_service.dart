@@ -33,7 +33,7 @@ class HealthExportService {
     );
   }
 
-  static final _csvFormulaTrigger = RegExp(r'^[=+\-@\t\r]');
+  static final _csvFormulaTrigger = RegExp(r'^[ \t\r\n]*[=+\-@\t\r|]');
 
   /// Sanitizes CSV cell values to prevent CSV / Formula Injection attacks when exported
   /// data is opened in spreadsheet software (e.g. Excel, Calc, Google Sheets).
