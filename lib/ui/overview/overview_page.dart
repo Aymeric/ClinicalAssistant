@@ -113,15 +113,22 @@ class OverviewPage extends StatelessWidget {
         )
         .toList();
 
-    // Pinned metrics
+    // Pinned metrics - O(N) single-pass extraction over pre-sorted `latest` records
     final pinnedRecords = <HealthRecord>[];
-    for (final seriesId in pinnedSeries) {
-      final matches = records
-          .where((r) => healthTrendSeriesId(r) == seriesId)
-          .toList();
-      if (matches.isNotEmpty) {
-        matches.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-        pinnedRecords.add(matches.first);
+    if (pinnedSeries.isNotEmpty) {
+      final latestBySeries = <String, HealthRecord>{};
+      for (final record in latest) {
+        final seriesId = healthTrendSeriesId(record);
+        if (pinnedSeries.contains(seriesId)) {
+          latestBySeries.putIfAbsent(seriesId, () => record);
+          if (latestBySeries.length == pinnedSeries.length) break;
+        }
+      }
+      for (final seriesId in pinnedSeries) {
+        final match = latestBySeries[seriesId];
+        if (match != null) {
+          pinnedRecords.add(match);
+        }
       }
     }
 
