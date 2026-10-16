@@ -210,24 +210,27 @@ void main() {
     expect(csv, contains("Base Deficit,-3.5,mEq/L"));
   });
 
-  test('sanitizes CSV formula injection attempts with leading whitespace or pipe', () {
-    final whitespaceRecord = HealthRecord(
-      id: 'lab:whitespace_unsafe',
-      name: '  =HYPERLINK("http://evil.com","Click")',
-      value: ' +100',
-      unit: '  @mg/dL',
-      recordedAt: DateTime.utc(2026, 9, 20),
-      category: RecordCategory.lab,
-      source: ' |cmd',
-      code: '  \t1234',
-    );
+  test(
+    'sanitizes CSV formula injection attempts with leading whitespace or pipe',
+    () {
+      final whitespaceRecord = HealthRecord(
+        id: 'lab:whitespace_unsafe',
+        name: '  =HYPERLINK("http://evil.com","Click")',
+        value: ' +100',
+        unit: '  @mg/dL',
+        recordedAt: DateTime.utc(2026, 9, 20),
+        category: RecordCategory.lab,
+        source: ' |cmd',
+        code: '  \t1234',
+      );
 
-    final csv = exporter.buildCsv([whitespaceRecord]);
+      final csv = exporter.buildCsv([whitespaceRecord]);
 
-    expect(csv, contains("'  =HYPERLINK"));
-    expect(csv, contains("' +100"));
-    expect(csv, contains("'  @mg/dL"));
-    expect(csv, contains("' |cmd"));
-    expect(csv, contains("'  \t1234"));
-  });
+      expect(csv, contains("'  =HYPERLINK"));
+      expect(csv, contains("' +100"));
+      expect(csv, contains("'  @mg/dL"));
+      expect(csv, contains("' |cmd"));
+      expect(csv, contains("'  \t1234"));
+    },
+  );
 }
