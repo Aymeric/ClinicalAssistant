@@ -1,6 +1,8 @@
+import 'package:clinical_assistant/ui/security/vault_lock_screen.dart';
 import 'package:clinical_assistant/data/vault_security_service.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _MemorySyncValueStore implements SyncValueStore {
@@ -151,5 +153,40 @@ void main() {
       await service.setTimeout(AutoLockTimeout.never);
       expect(await service.shouldLockOnResume(), isFalse);
     });
+
+    testWidgets(
+      'VaultLockScreen announces PIN entry digit count for screen readers',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: VaultLockScreen(securityService: service, onUnlocked: () {}),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Initially 0 digits entered
+        expect(find.bySemanticsLabel('0 of 4 digits entered'), findsOneWidget);
+
+        // Press digit 1
+        await tester.tap(find.byKey(const ValueKey('vault-pin-digit-1')));
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel('1 of 4 digits entered'), findsOneWidget);
+
+        // Press digit 2
+        await tester.tap(find.byKey(const ValueKey('vault-pin-digit-2')));
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel('2 of 4 digits entered'), findsOneWidget);
+
+        // Press backspace
+        await tester.tap(find.byKey(const ValueKey('vault-pin-backspace-key')));
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel('1 of 4 digits entered'), findsOneWidget);
+
+        // Press clear
+        await tester.tap(find.byTooltip('Clear PIN'));
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel('0 of 4 digits entered'), findsOneWidget);
+      },
+    );
   });
 }
