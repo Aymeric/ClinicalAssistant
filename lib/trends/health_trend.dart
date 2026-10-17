@@ -304,25 +304,24 @@ HealthReferenceRange? findReferenceBand(
 }
 
 List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
-  final groups = <String, List<HealthRecord>>{};
+  // Optimization: Parse numeric values once and construct HealthTrendPoint
+  // objects directly into group lists during the initial pass to eliminate
+  // redundant double parsing and avoid intermediate List<HealthRecord> allocations.
+  final groups = <String, List<HealthTrendPoint>>{};
   for (final record in records) {
-    if (parseHealthRecordValue(record.value) == null) continue;
+    final value = parseHealthRecordValue(record.value);
+    if (value == null) continue;
     final key = healthTrendSeriesId(record);
-    groups.putIfAbsent(key, () => []).add(record);
+    groups
+        .putIfAbsent(key, () => [])
+        .add(HealthTrendPoint(record: record, value: value));
   }
 
   final series = <HealthTrendSeries>[];
   for (final entry in groups.entries) {
-    final records = entry.value
-      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final first = records.first;
-    final points = [
-      for (final record in records)
-        HealthTrendPoint(
-          record: record,
-          value: parseHealthRecordValue(record.value)!,
-        ),
-    ];
+    final points = entry.value
+      ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
+    final first = points.first.record;
     final band = findReferenceBand(points, unit: first.unit);
     series.add(
       HealthTrendSeries(
@@ -482,8 +481,19 @@ HealthTrendSummary summarizeHealthTrend(List<HealthTrendPoint> points) {
   if (points.isEmpty) {
     throw ArgumentError.value(points, 'points', 'Must not be empty.');
   }
-  final ordered = [...points]
-    ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
+  // Optimization: Fast-path check if points are already in chronological order
+  // to avoid redundant list cloning and re-sorting for series that are sorted.
+  var isSorted = true;
+  for (var i = 0; i < points.length - 1; i++) {
+    if (points[i].record.recordedAt.isAfter(points[i + 1].record.recordedAt)) {
+      isSorted = false;
+      break;
+    }
+  }
+  final ordered = isSorted
+      ? points
+      : ([...points]
+          ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt)));
   var sum = 0.0;
   var minimum = ordered.first.value;
   var maximum = ordered.first.value;

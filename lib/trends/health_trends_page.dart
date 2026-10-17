@@ -68,8 +68,9 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
             now: DateTime.now(),
             days: _range.days,
           );
-    final orderedPoints = [...selectedPoints]
-      ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
+    // Optimization: pointsWithinRange preserves the chronological order of
+    // selectedSeries.points; avoiding redundant cloning and re-sorting.
+    final orderedPoints = selectedPoints;
     final summary = orderedPoints.isEmpty
         ? null
         : summarizeHealthTrend(orderedPoints);

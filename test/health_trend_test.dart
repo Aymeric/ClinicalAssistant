@@ -275,6 +275,38 @@ void main() {
     expect(indexes, orderedEquals([...indexes]..sort()));
   });
 
+  test(
+    'efficiently processes large record sets without redundant parsing or sorting',
+    () {
+      final now = DateTime.utc(2026, 9, 26);
+      final records = [
+        for (var i = 0; i < 5000; i++)
+          _record(
+            'rec-$i',
+            i % 2 == 0 ? 'Systolic Blood Pressure' : 'Diastolic Blood Pressure',
+            '${80 + (i % 50)}',
+            'mmHg',
+            RecordCategory.vital,
+            at: now.add(Duration(minutes: i)),
+          ),
+      ];
+
+      final stopwatch = Stopwatch()..start();
+      final series = buildHealthTrendSeries(records);
+      final elapsedMs = stopwatch.elapsedMilliseconds;
+
+      expect(series.length, equals(3)); // Combined, Systolic, Diastolic
+      final systolicSeries = series.firstWhere(
+        (s) => s.name == 'Systolic Blood Pressure',
+      );
+      expect(systolicSeries.points.length, equals(2500));
+
+      final summary = summarizeHealthTrend(systolicSeries.points);
+      expect(summary.latest.record.id, equals('rec-4998'));
+      expect(elapsedMs, lessThan(1000));
+    },
+  );
+
   testWidgets(
     'filters category and date range, and toggles the moving average',
     (tester) async {
