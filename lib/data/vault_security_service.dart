@@ -257,5 +257,6 @@ class VaultSecurityService {
     return result == 0;
   }
 
-  bool _constantTimeCompare(List<int> a, List<int> b) => constantTimeCompare(a, b);
+  bool _constantTimeCompare(List<int> a, List<int> b) =>
+      constantTimeCompare(a, b);
 }
