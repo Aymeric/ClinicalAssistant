@@ -4,6 +4,7 @@ import 'package:clinical_assistant/data/encrypted_record_store.dart';
 import 'package:clinical_assistant/integrations/fhir_portal_importer.dart';
 import 'package:clinical_assistant/main.dart';
 import 'package:clinical_assistant/models/health_record.dart';
+import 'package:clinical_assistant/ui/connections/connections_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
@@ -746,6 +747,32 @@ void main() {
       await tester.tap(find.text('Resting Heart Rate'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Edit manual record'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'vault restore sheet displays accessible passphrase obscurity toggle tooltips',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VaultRestoreSheet(onRestore: (json, pass, replace) async {}),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify 'Show passphrase' tooltip is initially present
+      expect(find.byTooltip('Show passphrase'), findsOneWidget);
+      expect(find.byTooltip('Hide passphrase'), findsNothing);
+
+      // Tap toggle to show passphrase
+      await tester.tap(find.byTooltip('Show passphrase'));
+      await tester.pumpAndSettle();
+
+      // Verify 'Hide passphrase' tooltip is present
+      expect(find.byTooltip('Hide passphrase'), findsOneWidget);
+      expect(find.byTooltip('Show passphrase'), findsNothing);
     },
   );
 }
