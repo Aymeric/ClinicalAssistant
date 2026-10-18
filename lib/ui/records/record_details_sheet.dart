@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/synthetic_demonstration_data.dart';
+import '../../guidelines/clinical_guideline.dart';
+import '../../guidelines/related_guidelines_widget.dart';
 import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
 import '../../trends/health_trend.dart';
@@ -20,6 +22,7 @@ class RecordDetailsSheet extends StatefulWidget {
     this.onDelete,
     this.onEdit,
     this.onViewInTrends,
+    this.onOpenGuideline,
   });
 
   final HealthRecord record;
@@ -30,6 +33,7 @@ class RecordDetailsSheet extends StatefulWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onEdit;
   final VoidCallback? onViewInTrends;
+  final ValueChanged<ClinicalGuideline>? onOpenGuideline;
 
   @override
   State<RecordDetailsSheet> createState() => _RecordDetailsSheetState();
@@ -558,6 +562,15 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
                 ),
               ),
             ],
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            RelatedGuidelinesSection(
+              measurementName: record.name,
+              categoryLabel: categoryLabel(record.category),
+              loincCode: record.code,
+              onOpenGuideline: widget.onOpenGuideline,
+            ),
             if (record.sourceData != null && record.sourceData!.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Divider(),

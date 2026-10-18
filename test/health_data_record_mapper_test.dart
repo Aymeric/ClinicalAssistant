@@ -71,6 +71,21 @@ void main() {
     },
   );
 
+  test('returns user-friendly labels for each health data type', () {
+    expect(
+      HealthDataRecordMapper.labelFor(HealthDataType.HEART_RATE),
+      'Heart rate',
+    );
+    expect(
+      HealthDataRecordMapper.labelFor(HealthDataType.ACTIVE_ENERGY_BURNED),
+      'Active energy burned',
+    );
+    expect(
+      HealthDataRecordMapper.labelFor(HealthDataType.STEPS),
+      'Steps',
+    );
+  });
+
   test('maps sleep durations into their own category', () {
     final record = mapper.mapPoint(
       _point(

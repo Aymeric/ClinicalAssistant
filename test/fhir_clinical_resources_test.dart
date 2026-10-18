@@ -396,6 +396,65 @@ void main() {
         expect(names, contains('Sulfa'));
       },
     );
+
+    test(
+      'reports incrementing progress across multi-resource clinical sync',
+      () async {
+        final progressFractions = <double>[];
+        final importer = FhirPortalImporter(
+          appAuth: _FakeAppAuth(),
+          client: MockClient((request) async {
+            final path = request.url.path;
+            if (path.endsWith('/.well-known/smart-configuration')) {
+              return http.Response(
+                jsonEncode({
+                  'authorization_endpoint': 'https://auth.example/authorize',
+                  'token_endpoint': 'https://auth.example/token',
+                }),
+                200,
+              );
+            }
+            return http.Response(
+              jsonEncode({
+                'resourceType': 'Bundle',
+                'entry': [
+                  {
+                    'resource': {
+                      'resourceType': 'Observation',
+                      'id': 'obs-1',
+                      'status': 'final',
+                      'code': {'text': 'A1C'},
+                      'effectiveDateTime': '2026-09-01T00:00:00Z',
+                      'valueQuantity': {'value': 5.7, 'unit': '%'},
+                    },
+                  },
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+
+        await importer.refreshAndImportLabResults(
+          fhirBaseUrl: 'https://fhir.example/api',
+          clientId: 'client-1',
+          patientId: 'patient-99',
+          refreshToken: 'refresh-token',
+          authorizationEndpoint: 'https://auth.example/authorize',
+          tokenEndpoint: 'https://auth.example/token',
+          since: DateTime.utc(2026, 1, 1),
+          resourceTypes: const ['Observation', 'Condition'],
+          onRefreshTokenUpdated: (_) async {},
+          onProgress: (p) => progressFractions.add(p.fraction),
+        );
+
+        expect(progressFractions.length, greaterThanOrEqualTo(4));
+        for (var i = 1; i < progressFractions.length; i++) {
+          expect(progressFractions[i], greaterThanOrEqualTo(progressFractions[i - 1]));
+        }
+        expect(progressFractions.last, 0.9);
+      },
+    );
   });
 }
 

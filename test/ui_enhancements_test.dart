@@ -4,6 +4,7 @@ import 'package:clinical_assistant/data/encrypted_record_store.dart';
 import 'package:clinical_assistant/integrations/fhir_portal_importer.dart';
 import 'package:clinical_assistant/main.dart';
 import 'package:clinical_assistant/models/health_record.dart';
+import 'package:clinical_assistant/sync/import_progress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
@@ -760,7 +761,10 @@ class _MemoryRecordStore extends EncryptedRecordStore {
   Future<List<HealthRecord>> load() async => records;
 
   @override
-  Future<void> save(List<HealthRecord> records) async {}
+  Future<void> save(
+    List<HealthRecord> records, {
+    ImportProgressCallback? onProgress,
+  }) async {}
 
   @override
   Future<void> clear() async {}
@@ -775,7 +779,10 @@ class _RecordingRecordStore extends EncryptedRecordStore {
   Future<List<HealthRecord>> load() async => records;
 
   @override
-  Future<void> save(List<HealthRecord> records) async {
+  Future<void> save(
+    List<HealthRecord> records, {
+    ImportProgressCallback? onProgress,
+  }) async {
     this.records = List.of(records);
   }
 

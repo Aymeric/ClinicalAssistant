@@ -15,7 +15,7 @@ class HealthDataRecordMapper {
         : point.sourceName;
     return HealthRecord(
       id: 'health:${point.sourceId}:${point.uuid}',
-      name: _labelFor(point.type),
+      name: labelFor(point.type),
       value: _displayValue(point, value),
       unit: _unitLabel(point.unit),
       recordedAt: point.dateTo.toUtc(),
@@ -124,7 +124,7 @@ class HealthDataRecordMapper {
 
   String _formatNumber(num value) => formatSensibleNumber(value);
 
-  String _labelFor(HealthDataType type) => switch (type) {
+  static String labelFor(HealthDataType type) => switch (type) {
     HealthDataType.ACTIVE_ENERGY_BURNED => 'Active energy burned',
     HealthDataType.BASAL_ENERGY_BURNED => 'Basal energy burned',
     HealthDataType.BLOOD_GLUCOSE => 'Blood glucose',

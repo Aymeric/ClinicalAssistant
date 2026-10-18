@@ -5,6 +5,7 @@ import 'package:clinical_assistant/integrations/fhir_portal_importer.dart';
 import 'package:clinical_assistant/main.dart';
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
+import 'package:clinical_assistant/sync/import_progress.dart';
 import 'package:clinical_assistant/ui/records/records_page.dart';
 import 'package:clinical_assistant/ui/shared/record_widgets.dart';
 import 'package:flutter/material.dart';
@@ -22,7 +23,10 @@ class _FakeRecordStore implements EncryptedRecordStore {
   Future<List<HealthRecord>> load() async => List.of(records);
 
   @override
-  Future<void> save(List<HealthRecord> records) async {
+  Future<void> save(
+    List<HealthRecord> records, {
+    ImportProgressCallback? onProgress,
+  }) async {
     this.records
       ..clear()
       ..addAll(records);

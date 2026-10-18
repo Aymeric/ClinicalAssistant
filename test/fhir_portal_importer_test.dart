@@ -93,6 +93,114 @@ void main() {
     },
   );
 
+  test(
+    'increments progress incrementally across pages when FHIR bundle total is null',
+    () async {
+      final progress = <double>[];
+      final importer = FhirPortalImporter(
+        client: MockClient((request) async {
+          if (request.url.path.endsWith('/.well-known/smart-configuration')) {
+            return http.Response(
+              jsonEncode({
+                'authorization_endpoint':
+                    'https://login.portal.example/authorize',
+                'token_endpoint': 'https://login.portal.example/token',
+              }),
+              200,
+            );
+          }
+          if (request.url.queryParameters['cursor'] == 'page-3') {
+            return http.Response(
+              jsonEncode({
+                'resourceType': 'Bundle',
+                'entry': [
+                  {
+                    'resource': {
+                      'resourceType': 'Observation',
+                      'id': 'lab-3',
+                      'status': 'final',
+                      'code': {'text': 'Potassium'},
+                      'effectiveDateTime': '2025-04-13T00:00:00Z',
+                      'valueQuantity': {'value': 4.5, 'unit': 'mmol/L'},
+                    },
+                  },
+                ],
+              }),
+              200,
+            );
+          }
+          if (request.url.queryParameters['cursor'] == 'page-2') {
+            return http.Response(
+              jsonEncode({
+                'resourceType': 'Bundle',
+                'entry': [
+                  {
+                    'resource': {
+                      'resourceType': 'Observation',
+                      'id': 'lab-2',
+                      'status': 'final',
+                      'code': {'text': 'Sodium'},
+                      'effectiveDateTime': '2025-04-12T00:00:00Z',
+                      'valueQuantity': {'value': 140, 'unit': 'mmol/L'},
+                    },
+                  },
+                ],
+                'link': [
+                  {
+                    'relation': 'next',
+                    'url':
+                        'https://portal.example/fhir/Observation?cursor=page-3',
+                  },
+                ],
+              }),
+              200,
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'resourceType': 'Bundle',
+              // No 'total' field provided by server
+              'entry': [
+                {
+                  'resource': {
+                    'resourceType': 'Observation',
+                    'id': 'lab-1',
+                    'status': 'final',
+                    'code': {'text': 'Glucose'},
+                    'effectiveDateTime': '2025-04-11T00:00:00Z',
+                    'valueQuantity': {'value': 96, 'unit': 'mg/dL'},
+                  },
+                },
+              ],
+              'link': [
+                {
+                  'relation': 'next',
+                  'url':
+                      'https://portal.example/fhir/Observation?cursor=page-2',
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+        appAuth: _FakeAppAuth(),
+      );
+
+      final records = await importer.importLabResults(
+        fhirBaseUrl: 'https://portal.example/fhir',
+        clientId: 'registered-client',
+        onProgress: (value) => progress.add(value.fraction),
+      );
+
+      expect(records, hasLength(3));
+      expect(progress.length, greaterThanOrEqualTo(4));
+      for (var i = 1; i < progress.length; i++) {
+        expect(progress[i], greaterThan(progress[i - 1]));
+      }
+      expect(progress.last, 0.9);
+    },
+  );
+
   test('rejects non-HTTPS FHIR endpoints before making a request', () async {
     var requestCount = 0;
     final importer = FhirPortalImporter(

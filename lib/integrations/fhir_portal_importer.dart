@@ -198,6 +198,14 @@ class FhirPortalImporter {
     }
 
     final typesToImport = resourceTypes ?? const ['Observation'];
+    onProgress?.call(
+      ImportProgress(
+        fraction: 0.05,
+        message: typesToImport.length > 1
+            ? 'Downloading clinical records'
+            : 'Downloading lab results',
+      ),
+    );
     final records = await _readClinicalResources(
       base: base,
       accessToken: accessToken,
@@ -271,6 +279,13 @@ class FhirPortalImporter {
     final allRecords = <HealthRecord>[];
     for (var i = 0; i < resourceTypes.length; i++) {
       final resourceType = resourceTypes[i];
+      final startingFraction = 0.05 + 0.85 * (i / resourceTypes.length);
+      onProgress?.call(
+        ImportProgress(
+          fraction: startingFraction.clamp(0.05, 0.90),
+          message: '[$resourceType] Fetching records',
+        ),
+      );
       try {
         final records = await _readResource(
           base: base,
@@ -294,6 +309,15 @@ class FhirPortalImporter {
         if (resourceType == 'Observation' || e.toString().contains('401')) {
           rethrow;
         }
+      } finally {
+        final finishedFraction =
+            0.05 + 0.85 * ((i + 1) / resourceTypes.length);
+        onProgress?.call(
+          ImportProgress(
+            fraction: finishedFraction.clamp(0.05, 0.90),
+            message: '[$resourceType] Processed',
+          ),
+        );
       }
     }
     allRecords.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
@@ -383,11 +407,32 @@ class FhirPortalImporter {
                 (record) => !record.recordedAt.isBefore(since.toUtc()),
               ),
       );
-      final progressFraction = totalEntries == null
-          ? 0.05
-          : (0.05 + 0.8 * completedEntries / totalEntries)
+      final links = decoded['link'];
+      final nextLink = links is List
+          ? links.whereType<Map>().where(
+              (link) => link['relation'] == 'next',
+            )
+          : const Iterable<Map>.empty();
+      final nextUrl = nextLink.isNotEmpty
+          ? nextLink.first['url']?.toString()
+          : null;
+      final hasNext = nextUrl != null && nextUrl.isNotEmpty;
+
+      final double progressFraction;
+      if (totalEntries != null && totalEntries > 0) {
+        progressFraction = hasNext
+            ? (0.05 + 0.8 * completedEntries / totalEntries)
                 .clamp(0.05, 0.85)
-                .toDouble();
+                .toDouble()
+            : 0.85;
+      } else {
+        progressFraction = hasNext
+            ? (0.05 + 0.8 * (1 - 1 / (1 + 0.35 * pageNumber)))
+                .clamp(0.05, 0.80)
+                .toDouble()
+            : 0.85;
+      }
+
       onProgress?.call(
         ImportProgress(
           fraction: progressFraction,
@@ -397,14 +442,7 @@ class FhirPortalImporter {
         ),
       );
 
-      final links = decoded['link'];
-      if (links is! List) break;
-      final nextLink = links.whereType<Map>().where(
-        (link) => link['relation'] == 'next',
-      );
-      if (nextLink.isEmpty) break;
-      final nextUrl = nextLink.first['url']?.toString();
-      if (nextUrl == null || nextUrl.isEmpty) break;
+      if (!hasNext) break;
       final parsedNext = Uri.tryParse(nextUrl);
       if (parsedNext == null) {
         throw const FormatException(

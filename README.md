@@ -50,10 +50,16 @@ or CSV.
 - Creates PDF, FHIR Bundle JSON, and CSV exports in temporary device storage.
   Users choose which record categories to include, then choose whether and
   where to share each export in the OS share sheet.
-- Includes an offline directory of guideline publishers and discovery indexes.
-  The directory labels jurisdiction and source status, provides brief original
-  descriptions, and opens the publisher's site; it does not connect guidelines
-  to a person's records or provide individualized recommendations.
+- Includes an offline directory of guideline publishers and curated clinical
+  guidelines from trusted organizations (NICE, USPSTF, WHO, Australian
+  Department of Health, Canadian Task Force). Authoritative guidelines can be
+  downloaded for offline reading, bookmarked to favorites, searched by topic
+  and jurisdiction, and explored in an interactive in-app viewer with table-of-contents
+  navigation, key recommendations, evidence grade explanations, and full structured guidance.
+  Users can save private consultation notes to prepare questions for upcoming
+  clinical appointments and export clean, printable doctor-visit summary PDFs;
+  the app does not connect guidelines to a person's records or provide
+  individualized clinical recommendations.
 
 ## Guideline directory maintenance
 

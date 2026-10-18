@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../guidelines/clinical_guideline_catalog.dart';
 import '../../models/health_record.dart';
 import '../../sync/import_progress.dart';
 import '../../trends/health_trend.dart';
@@ -277,6 +278,12 @@ class RecordRow extends StatelessWidget {
         status == HealthReferenceStatus.above ||
         status == HealthReferenceStatus.below;
 
+    final hasGuideline = ClinicalGuidelineCatalog.hasRelatedGuidelines(
+      measurementName: record.name,
+      category: categoryLabel(record.category),
+      loincCode: record.code,
+    );
+
     final trimmedValue = record.displayValue.trim();
     final isLongValue =
         trimmedValue.length > 18 ||
@@ -372,6 +379,43 @@ class RecordRow extends StatelessWidget {
                       color: colors.onSurfaceVariant,
                     ),
                   ),
+                  if (hasGuideline) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.primaryContainer.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.menu_book_outlined,
+                            size: 10,
+                            color: colors.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              'Guideline',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colors.onPrimaryContainer,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 10,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

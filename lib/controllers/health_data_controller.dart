@@ -135,20 +135,22 @@ class HealthDataController extends ChangeNotifier {
     return _withBusy(() async {
       final imported = await _healthImporter.importRecords(
         since: since,
-        onProgress: (progress) => onProgress?.call(progress.scale(0.9)),
+        onProgress: (progress) => onProgress?.call(progress.scale(0.85)),
       );
       if (imported.isEmpty) {
         throw StateError(
           'No supported health records or clinical lab results were returned. Check the date range and review the requested permissions.',
         );
       }
-      onProgress?.call(
-        const ImportProgress(
-          fraction: 0.95,
-          message: 'Saving imported records',
+      final newlyImported = await _mergeAndSave(
+        imported,
+        onProgress: (progress) => onProgress?.call(
+          ImportProgress(
+            fraction: 0.85 + (progress.fraction * 0.14),
+            message: progress.message,
+          ),
         ),
       );
-      final newlyImported = await _mergeAndSave(imported);
       await _recordSuccessfulSync(_lastHealthSyncKey);
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'Import complete'),
@@ -246,15 +248,17 @@ class HealthDataController extends ChangeNotifier {
       } else {
         await disableFhirAutoSync();
       }
-      onProgress?.call(
-        const ImportProgress(
-          fraction: 0.95,
-          message: 'Saving imported records',
-        ),
-      );
       final newlyImported = result.records.isEmpty
           ? const <HealthRecord>[]
-          : await _mergeAndSave(result.records);
+          : await _mergeAndSave(
+              result.records,
+              onProgress: (progress) => onProgress?.call(
+                ImportProgress(
+                  fraction: 0.9 + (progress.fraction * 0.09),
+                  message: progress.message,
+                ),
+              ),
+            );
       await _recordSuccessfulSync(_lastFhirSyncKey);
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'Import complete'),
@@ -285,7 +289,15 @@ class HealthDataController extends ChangeNotifier {
       );
       final newlyImported = imported.isEmpty
           ? const <HealthRecord>[]
-          : await _mergeAndSave(imported);
+          : await _mergeAndSave(
+              imported,
+              onProgress: (progress) => onProgress?.call(
+                ImportProgress(
+                  fraction: 0.9 + (progress.fraction * 0.09),
+                  message: progress.message,
+                ),
+              ),
+            );
       await _recordSuccessfulSync(_lastHealthSyncKey);
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'Health sync complete'),
@@ -340,7 +352,15 @@ class HealthDataController extends ChangeNotifier {
       );
       final newlyImported = result.records.isEmpty
           ? const <HealthRecord>[]
-          : await _mergeAndSave(result.records);
+          : await _mergeAndSave(
+              result.records,
+              onProgress: (progress) => onProgress?.call(
+                ImportProgress(
+                  fraction: 0.9 + (progress.fraction * 0.09),
+                  message: progress.message,
+                ),
+              ),
+            );
       await _recordSuccessfulSync(_lastFhirSyncKey);
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'Portal sync complete'),
@@ -349,21 +369,77 @@ class HealthDataController extends ChangeNotifier {
     });
   }
 
-  Future<List<HealthRecord>> _mergeAndSave(List<HealthRecord> imported) async {
+  Future<List<HealthRecord>> _mergeAndSave(
+    List<HealthRecord> imported, {
+    ImportProgressCallback? onProgress,
+  }) async {
+    onProgress?.call(
+      const ImportProgress(fraction: 0.05, message: 'Checking duplicate records'),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 35));
+
     final existingIds = records.map((record) => record.id).toSet();
     final addedIds = <String>{};
-    final newlyImported = imported
-        .where(
-          (record) =>
-              !existingIds.contains(record.id) && addedIds.add(record.id),
-        )
-        .toList();
-    final merged = <String, HealthRecord>{
-      for (final record in records) record.id: record,
-      for (final record in imported) record.id: record,
-    }.values.toList()..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-    await _store.save(merged);
+    final newlyImported = <HealthRecord>[];
+    for (final record in imported) {
+      if (!existingIds.contains(record.id) && addedIds.add(record.id)) {
+        newlyImported.add(record);
+      }
+    }
+
+    onProgress?.call(
+      ImportProgress(
+        fraction: 0.25,
+        message: newlyImported.isEmpty
+            ? 'No new records to merge'
+            : 'Merging ${newlyImported.length} new records',
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 35));
+
+    List<HealthRecord> merged;
+    if (records.isEmpty) {
+      merged = newlyImported;
+    } else if (newlyImported.isEmpty) {
+      merged = records;
+    } else {
+      final mergedMap = <String, HealthRecord>{
+        for (final record in records) record.id: record,
+      };
+      for (final record in imported) {
+        mergedMap[record.id] = record;
+      }
+      merged = mergedMap.values.toList()
+        ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    }
+
+    onProgress?.call(
+      ImportProgress(
+        fraction: 0.45,
+        message: 'Preparing ${merged.length} records to save',
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 35));
+
+    await _store.save(
+      merged,
+      onProgress: (storeProgress) {
+        onProgress?.call(
+          ImportProgress(
+            fraction: 0.45 + (storeProgress.fraction * 0.5),
+            message: storeProgress.message,
+          ),
+        );
+      },
+    );
+
     records = merged;
+    onProgress?.call(
+      const ImportProgress(
+        fraction: 1.0,
+        message: 'Records saved successfully',
+      ),
+    );
     return newlyImported;
   }
 
@@ -508,7 +584,15 @@ class HealthDataController extends ChangeNotifier {
           message: 'Saving demonstration records',
         ),
       );
-      final newlyImported = await _mergeAndSave(demoRecords);
+      final newlyImported = await _mergeAndSave(
+        demoRecords,
+        onProgress: (progress) => onProgress?.call(
+          ImportProgress(
+            fraction: 0.6 + (progress.fraction * 0.38),
+            message: progress.message,
+          ),
+        ),
+      );
       onProgress?.call(
         const ImportProgress(
           fraction: 1,
@@ -549,10 +633,15 @@ class HealthDataController extends ChangeNotifier {
           'No supported laboratory Observations were found in the provided FHIR data.',
         );
       }
-      onProgress?.call(
-        const ImportProgress(fraction: 0.7, message: 'Saving imported records'),
+      final newlyImported = await _mergeAndSave(
+        imported,
+        onProgress: (progress) => onProgress?.call(
+          ImportProgress(
+            fraction: 0.6 + (progress.fraction * 0.38),
+            message: progress.message,
+          ),
+        ),
       );
-      final newlyImported = await _mergeAndSave(imported);
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'FHIR import complete'),
       );

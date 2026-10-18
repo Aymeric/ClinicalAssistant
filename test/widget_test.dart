@@ -936,7 +936,10 @@ class _MemoryRecordStore extends EncryptedRecordStore {
   Future<List<HealthRecord>> load() async => records;
 
   @override
-  Future<void> save(List<HealthRecord> records) async {}
+  Future<void> save(
+    List<HealthRecord> records, {
+    ImportProgressCallback? onProgress,
+  }) async {}
 
   @override
   Future<void> clear() async {}

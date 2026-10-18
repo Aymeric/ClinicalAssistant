@@ -133,66 +133,54 @@ class HealthPlatformImporter {
           .where((type) => type == HealthDataType.STEPS)
           .toList();
       final windows = _buildWindows(since, endTime);
-      final groupsPerWindow =
-          (detailedTypes.isEmpty ? 0 : 1) + (stepTypes.isEmpty ? 0 : 1);
+      final typesPerWindow = detailedTypes.length + stepTypes.length;
       totalSteps =
-          windows.length * groupsPerWindow +
+          windows.length * typesPerWindow +
           (Platform.isIOS || Platform.isAndroid ? 1 : 0);
 
       report('Preparing health data');
       for (var index = 0; index < windows.length; index++) {
         final window = windows[index];
-        final windowLabel = 'period ${index + 1} of ${windows.length}';
-        if (detailedTypes.isNotEmpty && stepTypes.isNotEmpty) {
-          report('Reading health records · $windowLabel');
-          final detailedFuture = _readDetailedRecords(
-            detailedTypes,
-            window.start,
-            window.end,
-          );
-          final stepsFuture = _health.getHealthDataFromTypes(
-            types: stepTypes,
-            startTime: window.start,
-            endTime: window.end,
-          );
-          final results = await Future.wait([detailedFuture, stepsFuture]);
-          records.addAll(results[0] as List<HealthRecord>);
-          completedSteps++;
-          report('Read health records · $windowLabel');
+        final windowLabel = windows.length > 1
+            ? 'period ${index + 1} of ${windows.length}'
+            : '';
+        final windowSuffix = windowLabel.isNotEmpty ? ' · $windowLabel' : '';
 
-          final source = Platform.isIOS ? 'Apple Health' : 'Health Connect';
-          final points = results[1] as List<HealthDataPoint>;
-          records.addAll(
-            _stepAggregator.aggregate(
-              points.map(_dailyStepSampleFromPoint),
-              source: source,
-            ),
-          );
+        for (final type in detailedTypes) {
+          final typeName = HealthDataRecordMapper.labelFor(type);
+          report('Reading $typeName$windowSuffix');
+          try {
+            final typeRecords = await _readDetailedRecords(
+              [type],
+              window.start,
+              window.end,
+            );
+            records.addAll(typeRecords);
+          } catch (_) {
+            // If a specific data type fails, proceed with the others.
+          }
           completedSteps++;
-          report('Read steps · $windowLabel');
-        } else if (detailedTypes.isNotEmpty) {
-          report('Reading health records · $windowLabel');
-          records.addAll(
-            await _readDetailedRecords(detailedTypes, window.start, window.end),
-          );
+          report('Read $typeName (${records.length} records)$windowSuffix');
+        }
+
+        for (final type in stepTypes) {
+          report('Reading steps$windowSuffix');
+          try {
+            final points = await _health.getHealthDataFromTypes(
+              types: [type],
+              startTime: window.start,
+              endTime: window.end,
+            );
+            final source = Platform.isIOS ? 'Apple Health' : 'Health Connect';
+            records.addAll(
+              _stepAggregator.aggregate(
+                points.map(_dailyStepSampleFromPoint),
+                source: source,
+              ),
+            );
+          } catch (_) {}
           completedSteps++;
-          report('Read health records · $windowLabel');
-        } else if (stepTypes.isNotEmpty) {
-          report('Reading steps · $windowLabel');
-          final points = await _health.getHealthDataFromTypes(
-            types: stepTypes,
-            startTime: window.start,
-            endTime: window.end,
-          );
-          final source = Platform.isIOS ? 'Apple Health' : 'Health Connect';
-          records.addAll(
-            _stepAggregator.aggregate(
-              points.map(_dailyStepSampleFromPoint),
-              source: source,
-            ),
-          );
-          completedSteps++;
-          report('Read steps · $windowLabel');
+          report('Read steps (${records.length} records)$windowSuffix');
         }
       }
     }
@@ -207,7 +195,7 @@ class HealthPlatformImporter {
         // Clinical labs are optional; errors should not prevent basic health sync.
       }
       completedSteps++;
-      report('Read Apple Health clinical labs');
+      report('Read Apple Health clinical labs (${records.length} records)');
     }
     if (Platform.isAndroid) {
       report('Reading Health Connect laboratory results');
@@ -217,7 +205,9 @@ class HealthPlatformImporter {
           onStatus: (message) {
             onProgress?.call(
               ImportProgress(
-                fraction: totalSteps == 0 ? 0 : completedSteps / totalSteps,
+                fraction: totalSteps == 0
+                    ? 0
+                    : ((completedSteps + 0.5) / totalSteps).clamp(0, 1),
                 message: message,
               ),
             );
@@ -225,15 +215,50 @@ class HealthPlatformImporter {
         ),
       );
       completedSteps++;
-      report('Read Health Connect laboratory results');
+      report('Read Health Connect laboratory results (${records.length} records)');
     }
+    if (records.length > 500) {
+      onProgress?.call(
+        ImportProgress(
+          fraction: 0.95,
+          message: 'Indexing ${records.length} records',
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 35));
+    }
+    records.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     onProgress?.call(
-      const ImportProgress(fraction: 1, message: 'Preparing records to save'),
+      ImportProgress(
+        fraction: 1,
+        message: 'Read ${records.length} records',
+      ),
     );
-    return records..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    return records;
   }
 
   List<HealthImportWindow> _buildWindows(DateTime since, DateTime until) {
+    if (since.year <= 1900) {
+      // Modern electronic health platforms (HealthKit, Health Connect) only have
+      // sensor data from the modern smartwatch era (~2014/2015 onwards).
+      // Consolidate pre-modern history into a single historical window so that
+      // empty 20th-century decades do not artificially consume the majority of progress steps.
+      const modernEraStartYear = 2015;
+      if (until.year > modernEraStartYear) {
+        final modernStart = DateTime(modernEraStartYear, 1, 1);
+        final modernWindows = buildHealthImportWindows(
+          since: modernStart,
+          until: until,
+          batchYears: _queryBatchYears,
+        );
+        return [
+          HealthImportWindow(
+            DateTime(since.year, since.month, since.day),
+            modernStart,
+          ),
+          ...modernWindows,
+        ];
+      }
+    }
     return buildHealthImportWindows(
       since: since,
       until: until,

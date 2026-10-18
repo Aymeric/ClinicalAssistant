@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../guidelines/clinical_guideline.dart';
+import '../guidelines/related_guidelines_widget.dart';
 import '../models/health_record.dart';
 import '../ui/shared/record_widgets.dart';
 import 'health_trend.dart';
@@ -16,12 +18,14 @@ class HealthTrendsPage extends StatefulWidget {
     this.loading = false,
     this.initialSeriesId,
     this.onRecordTap,
+    this.onOpenGuideline,
   });
 
   final List<HealthRecord> records;
   final bool loading;
   final String? initialSeriesId;
   final ValueChanged<HealthRecord>? onRecordTap;
+  final ValueChanged<ClinicalGuideline>? onOpenGuideline;
 
   @override
   State<HealthTrendsPage> createState() => _HealthTrendsPageState();
@@ -212,6 +216,16 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                       TrendIndicators(
                         summary: summary,
                         count: orderedPoints.length,
+                      ),
+                      const SizedBox(height: 24),
+                      RelatedGuidelinesSection(
+                        measurementName: selectedSeries.name,
+                        categoryLabel: categoryLabel(selectedSeries.category),
+                        loincCode: selectedSeries.points
+                            .map((p) => p.record.code)
+                            .whereType<String>()
+                            .firstOrNull,
+                        onOpenGuideline: widget.onOpenGuideline,
                       ),
                       const SizedBox(height: 24),
                       RecentTrendReadings(

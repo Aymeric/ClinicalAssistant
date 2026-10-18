@@ -6,6 +6,7 @@ import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/models/manual_medication_details.dart';
 import 'package:clinical_assistant/models/medication_adherence_log.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
+import 'package:clinical_assistant/sync/import_progress.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeRecordStore implements EncryptedRecordStore {
@@ -19,7 +20,10 @@ class _FakeRecordStore implements EncryptedRecordStore {
   Future<List<HealthRecord>> load() async => List.of(records);
 
   @override
-  Future<void> save(List<HealthRecord> records) async {
+  Future<void> save(
+    List<HealthRecord> records, {
+    ImportProgressCallback? onProgress,
+  }) async {
     this.records
       ..clear()
       ..addAll(records);

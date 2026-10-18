@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:clinical_assistant/data/encrypted_record_store.dart';
 import 'package:clinical_assistant/models/health_record.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -79,6 +81,54 @@ void main() {
     expect(await File('${directory.path}/records.enc').exists(), isFalse);
     expect(secureStorage.values, isEmpty);
   });
+
+  test(
+    'transparently decodes legacy uncompressed vault records as well as compressed records',
+    () async {
+      final record = HealthRecord(
+        id: 'legacy:1',
+        name: 'Blood Pressure',
+        value: '120/80',
+        unit: 'mmHg',
+        recordedAt: DateTime.utc(2026, 9, 20),
+        category: RecordCategory.vital,
+        source: 'Manual',
+      );
+
+      // Save via store (which now compresses with GZIP)
+      await store.save([record]);
+      final loadedFromCompressed = await store.load();
+      expect(loadedFromCompressed.single.id, 'legacy:1');
+
+      // Now create a legacy uncompressed file directly
+      final algorithm = AesGcm.with256bits();
+      final key = await algorithm.newSecretKey();
+      final encodedKey = base64Encode(await key.extractBytes());
+      await secureStorage.write(
+        key: 'clinical_assistant_vault_key_v1',
+        value: encodedKey,
+      );
+
+      final uncompressedJsonBytes = utf8.encode(
+        jsonEncode([record.copyWith(id: 'legacy:uncompressed').toJson()]),
+      );
+      final box = await algorithm.encrypt(
+        uncompressedJsonBytes,
+        secretKey: key,
+      );
+      final file = File('${directory.path}/records.enc');
+      await file.writeAsString(
+        jsonEncode({
+          'nonce': base64Encode(box.nonce),
+          'cipherText': base64Encode(box.cipherText),
+          'mac': base64Encode(box.mac.bytes),
+        }),
+      );
+
+      final loadedFromLegacy = await store.load();
+      expect(loadedFromLegacy.single.id, 'legacy:uncompressed');
+    },
+  );
 }
 
 class _MemorySecureStorage extends FlutterSecureStorage {

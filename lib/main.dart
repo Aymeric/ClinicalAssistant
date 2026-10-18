@@ -9,6 +9,8 @@ import 'package:share_plus/share_plus.dart';
 import 'controllers/health_data_controller.dart';
 import 'data/vault_security_service.dart';
 import 'exports/health_export_service.dart';
+import 'guidelines/clinical_guideline.dart';
+import 'guidelines/guideline_viewer_page.dart';
 import 'guidelines/guidelines_library_page.dart';
 import 'models/health_record.dart';
 import 'notifications/result_notification_manager.dart';
@@ -276,6 +278,14 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     );
   }
 
+  void _openGuideline(ClinicalGuideline guideline) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => GuidelineViewerPage(guideline: guideline),
+      ),
+    );
+  }
+
   void _openMedications() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -320,6 +330,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         record: record,
         isNumeric: isNumeric,
         isPinned: isPinned,
+        onOpenGuideline: _openGuideline,
         onTogglePin: () async {
           final newState = await _controller.pinnedPreferences.togglePin(
             seriesId,
@@ -917,6 +928,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         loading: _controller.loading,
         initialSeriesId: _trendInitialSeriesId,
         onRecordTap: _showRecordDetails,
+        onOpenGuideline: _openGuideline,
       ),
       RecordsPage(
         records: _controller.records,
