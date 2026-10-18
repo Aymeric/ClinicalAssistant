@@ -304,25 +304,23 @@ HealthReferenceRange? findReferenceBand(
 }
 
 List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
-  final groups = <String, List<HealthRecord>>{};
+  // Store parsed HealthTrendPoint objects during grouping to avoid duplicate
+  // numeric string parsing for every record when constructing HealthTrendSeries.
+  final groups = <String, List<HealthTrendPoint>>{};
   for (final record in records) {
-    if (parseHealthRecordValue(record.value) == null) continue;
+    final parsedValue = parseHealthRecordValue(record.value);
+    if (parsedValue == null) continue;
     final key = healthTrendSeriesId(record);
-    groups.putIfAbsent(key, () => []).add(record);
+    groups
+        .putIfAbsent(key, () => [])
+        .add(HealthTrendPoint(record: record, value: parsedValue));
   }
 
   final series = <HealthTrendSeries>[];
   for (final entry in groups.entries) {
-    final records = entry.value
-      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final first = records.first;
-    final points = [
-      for (final record in records)
-        HealthTrendPoint(
-          record: record,
-          value: parseHealthRecordValue(record.value)!,
-        ),
-    ];
+    final points = entry.value
+      ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
+    final first = points.first.record;
     final band = findReferenceBand(points, unit: first.unit);
     series.add(
       HealthTrendSeries(
