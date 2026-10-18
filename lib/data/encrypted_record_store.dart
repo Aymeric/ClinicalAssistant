@@ -88,10 +88,7 @@ class EncryptedRecordStore {
     ImportProgressCallback? onProgress,
   }) async {
     onProgress?.call(
-      const ImportProgress(
-        fraction: 0.05,
-        message: 'Securing vault storage',
-      ),
+      const ImportProgress(fraction: 0.05, message: 'Securing vault storage'),
     );
     await _yieldToRenderer();
 
@@ -133,10 +130,7 @@ class EncryptedRecordStore {
     }
 
     onProgress?.call(
-      const ImportProgress(
-        fraction: 0.6,
-        message: 'Encrypting vault records',
-      ),
+      const ImportProgress(fraction: 0.6, message: 'Encrypting vault records'),
     );
     await _yieldToRenderer();
 
@@ -168,18 +162,12 @@ class EncryptedRecordStore {
     }
 
     onProgress?.call(
-      const ImportProgress(
-        fraction: 0.85,
-        message: 'Writing records to vault',
-      ),
+      const ImportProgress(fraction: 0.85, message: 'Writing records to vault'),
     );
     await _yieldToRenderer();
 
     final temporaryFile = File('${file.path}.tmp');
-    await temporaryFile.writeAsString(
-      envelopeJson,
-      flush: true,
-    );
+    await temporaryFile.writeAsString(envelopeJson, flush: true);
     try {
       await temporaryFile.rename(file.path);
     } on FileSystemException {
@@ -190,10 +178,7 @@ class EncryptedRecordStore {
     }
 
     onProgress?.call(
-      const ImportProgress(
-        fraction: 1.0,
-        message: 'Vault updated',
-      ),
+      const ImportProgress(fraction: 1.0, message: 'Vault updated'),
     );
   }
 

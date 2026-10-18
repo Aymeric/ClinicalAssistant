@@ -324,7 +324,8 @@ abstract final class ClinicalGuidelineCatalog {
     ),
     ClinicalGuideline(
       id: 'uspstf-diabetes-screening',
-      title: 'Screening for Prediabetes and Type 2 Diabetes: Recommendation Statement',
+      title:
+          'Screening for Prediabetes and Type 2 Diabetes: Recommendation Statement',
       shortTitle: 'Prediabetes and diabetes screening',
       identifier: 'USPSTF Recommendation (Grade B)',
       publisher: 'U.S. Preventive Services Task Force (USPSTF)',
@@ -405,7 +406,8 @@ abstract final class ClinicalGuidelineCatalog {
     ),
     ClinicalGuideline(
       id: 'uspstf-statin-cvd',
-      title: 'Statin Use for the Primary Prevention of Cardiovascular Disease in Adults',
+      title:
+          'Statin Use for the Primary Prevention of Cardiovascular Disease in Adults',
       shortTitle: 'Statin for primary CVD prevention',
       identifier: 'USPSTF Recommendation (Grade B)',
       publisher: 'U.S. Preventive Services Task Force (USPSTF)',
@@ -476,7 +478,8 @@ abstract final class ClinicalGuidelineCatalog {
     ),
     ClinicalGuideline(
       id: 'who-hypertension-pharmacological',
-      title: 'Guideline for the pharmacological treatment of hypertension in adults',
+      title:
+          'Guideline for the pharmacological treatment of hypertension in adults',
       shortTitle: 'Pharmacological treatment of hypertension',
       identifier: 'WHO Guideline (2021)',
       publisher: 'World Health Organization',
@@ -646,7 +649,8 @@ abstract final class ClinicalGuidelineCatalog {
           'groups, vaccine strains, and co-administration in Australia.',
       targetAudience:
           'General practitioners, immunisation coordinators, and residents of Australia.',
-      evidenceGrade: 'Australian Technical Advisory Group on Immunisation (ATAGI)',
+      evidenceGrade:
+          'Australian Technical Advisory Group on Immunisation (ATAGI)',
       fileSizeBytes: 215000,
       webUrl: Uri.parse(
         'https://immunisationhandbook.health.gov.au/contents/vaccine-preventable-diseases/influenza-flu',
@@ -837,7 +841,8 @@ abstract final class ClinicalGuidelineCatalog {
     ),
     ClinicalGuideline(
       id: 'nice-cg181-lipids',
-      title: 'Cardiovascular disease: risk assessment and reduction, including lipid modification',
+      title:
+          'Cardiovascular disease: risk assessment and reduction, including lipid modification',
       shortTitle: 'Lipid modification & CVD reduction',
       identifier: 'NICE CG181/NG238',
       publisher: 'National Institute for Health and Care Excellence (NICE)',
@@ -923,7 +928,8 @@ abstract final class ClinicalGuidelineCatalog {
     ),
     ClinicalGuideline(
       id: 'uspstf-weight-management',
-      title: 'Weight Loss to Prevent Obesity-Related Morbidity and Mortality in Adults: Behavioral Interventions',
+      title:
+          'Weight Loss to Prevent Obesity-Related Morbidity and Mortality in Adults: Behavioral Interventions',
       shortTitle: 'Adult Weight Management & Obesity',
       identifier: 'USPSTF Recommendation (Grade B)',
       publisher: 'U.S. Preventive Services Task Force (USPSTF)',
@@ -1059,7 +1065,8 @@ abstract final class ClinicalGuidelineCatalog {
     return guidelines
         .where((guideline) {
           if (downloadedOnly) {
-            if (downloadedIds == null || !downloadedIds.contains(guideline.id)) {
+            if (downloadedIds == null ||
+                !downloadedIds.contains(guideline.id)) {
               return false;
             }
           }
@@ -1106,7 +1113,8 @@ abstract final class ClinicalGuidelineCatalog {
   }) {
     final name = measurementName.toLowerCase().trim();
     final cat = category?.toLowerCase().trim() ?? '';
-    final code = loincCode
+    final code =
+        loincCode
             ?.toLowerCase()
             .trim()
             .replaceFirst('http://loinc.org|', '')
@@ -1253,13 +1261,7 @@ abstract final class ClinicalGuidelineCatalog {
     }
 
     // 6. Asthma / Respiratory / SpO2 / Peak Expiratory Flow
-    const asthmaLoincs = {
-      '2708-6',
-      '59408-5',
-      '19935-6',
-      '20150-9',
-      '19926-5',
-    };
+    const asthmaLoincs = {'2708-6', '59408-5', '19935-6', '20150-9', '19926-5'};
     if (asthmaLoincs.contains(code) ||
         name.contains('asthma') ||
         name.contains('spo2') ||

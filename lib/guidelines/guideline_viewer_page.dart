@@ -199,10 +199,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
         '${widget.guideline.summary}\n\n'
         'Official source: ${widget.guideline.webUrl}';
     SharePlus.instance.share(
-      ShareParams(
-        text: text,
-        subject: widget.guideline.shortTitle,
-      ),
+      ShareParams(text: text, subject: widget.guideline.shortTitle),
     );
   }
 
@@ -449,9 +446,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                     Expanded(
                       child: Text(
                         item,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          height: 1.4,
-                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
                       ),
                     ),
                   ],
@@ -511,9 +506,9 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                 ListTile(
                   leading: const Icon(Icons.edit_note),
                   title: const Text('Doctor Appointment Notes'),
-                  subtitle: Text(_patientNotes == null
-                      ? 'No notes recorded'
-                      : 'Notes added'),
+                  subtitle: Text(
+                    _patientNotes == null ? 'No notes recorded' : 'Notes added',
+                  ),
                   dense: true,
                   onTap: () {
                     Navigator.of(ctx).pop();
@@ -607,7 +602,9 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
             onPressed: _toggleFavorite,
           ),
           IconButton(
-            tooltip: _isDownloaded ? 'Remove offline copy' : 'Download guideline',
+            tooltip: _isDownloaded
+                ? 'Remove offline copy'
+                : 'Download guideline',
             icon: _isDownloading
                 ? const SizedBox(
                     width: 20,
@@ -773,7 +770,8 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                     guideline.title,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      fontSize: (theme.textTheme.titleLarge?.fontSize ?? 22) *
+                      fontSize:
+                          (theme.textTheme.titleLarge?.fontSize ?? 22) *
                           _fontScale,
                     ),
                   ),
@@ -816,9 +814,13 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
             child: Row(
               children: [
                 Icon(
-                  _isDownloaded ? Icons.check_circle : Icons.cloud_download_outlined,
+                  _isDownloaded
+                      ? Icons.check_circle
+                      : Icons.cloud_download_outlined,
                   size: 22,
-                  color: _isDownloaded ? colors.primary : colors.onSurfaceVariant,
+                  color: _isDownloaded
+                      ? colors.primary
+                      : colors.onSurfaceVariant,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -871,9 +873,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
             color: colors.tertiaryContainer.withValues(alpha: 0.25),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
-              side: BorderSide(
-                color: colors.tertiary.withValues(alpha: 0.35),
-              ),
+              side: BorderSide(color: colors.tertiary.withValues(alpha: 0.35)),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -898,7 +898,9 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                         ),
                       ),
                       IconButton(
-                        tooltip: _patientNotes == null ? 'Add notes' : 'Edit notes',
+                        tooltip: _patientNotes == null
+                            ? 'Add notes'
+                            : 'Edit notes',
                         icon: Icon(
                           _patientNotes == null
                               ? Icons.add_circle_outline
@@ -1025,7 +1027,8 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                   Text(
                     guideline.summary,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: (theme.textTheme.bodyMedium?.fontSize ?? 14) *
+                      fontSize:
+                          (theme.textTheme.bodyMedium?.fontSize ?? 14) *
                           _fontScale,
                       height: 1.5,
                     ),
@@ -1178,7 +1181,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                             fontWeight: FontWeight.bold,
                             fontSize:
                                 (theme.textTheme.titleSmall?.fontSize ?? 14) *
-                                    _fontScale,
+                                _fontScale,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -1187,7 +1190,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontSize:
                                 (theme.textTheme.bodyMedium?.fontSize ?? 14) *
-                                    _fontScale,
+                                _fontScale,
                             height: 1.45,
                           ),
                         ),
@@ -1234,7 +1237,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                             fontWeight: FontWeight.bold,
                             fontSize:
                                 (theme.textTheme.titleSmall?.fontSize ?? 14) *
-                                    _fontScale,
+                                _fontScale,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -1243,7 +1246,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontSize:
                                 (theme.textTheme.bodyMedium?.fontSize ?? 14) *
-                                    _fontScale,
+                                _fontScale,
                             height: 1.5,
                           ),
                         ),
@@ -1328,20 +1331,14 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
             color: colors.errorContainer.withValues(alpha: 0.15),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: colors.error.withValues(alpha: 0.25),
-              ),
+              side: BorderSide(color: colors.error.withValues(alpha: 0.25)),
             ),
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: colors.error,
-                    size: 20,
-                  ),
+                  Icon(Icons.info_outline, color: colors.error, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(

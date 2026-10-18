@@ -450,7 +450,10 @@ void main() {
 
         expect(progressFractions.length, greaterThanOrEqualTo(4));
         for (var i = 1; i < progressFractions.length; i++) {
-          expect(progressFractions[i], greaterThanOrEqualTo(progressFractions[i - 1]));
+          expect(
+            progressFractions[i],
+            greaterThanOrEqualTo(progressFractions[i - 1]),
+          );
         }
         expect(progressFractions.last, 0.9);
       },

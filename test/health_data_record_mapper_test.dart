@@ -80,10 +80,7 @@ void main() {
       HealthDataRecordMapper.labelFor(HealthDataType.ACTIVE_ENERGY_BURNED),
       'Active energy burned',
     );
-    expect(
-      HealthDataRecordMapper.labelFor(HealthDataType.STEPS),
-      'Steps',
-    );
+    expect(HealthDataRecordMapper.labelFor(HealthDataType.STEPS), 'Steps');
   });
 
   test('maps sleep durations into their own category', () {
