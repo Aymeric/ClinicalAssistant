@@ -374,7 +374,10 @@ class HealthDataController extends ChangeNotifier {
     ImportProgressCallback? onProgress,
   }) async {
     onProgress?.call(
-      const ImportProgress(fraction: 0.05, message: 'Checking duplicate records'),
+      const ImportProgress(
+        fraction: 0.05,
+        message: 'Checking duplicate records',
+      ),
     );
     await Future<void>.delayed(const Duration(milliseconds: 35));
 

@@ -155,7 +155,9 @@ class ClinicalGuideline {
       targetAudience: json['targetAudience'] as String,
       evidenceGrade: json['evidenceGrade'] as String,
       recommendations: (json['recommendations'] as List)
-          .map((r) => GuidelineRecommendation.fromJson(r as Map<String, dynamic>))
+          .map(
+            (r) => GuidelineRecommendation.fromJson(r as Map<String, dynamic>),
+          )
           .toList(),
       sections: (json['sections'] as List)
           .map((s) => GuidelineSection.fromJson(s as Map<String, dynamic>))
@@ -164,9 +166,10 @@ class ClinicalGuideline {
       downloadUrl: Uri.parse(json['downloadUrl'] as String),
       fileSizeBytes: (json['fileSizeBytes'] as num).toInt(),
       citation: json['citation'] as String,
-      disclaimer: json['disclaimer'] as String? ??
+      disclaimer:
+          json['disclaimer'] as String? ??
           'This clinical guideline is intended for informational and educational purposes. '
-          'It does not substitute for professional medical judgment, diagnosis, or individualized patient care.',
+              'It does not substitute for professional medical judgment, diagnosis, or individualized patient care.',
     );
   }
 }

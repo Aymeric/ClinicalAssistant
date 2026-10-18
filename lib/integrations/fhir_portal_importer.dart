@@ -310,8 +310,7 @@ class FhirPortalImporter {
           rethrow;
         }
       } finally {
-        final finishedFraction =
-            0.05 + 0.85 * ((i + 1) / resourceTypes.length);
+        final finishedFraction = 0.05 + 0.85 * ((i + 1) / resourceTypes.length);
         onProgress?.call(
           ImportProgress(
             fraction: finishedFraction.clamp(0.05, 0.90),
@@ -409,9 +408,7 @@ class FhirPortalImporter {
       );
       final links = decoded['link'];
       final nextLink = links is List
-          ? links.whereType<Map>().where(
-              (link) => link['relation'] == 'next',
-            )
+          ? links.whereType<Map>().where((link) => link['relation'] == 'next')
           : const Iterable<Map>.empty();
       final nextUrl = nextLink.isNotEmpty
           ? nextLink.first['url']?.toString()
@@ -422,14 +419,14 @@ class FhirPortalImporter {
       if (totalEntries != null && totalEntries > 0) {
         progressFraction = hasNext
             ? (0.05 + 0.8 * completedEntries / totalEntries)
-                .clamp(0.05, 0.85)
-                .toDouble()
+                  .clamp(0.05, 0.85)
+                  .toDouble()
             : 0.85;
       } else {
         progressFraction = hasNext
             ? (0.05 + 0.8 * (1 - 1 / (1 + 0.35 * pageNumber)))
-                .clamp(0.05, 0.80)
-                .toDouble()
+                  .clamp(0.05, 0.80)
+                  .toDouble()
             : 0.85;
       }
 

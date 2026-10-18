@@ -48,28 +48,26 @@ void main() {
       );
     });
 
-    test('searches guidelines by query across title, identifier, and recommendations', () {
-      final bpResults = ClinicalGuidelineCatalog.filter(
-        query: 'blood pressure',
-      );
-      expect(bpResults.isNotEmpty, isTrue);
-      expect(
-        bpResults.any((g) => g.id == 'nice-ng136-hypertension'),
-        isTrue,
-      );
-      expect(
-        bpResults.any((g) => g.id == 'uspstf-hypertension-screening'),
-        isTrue,
-      );
+    test(
+      'searches guidelines by query across title, identifier, and recommendations',
+      () {
+        final bpResults = ClinicalGuidelineCatalog.filter(
+          query: 'blood pressure',
+        );
+        expect(bpResults.isNotEmpty, isTrue);
+        expect(bpResults.any((g) => g.id == 'nice-ng136-hypertension'), isTrue);
+        expect(
+          bpResults.any((g) => g.id == 'uspstf-hypertension-screening'),
+          isTrue,
+        );
 
-      final statinResults = ClinicalGuidelineCatalog.filter(
-        query: 'statin',
-      );
-      expect(
-        statinResults.map((g) => g.id),
-        containsAll(['uspstf-statin-cvd', 'nice-cg181-lipids']),
-      );
-    });
+        final statinResults = ClinicalGuidelineCatalog.filter(query: 'statin');
+        expect(
+          statinResults.map((g) => g.id),
+          containsAll(['uspstf-statin-cvd', 'nice-cg181-lipids']),
+        );
+      },
+    );
 
     test('filters by downloaded IDs', () {
       final downloadedOnly = ClinicalGuidelineCatalog.filter(
@@ -80,43 +78,49 @@ void main() {
       expect(downloadedOnly.first.id, 'nice-ng136-hypertension');
     });
 
-    test('findRelatedGuidelines maps measurement names to clinical guidelines', () {
-      final bp = ClinicalGuidelineCatalog.findRelatedGuidelines(
-        measurementName: 'Blood Pressure',
-      );
-      expect(bp.map((g) => g.id), containsAll([
-        'nice-ng136-hypertension',
-        'uspstf-hypertension-screening',
-        'who-hypertension-pharmacological',
-      ]));
+    test(
+      'findRelatedGuidelines maps measurement names to clinical guidelines',
+      () {
+        final bp = ClinicalGuidelineCatalog.findRelatedGuidelines(
+          measurementName: 'Blood Pressure',
+        );
+        expect(
+          bp.map((g) => g.id),
+          containsAll([
+            'nice-ng136-hypertension',
+            'uspstf-hypertension-screening',
+            'who-hypertension-pharmacological',
+          ]),
+        );
 
-      final a1c = ClinicalGuidelineCatalog.findRelatedGuidelines(
-        measurementName: 'Hemoglobin A1c',
-      );
-      expect(a1c.map((g) => g.id), containsAll([
-        'nice-ng28-diabetes',
-        'uspstf-diabetes-screening',
-      ]));
+        final a1c = ClinicalGuidelineCatalog.findRelatedGuidelines(
+          measurementName: 'Hemoglobin A1c',
+        );
+        expect(
+          a1c.map((g) => g.id),
+          containsAll(['nice-ng28-diabetes', 'uspstf-diabetes-screening']),
+        );
 
-      final ldl = ClinicalGuidelineCatalog.findRelatedGuidelines(
-        measurementName: 'LDL Cholesterol',
-      );
-      expect(ldl.map((g) => g.id), containsAll([
-        'nice-cg181-lipids',
-        'uspstf-statin-cvd',
-      ]));
+        final ldl = ClinicalGuidelineCatalog.findRelatedGuidelines(
+          measurementName: 'LDL Cholesterol',
+        );
+        expect(
+          ldl.map((g) => g.id),
+          containsAll(['nice-cg181-lipids', 'uspstf-statin-cvd']),
+        );
 
-      final steps = ClinicalGuidelineCatalog.findRelatedGuidelines(
-        measurementName: 'Steps',
-        category: 'Activity',
-      );
-      expect(steps.map((g) => g.id), contains('who-physical-activity'));
+        final steps = ClinicalGuidelineCatalog.findRelatedGuidelines(
+          measurementName: 'Steps',
+          category: 'Activity',
+        );
+        expect(steps.map((g) => g.id), contains('who-physical-activity'));
 
-      final unrelated = ClinicalGuidelineCatalog.findRelatedGuidelines(
-        measurementName: 'Caffeine Intake',
-      );
-      expect(unrelated, isEmpty);
-    });
+        final unrelated = ClinicalGuidelineCatalog.findRelatedGuidelines(
+          measurementName: 'Caffeine Intake',
+        );
+        expect(unrelated, isEmpty);
+      },
+    );
 
     test('findRelatedGuidelines matches by LOINC codes and abbreviations', () {
       // LOINC matching for HbA1c even with arbitrary lab display name
@@ -171,9 +175,7 @@ void main() {
 
       // hasRelatedGuidelines helper
       expect(
-        ClinicalGuidelineCatalog.hasRelatedGuidelines(
-          measurementName: 'eGFR',
-        ),
+        ClinicalGuidelineCatalog.hasRelatedGuidelines(measurementName: 'eGFR'),
         isTrue,
       );
       expect(
@@ -186,31 +188,37 @@ void main() {
   });
 
   group('ClinicalGuideline JSON Serialization', () {
-    test('serializes and deserializes ClinicalGuideline and DownloadedGuideline', () {
-      final guideline = ClinicalGuidelineCatalog.guidelines.first;
-      final json = guideline.toJson();
-      final restored = ClinicalGuideline.fromJson(json);
+    test(
+      'serializes and deserializes ClinicalGuideline and DownloadedGuideline',
+      () {
+        final guideline = ClinicalGuidelineCatalog.guidelines.first;
+        final json = guideline.toJson();
+        final restored = ClinicalGuideline.fromJson(json);
 
-      expect(restored.id, guideline.id);
-      expect(restored.title, guideline.title);
-      expect(restored.identifier, guideline.identifier);
-      expect(restored.recommendations.length, guideline.recommendations.length);
-      expect(restored.sections.length, guideline.sections.length);
+        expect(restored.id, guideline.id);
+        expect(restored.title, guideline.title);
+        expect(restored.identifier, guideline.identifier);
+        expect(
+          restored.recommendations.length,
+          guideline.recommendations.length,
+        );
+        expect(restored.sections.length, guideline.sections.length);
 
-      final downloaded = DownloadedGuideline(
-        guideline: guideline,
-        downloadedAt: DateTime.utc(2026, 10, 18, 12, 0),
-        localFilePath: '/tmp/test.json',
-        fileSizeBytes: 284000,
-      );
-      expect(downloaded.formattedSize, '277.3 KB');
+        final downloaded = DownloadedGuideline(
+          guideline: guideline,
+          downloadedAt: DateTime.utc(2026, 10, 18, 12, 0),
+          localFilePath: '/tmp/test.json',
+          fileSizeBytes: 284000,
+        );
+        expect(downloaded.formattedSize, '277.3 KB');
 
-      final downloadedJson = downloaded.toJson();
-      final restoredDownloaded = DownloadedGuideline.fromJson(downloadedJson);
-      expect(restoredDownloaded.guideline.id, guideline.id);
-      expect(restoredDownloaded.fileSizeBytes, 284000);
-      expect(restoredDownloaded.localFilePath, '/tmp/test.json');
-    });
+        final downloadedJson = downloaded.toJson();
+        final restoredDownloaded = DownloadedGuideline.fromJson(downloadedJson);
+        expect(restoredDownloaded.guideline.id, guideline.id);
+        expect(restoredDownloaded.fileSizeBytes, 284000);
+        expect(restoredDownloaded.localFilePath, '/tmp/test.json');
+      },
+    );
   });
 
   group('GuidelineStorageService', () {
@@ -218,7 +226,9 @@ void main() {
     late GuidelineStorageService service;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp('guideline-service-test-');
+      tempDir = await Directory.systemTemp.createTemp(
+        'guideline-service-test-',
+      );
       service = GuidelineStorageService(storageDirectory: tempDir);
     });
 
@@ -242,7 +252,10 @@ void main() {
       final loaded = await service.getDownloadedGuideline(guideline.id);
       expect(loaded, isNotNull);
       expect(loaded!.guideline.title, guideline.title);
-      expect(loaded.guideline.recommendations.length, guideline.recommendations.length);
+      expect(
+        loaded.guideline.recommendations.length,
+        guideline.recommendations.length,
+      );
 
       final allDownloaded = await service.getDownloadedGuidelines();
       expect(allDownloaded.length, 1);
@@ -281,10 +294,10 @@ void main() {
       expect(await service.getFavoriteIds(), {'nice-ng136-hypertension'});
 
       await service.setFavorite('uspstf-statin-cvd', true);
-      expect(
-        await service.getFavoriteIds(),
-        {'nice-ng136-hypertension', 'uspstf-statin-cvd'},
-      );
+      expect(await service.getFavoriteIds(), {
+        'nice-ng136-hypertension',
+        'uspstf-statin-cvd',
+      });
 
       await service.toggleFavorite('nice-ng136-hypertension');
       expect(await service.isFavorite('nice-ng136-hypertension'), isFalse);
@@ -331,19 +344,22 @@ void main() {
       }
     });
 
-    test('generates doctor visit summary PDF with recommendations and notes', () async {
-      const exporter = GuidelinePdfExportService();
-      final guideline = ClinicalGuidelineCatalog.guidelines.first;
-      final file = await exporter.generateGuidelinePdf(
-        guideline: guideline,
-        patientNotes: 'Question for my appointment: should I take statins?',
-        outputDirectory: tempDir,
-      );
+    test(
+      'generates doctor visit summary PDF with recommendations and notes',
+      () async {
+        const exporter = GuidelinePdfExportService();
+        final guideline = ClinicalGuidelineCatalog.guidelines.first;
+        final file = await exporter.generateGuidelinePdf(
+          guideline: guideline,
+          patientNotes: 'Question for my appointment: should I take statins?',
+          outputDirectory: tempDir,
+        );
 
-      expect(file.existsSync(), isTrue);
-      expect(file.lengthSync(), greaterThan(1000));
-      expect(file.path.endsWith('.pdf'), isTrue);
-    });
+        expect(file.existsSync(), isTrue);
+        expect(file.lengthSync(), greaterThan(1000));
+        expect(file.path.endsWith('.pdf'), isTrue);
+      },
+    );
   });
 
   group('Guideline UI & Viewer Integration', () {
@@ -361,440 +377,494 @@ void main() {
       }
     });
 
-    testWidgets('downloads and removes guideline from guidelines library page', (tester) async {
-      tester.view.physicalSize = const Size(400, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'downloads and removes guideline from guidelines library page',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GuidelinesLibraryPage(storageService: service),
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          MaterialApp(home: GuidelinesLibraryPage(storageService: service)),
+        );
+        await tester.pumpAndSettle();
 
-      final scrollable = find.descendant(
-        of: find.byType(ListView),
-        matching: find.byType(Scrollable),
-      ).first;
+        final scrollable = find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first;
 
-      // Tap "Guidelines" mode chip
-      await tester.tap(find.byKey(const ValueKey('guideline-view-mode-guidelines')));
-      await tester.pumpAndSettle();
+        // Tap "Guidelines" mode chip
+        await tester.tap(
+          find.byKey(const ValueKey('guideline-view-mode-guidelines')),
+        );
+        await tester.pumpAndSettle();
 
-      final firstGuideline = ClinicalGuidelineCatalog.guidelines.first;
-      final downloadKey = ValueKey('guideline-download-${firstGuideline.id}');
+        final firstGuideline = ClinicalGuidelineCatalog.guidelines.first;
+        final downloadKey = ValueKey('guideline-download-${firstGuideline.id}');
 
-      await tester.scrollUntilVisible(
-        find.byKey(downloadKey),
-        100,
-        scrollable: scrollable,
-      );
-      await tester.ensureVisible(find.byKey(downloadKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(downloadKey), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.byKey(downloadKey),
+          100,
+          scrollable: scrollable,
+        );
+        await tester.ensureVisible(find.byKey(downloadKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(downloadKey), findsOneWidget);
 
-      // Download guideline
-      await tester.tap(find.byKey(downloadKey));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.pumpAndSettle();
+        // Download guideline
+        await tester.tap(find.byKey(downloadKey));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Downloaded "${firstGuideline.shortTitle}"'), findsOneWidget);
-      final deleteKey = ValueKey('guideline-delete-${firstGuideline.id}');
-      await tester.ensureVisible(find.byKey(deleteKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(deleteKey), findsOneWidget);
+        expect(
+          find.textContaining('Downloaded "${firstGuideline.shortTitle}"'),
+          findsOneWidget,
+        );
+        final deleteKey = ValueKey('guideline-delete-${firstGuideline.id}');
+        await tester.ensureVisible(find.byKey(deleteKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(deleteKey), findsOneWidget);
 
-      // Switch to Downloaded view mode
-      await tester.drag(scrollable, const Offset(0, 1000));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('guideline-view-mode-downloaded')));
-      await tester.pumpAndSettle();
-      expect(find.text(firstGuideline.title), findsOneWidget);
+        // Switch to Downloaded view mode
+        await tester.drag(scrollable, const Offset(0, 1000));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('guideline-view-mode-downloaded')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(firstGuideline.title), findsOneWidget);
 
-      // Remove download
-      await tester.ensureVisible(find.byKey(deleteKey));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(deleteKey));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Removed "${firstGuideline.shortTitle}"'), findsOneWidget);
-      expect(find.text('No downloaded guidelines'), findsOneWidget);
-    });
+        // Remove download
+        await tester.ensureVisible(find.byKey(deleteKey));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(deleteKey));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Removed "${firstGuideline.shortTitle}"'),
+          findsOneWidget,
+        );
+        expect(find.text('No downloaded guidelines'), findsOneWidget);
+      },
+    );
 
-    testWidgets('GuidelineViewerPage displays sections, recommendations, and search', (tester) async {
-      tester.view.physicalSize = const Size(400, 1200);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'GuidelineViewerPage displays sections, recommendations, and search',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 1200);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final guideline = ClinicalGuidelineCatalog.guidelines.first;
+        final guideline = ClinicalGuidelineCatalog.guidelines.first;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GuidelineViewerPage(
-            guideline: guideline,
-            storageService: service,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final scrollable = find.descendant(
-        of: find.byType(ListView),
-        matching: find.byType(Scrollable),
-      ).first;
-
-      expect(find.text(guideline.identifier), findsAtLeastNWidgets(1));
-      expect(find.text(guideline.title), findsOneWidget);
-      expect(find.text(guideline.publisher), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text(guideline.recommendations.first.title),
-        100,
-        scrollable: scrollable,
-      );
-      expect(find.textContaining('Key Recommendations'), findsOneWidget);
-      expect(find.text(guideline.recommendations.first.title), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.textContaining('Full Clinical Guidance'),
-        100,
-        scrollable: scrollable,
-      );
-      expect(find.textContaining('Full Clinical Guidance'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text(guideline.sections.first.title),
-        100,
-        scrollable: scrollable,
-      );
-      expect(find.text(guideline.sections.first.title), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.textContaining('Citation & Provenance'),
-        100,
-        scrollable: scrollable,
-      );
-      expect(find.textContaining('Citation & Provenance'), findsOneWidget);
-
-      // Search within guideline
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('guideline-viewer-search')),
-        -100,
-        scrollable: scrollable,
-      );
-      await tester.enterText(
-        find.byKey(const ValueKey('guideline-viewer-search')),
-        'lifestyle',
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Lifestyle advice across all stages'), findsOneWidget);
-
-      // Clear search
-      await tester.tap(find.byIcon(Icons.close));
-      await tester.pumpAndSettle();
-
-      // Download from viewer
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('guideline-viewer-download-toggle')),
-        -100,
-        scrollable: scrollable,
-      );
-      await tester.ensureVisible(find.byKey(const ValueKey('guideline-viewer-download-toggle')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('guideline-viewer-download-toggle')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Available offline on this device'), findsOneWidget);
-      expect(find.text('Remove'), findsOneWidget);
-    });
-
-    testWidgets('GuidelineViewerPage records patient notes and opens evidence guide modal', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      final guideline = ClinicalGuidelineCatalog.guidelines.first;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GuidelineViewerPage(
-            guideline: guideline,
-            storageService: service,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final scrollable = find.descendant(
-        of: find.byType(ListView),
-        matching: find.byType(Scrollable),
-      ).first;
-
-      // Open and verify Evidence Guide
-      await tester.scrollUntilVisible(
-        find.text('Evidence Guide'),
-        100,
-        scrollable: scrollable,
-      );
-      expect(find.text('Evidence Guide'), findsOneWidget);
-      await tester.tap(find.text('Evidence Guide'));
-      await tester.pumpAndSettle();
-      expect(find.text('Understanding Evidence Grades'), findsOneWidget);
-      expect(find.textContaining('USPSTF Letter Grades'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('close-evidence-guide-button')));
-      await tester.pumpAndSettle();
-
-      // Favorite toggle in AppBar
-      await tester.tap(find.byIcon(Icons.star_outline));
-      await tester.pumpAndSettle();
-      expect(await service.isFavorite(guideline.id), isTrue);
-      expect(find.byIcon(Icons.star), findsOneWidget);
-
-      // Add doctor visit notes
-      await tester.scrollUntilVisible(
-        find.text('Doctor Visit Discussion Notes'),
-        -100,
-        scrollable: scrollable,
-      );
-      expect(find.text('Doctor Visit Discussion Notes'), findsOneWidget);
-      await tester.ensureVisible(find.byIcon(Icons.add_circle_outline));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.add_circle_outline));
-      await tester.pumpAndSettle();
-      expect(find.text('Doctor Visit Questions & Notes'), findsOneWidget);
-
-      await tester.enterText(
-        find.byKey(const ValueKey('guideline-notes-input')),
-        'Ask about target blood pressure for elderly patient',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Save Note'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('Ask about target blood pressure for elderly patient'),
-        findsOneWidget,
-      );
-      expect(
-        await service.getGuidelineNotes(guideline.id),
-        'Ask about target blood pressure for elderly patient',
-      );
-    });
-
-    testWidgets('GuidelinesLibraryPage filters and toggles favorite guidelines', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GuidelinesLibraryPage(storageService: service),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final scrollable = find.descendant(
-        of: find.byType(ListView),
-        matching: find.byType(Scrollable),
-      ).first;
-
-      final favModeKey = const ValueKey('guideline-view-mode-favorites');
-      await tester.scrollUntilVisible(
-        find.byKey(favModeKey),
-        100,
-        scrollable: scrollable,
-      );
-      expect(find.byKey(favModeKey), findsOneWidget);
-
-      // Initially no favorites
-      await tester.tap(find.byKey(favModeKey));
-      await tester.pumpAndSettle();
-      expect(find.text('No favorite guidelines'), findsOneWidget);
-
-      // Return to All and favorite the first guideline
-      await tester.tap(find.byKey(const ValueKey('guideline-view-mode-all')));
-      await tester.pumpAndSettle();
-
-      final firstGuideline = ClinicalGuidelineCatalog.guidelines.first;
-      final favButtonKey = ValueKey('guideline-favorite-${firstGuideline.id}');
-      await tester.scrollUntilVisible(
-        find.byKey(favButtonKey),
-        100,
-        scrollable: scrollable,
-      );
-      await tester.ensureVisible(find.byKey(favButtonKey));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(favButtonKey));
-      await tester.pumpAndSettle();
-
-      // Return to top
-      await tester.scrollUntilVisible(
-        find.byKey(favModeKey),
-        -100,
-        scrollable: scrollable,
-      );
-      await tester.ensureVisible(find.byKey(favModeKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(favModeKey), findsOneWidget);
-      await tester.tap(find.byKey(favModeKey));
-      await tester.pumpAndSettle();
-
-      await tester.scrollUntilVisible(
-        find.text(firstGuideline.title),
-        100,
-        scrollable: scrollable,
-      );
-      expect(find.text(firstGuideline.title), findsOneWidget);
-    });
-
-    testWidgets('RecordDetailsSheet displays related guidelines for blood pressure', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      final record = HealthRecord(
-        id: 'test-bp-1',
-        name: 'Blood Pressure',
-        value: '138/88',
-        unit: 'mmHg',
-        recordedAt: DateTime.utc(2025, 6, 1, 10, 0),
-        category: RecordCategory.vital,
-        source: 'Manual entry',
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: RecordDetailsSheet(
-              record: record,
-              isNumeric: true,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: GuidelineViewerPage(
+              guideline: guideline,
+              storageService: service,
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final scrollable = find.descendant(
-        of: find.byType(SingleChildScrollView),
-        matching: find.byType(Scrollable),
-      ).first;
+        final scrollable = find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first;
 
-      await tester.scrollUntilVisible(
-        find.text('Evidence-Based Guidelines'),
-        100,
-        scrollable: scrollable,
-      );
-      expect(find.text('Evidence-Based Guidelines'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('related-guideline-nice-ng136-hypertension')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('browse-related-guidelines-button')),
-        findsOneWidget,
-      );
-    });
+        expect(find.text(guideline.identifier), findsAtLeastNWidgets(1));
+        expect(find.text(guideline.title), findsOneWidget);
+        expect(find.text(guideline.publisher), findsOneWidget);
 
-    testWidgets('HealthTrendsPage displays related guidelines for selected measurement series', (tester) async {
-      tester.view.physicalSize = const Size(390, 1000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.scrollUntilVisible(
+          find.text(guideline.recommendations.first.title),
+          100,
+          scrollable: scrollable,
+        );
+        expect(find.textContaining('Key Recommendations'), findsOneWidget);
+        expect(
+          find.text(guideline.recommendations.first.title),
+          findsOneWidget,
+        );
 
-      final records = [
-        HealthRecord(
-          id: 'bp:sys:1',
-          name: 'Blood Pressure Systolic',
-          value: '135',
+        await tester.scrollUntilVisible(
+          find.textContaining('Full Clinical Guidance'),
+          100,
+          scrollable: scrollable,
+        );
+        expect(find.textContaining('Full Clinical Guidance'), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text(guideline.sections.first.title),
+          100,
+          scrollable: scrollable,
+        );
+        expect(find.text(guideline.sections.first.title), findsOneWidget);
+
+        await tester.scrollUntilVisible(
+          find.textContaining('Citation & Provenance'),
+          100,
+          scrollable: scrollable,
+        );
+        expect(find.textContaining('Citation & Provenance'), findsOneWidget);
+
+        // Search within guideline
+        await tester.scrollUntilVisible(
+          find.byKey(const ValueKey('guideline-viewer-search')),
+          -100,
+          scrollable: scrollable,
+        );
+        await tester.enterText(
+          find.byKey(const ValueKey('guideline-viewer-search')),
+          'lifestyle',
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Lifestyle advice across all stages'), findsOneWidget);
+
+        // Clear search
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pumpAndSettle();
+
+        // Download from viewer
+        await tester.scrollUntilVisible(
+          find.byKey(const ValueKey('guideline-viewer-download-toggle')),
+          -100,
+          scrollable: scrollable,
+        );
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('guideline-viewer-download-toggle')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('guideline-viewer-download-toggle')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Available offline on this device'),
+          findsOneWidget,
+        );
+        expect(find.text('Remove'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'GuidelineViewerPage records patient notes and opens evidence guide modal',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final guideline = ClinicalGuidelineCatalog.guidelines.first;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: GuidelineViewerPage(
+              guideline: guideline,
+              storageService: service,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final scrollable = find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+
+        // Open and verify Evidence Guide
+        await tester.scrollUntilVisible(
+          find.text('Evidence Guide'),
+          100,
+          scrollable: scrollable,
+        );
+        expect(find.text('Evidence Guide'), findsOneWidget);
+        await tester.tap(find.text('Evidence Guide'));
+        await tester.pumpAndSettle();
+        expect(find.text('Understanding Evidence Grades'), findsOneWidget);
+        expect(find.textContaining('USPSTF Letter Grades'), findsOneWidget);
+        await tester.tap(
+          find.byKey(const ValueKey('close-evidence-guide-button')),
+        );
+        await tester.pumpAndSettle();
+
+        // Favorite toggle in AppBar
+        await tester.tap(find.byIcon(Icons.star_outline));
+        await tester.pumpAndSettle();
+        expect(await service.isFavorite(guideline.id), isTrue);
+        expect(find.byIcon(Icons.star), findsOneWidget);
+
+        // Add doctor visit notes
+        await tester.scrollUntilVisible(
+          find.text('Doctor Visit Discussion Notes'),
+          -100,
+          scrollable: scrollable,
+        );
+        expect(find.text('Doctor Visit Discussion Notes'), findsOneWidget);
+        await tester.ensureVisible(find.byIcon(Icons.add_circle_outline));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.add_circle_outline));
+        await tester.pumpAndSettle();
+        expect(find.text('Doctor Visit Questions & Notes'), findsOneWidget);
+
+        await tester.enterText(
+          find.byKey(const ValueKey('guideline-notes-input')),
+          'Ask about target blood pressure for elderly patient',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Save Note'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Ask about target blood pressure for elderly patient'),
+          findsOneWidget,
+        );
+        expect(
+          await service.getGuidelineNotes(guideline.id),
+          'Ask about target blood pressure for elderly patient',
+        );
+      },
+    );
+
+    testWidgets(
+      'GuidelinesLibraryPage filters and toggles favorite guidelines',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          MaterialApp(home: GuidelinesLibraryPage(storageService: service)),
+        );
+        await tester.pumpAndSettle();
+
+        final scrollable = find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+
+        final favModeKey = const ValueKey('guideline-view-mode-favorites');
+        await tester.scrollUntilVisible(
+          find.byKey(favModeKey),
+          100,
+          scrollable: scrollable,
+        );
+        expect(find.byKey(favModeKey), findsOneWidget);
+
+        // Initially no favorites
+        await tester.tap(find.byKey(favModeKey));
+        await tester.pumpAndSettle();
+        expect(find.text('No favorite guidelines'), findsOneWidget);
+
+        // Return to All and favorite the first guideline
+        await tester.tap(find.byKey(const ValueKey('guideline-view-mode-all')));
+        await tester.pumpAndSettle();
+
+        final firstGuideline = ClinicalGuidelineCatalog.guidelines.first;
+        final favButtonKey = ValueKey(
+          'guideline-favorite-${firstGuideline.id}',
+        );
+        await tester.scrollUntilVisible(
+          find.byKey(favButtonKey),
+          100,
+          scrollable: scrollable,
+        );
+        await tester.ensureVisible(find.byKey(favButtonKey));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(favButtonKey));
+        await tester.pumpAndSettle();
+
+        // Return to top
+        await tester.scrollUntilVisible(
+          find.byKey(favModeKey),
+          -100,
+          scrollable: scrollable,
+        );
+        await tester.ensureVisible(find.byKey(favModeKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(favModeKey), findsOneWidget);
+        await tester.tap(find.byKey(favModeKey));
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          find.text(firstGuideline.title),
+          100,
+          scrollable: scrollable,
+        );
+        expect(find.text(firstGuideline.title), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'RecordDetailsSheet displays related guidelines for blood pressure',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final record = HealthRecord(
+          id: 'test-bp-1',
+          name: 'Blood Pressure',
+          value: '138/88',
           unit: 'mmHg',
-          recordedAt: DateTime.utc(2025, 6, 1, 8, 0),
+          recordedAt: DateTime.utc(2025, 6, 1, 10, 0),
           category: RecordCategory.vital,
           source: 'Manual entry',
-        ),
-        HealthRecord(
-          id: 'bp:dia:1',
-          name: 'Blood Pressure Diastolic',
-          value: '85',
-          unit: 'mmHg',
-          recordedAt: DateTime.utc(2025, 6, 1, 8, 0),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: RecordDetailsSheet(record: record, isNumeric: true),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final scrollable = find
+            .descendant(
+              of: find.byType(SingleChildScrollView),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+
+        await tester.scrollUntilVisible(
+          find.text('Evidence-Based Guidelines'),
+          100,
+          scrollable: scrollable,
+        );
+        expect(find.text('Evidence-Based Guidelines'), findsOneWidget);
+        expect(
+          find.byKey(
+            const ValueKey('related-guideline-nice-ng136-hypertension'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('browse-related-guidelines-button')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'HealthTrendsPage displays related guidelines for selected measurement series',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 1000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final records = [
+          HealthRecord(
+            id: 'bp:sys:1',
+            name: 'Blood Pressure Systolic',
+            value: '135',
+            unit: 'mmHg',
+            recordedAt: DateTime.utc(2025, 6, 1, 8, 0),
+            category: RecordCategory.vital,
+            source: 'Manual entry',
+          ),
+          HealthRecord(
+            id: 'bp:dia:1',
+            name: 'Blood Pressure Diastolic',
+            value: '85',
+            unit: 'mmHg',
+            recordedAt: DateTime.utc(2025, 6, 1, 8, 0),
+            category: RecordCategory.vital,
+            source: 'Manual entry',
+          ),
+        ];
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: HealthTrendsPage(
+                records: records,
+                initialSeriesId: 'combined_blood_pressure',
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final scrollable = find
+            .descendant(
+              of: find.byType(CustomScrollView),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+
+        await tester.scrollUntilVisible(
+          find.text('Evidence-Based Guidelines'),
+          100,
+          scrollable: scrollable,
+        );
+        expect(find.text('Evidence-Based Guidelines'), findsOneWidget);
+        expect(
+          find.byKey(
+            const ValueKey('related-guideline-nice-ng136-hypertension'),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'RecordRow displays guideline badge for matching clinical records',
+      (tester) async {
+        final ckdRecord = HealthRecord(
+          id: 'rec-ckd-1',
+          name: 'eGFR',
+          value: '58',
+          unit: 'mL/min/1.73m2',
+          recordedAt: DateTime.utc(2025, 6, 1, 9, 0),
+          category: RecordCategory.lab,
+          source: 'LabCorp',
+          code: '33914-3',
+        );
+
+        final unlinkedRecord = HealthRecord(
+          id: 'rec-unlinked-1',
+          name: 'Random Unmapped Observation',
+          value: 'Normal',
+          unit: '',
+          recordedAt: DateTime.utc(2025, 6, 1, 9, 0),
           category: RecordCategory.vital,
           source: 'Manual entry',
-        ),
-      ];
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: HealthTrendsPage(
-              records: records,
-              initialSeriesId: 'combined_blood_pressure',
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Column(
+                children: [
+                  RecordRow(record: ckdRecord, isLast: false),
+                  RecordRow(record: unlinkedRecord, isLast: true),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final scrollable = find.descendant(
-        of: find.byType(CustomScrollView),
-        matching: find.byType(Scrollable),
-      ).first;
-
-      await tester.scrollUntilVisible(
-        find.text('Evidence-Based Guidelines'),
-        100,
-        scrollable: scrollable,
-      );
-      expect(find.text('Evidence-Based Guidelines'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('related-guideline-nice-ng136-hypertension')),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('RecordRow displays guideline badge for matching clinical records', (tester) async {
-      final ckdRecord = HealthRecord(
-        id: 'rec-ckd-1',
-        name: 'eGFR',
-        value: '58',
-        unit: 'mL/min/1.73m2',
-        recordedAt: DateTime.utc(2025, 6, 1, 9, 0),
-        category: RecordCategory.lab,
-        source: 'LabCorp',
-        code: '33914-3',
-      );
-
-      final unlinkedRecord = HealthRecord(
-        id: 'rec-unlinked-1',
-        name: 'Random Unmapped Observation',
-        value: 'Normal',
-        unit: '',
-        recordedAt: DateTime.utc(2025, 6, 1, 9, 0),
-        category: RecordCategory.vital,
-        source: 'Manual entry',
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Column(
-              children: [
-                RecordRow(record: ckdRecord, isLast: false),
-                RecordRow(record: unlinkedRecord, isLast: true),
-              ],
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Guideline'), findsOneWidget);
-      expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
-    });
+        expect(find.text('Guideline'), findsOneWidget);
+        expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
+      },
+    );
   });
 }
