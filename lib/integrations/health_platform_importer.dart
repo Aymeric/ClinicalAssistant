@@ -215,7 +215,9 @@ class HealthPlatformImporter {
         ),
       );
       completedSteps++;
-      report('Read Health Connect laboratory results (${records.length} records)');
+      report(
+        'Read Health Connect laboratory results (${records.length} records)',
+      );
     }
     if (records.length > 500) {
       onProgress?.call(
@@ -228,10 +230,7 @@ class HealthPlatformImporter {
     }
     records.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     onProgress?.call(
-      ImportProgress(
-        fraction: 1,
-        message: 'Read ${records.length} records',
-      ),
+      ImportProgress(fraction: 1, message: 'Read ${records.length} records'),
     );
     return records;
   }

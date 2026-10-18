@@ -84,11 +84,7 @@ class RelatedGuidelinesSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.menu_book_outlined,
-                size: 18,
-                color: colors.primary,
-              ),
+              Icon(Icons.menu_book_outlined, size: 18, color: colors.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
