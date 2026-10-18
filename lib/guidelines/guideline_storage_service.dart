@@ -10,8 +10,8 @@ class GuidelineStorageService {
   GuidelineStorageService({
     Directory? storageDirectory,
     http.Client? httpClient,
-  })  : _explicitDirectory = storageDirectory,
-        _client = httpClient;
+  }) : _explicitDirectory = storageDirectory,
+       _client = httpClient;
 
   final Directory? _explicitDirectory;
   final http.Client? _client;
@@ -31,7 +31,9 @@ class GuidelineStorageService {
       return guidelinesDir;
     } catch (_) {
       // Fallback for tests or environments without path_provider channel
-      final tempDir = Directory.systemTemp.createTempSync('clinical_guidelines_');
+      final tempDir = Directory.systemTemp.createTempSync(
+        'clinical_guidelines_',
+      );
       _resolvedDirectory = tempDir;
       return tempDir;
     }
@@ -46,6 +48,13 @@ class GuidelineStorageService {
     ClinicalGuideline guideline, {
     http.Client? client,
   }) async {
+    // Security: Enforce HTTPS scheme to prevent downloading guidelines over cleartext HTTP
+    if (guideline.downloadUrl.scheme != 'https') {
+      throw ArgumentError(
+        'Guideline download URL must use HTTPS transport security.',
+      );
+    }
+
     final dir = await directory;
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);
