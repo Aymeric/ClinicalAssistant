@@ -37,7 +37,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.aymericgrassart.clinicalassistant</string>
+				<string>com.cidevelop.clinicalAssistant</string>
 			</array>
 		</dict>
 	</array>

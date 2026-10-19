@@ -19,7 +19,7 @@ class FhirProviderPreset {
   final String? instructions;
 
   static const String appRedirectUri =
-      'com.aymericgrassart.clinicalassistant:/oauth2redirect';
+      'com.cidevelop.clinicalAssistant:/oauth2redirect';
 
   /// Standard curated list of developer sandboxes and healthcare gateways.
   static const List<FhirProviderPreset> standardPresets = [

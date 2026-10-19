@@ -44,7 +44,7 @@ Focus: Hardening current functionality, platform compliance, and production veri
 - [x] **Curated Guidelines Library**: Offline directory and structured viewer for international clinical guidelines (NICE, USPSTF, WHO, etc.) with personal consultation notes.
 - [x] **EHR Developer Portal Registrations & Sandbox Directory**:
   - [x] Curate developer gateway presets (SMART Health IT, Epic on FHIR Sandbox, Oracle Health / Cerner Millennium, Logica Health).
-  - [x] Quick-preset selector in FHIR connection form with registration guidance and copyable OAuth redirect URI `com.aymericgrassart.clinicalassistant:/oauth2redirect`.
+  - [x] Quick-preset selector in FHIR connection form with registration guidance and copyable OAuth redirect URI `com.cidevelop.clinicalAssistant:/oauth2redirect`.
 - [x] **Release Infrastructure & Privacy**:
   - [x] Publish standalone, public-facing Privacy Policy ([PRIVACY.md](PRIVACY.md)) emphasizing local-only data retention and zero cloud telemetry.
   - [x] In-app Privacy & Data Governance view with health permissions rationale.

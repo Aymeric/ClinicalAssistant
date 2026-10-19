@@ -127,7 +127,7 @@ enters the provider's HTTPS FHIR base URL and an OAuth client ID registered for
 this app's redirect URI:
 
 ```text
-com.aymericgrassart.clinicalassistant:/oauth2redirect
+com.cidevelop.clinicalAssistant:/oauth2redirect
 ```
 
 The server must expose SMART-on-FHIR configuration, authorize standalone
