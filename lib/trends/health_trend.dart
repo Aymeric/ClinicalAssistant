@@ -393,12 +393,37 @@ final _referenceThresholdPattern = RegExp(
 );
 final _multipleWhitespacePattern = RegExp(r'\s+');
 
+/// Bounded cache for parsed reference ranges to avoid executing expensive regular expressions
+/// repeatedly across rendering loops, list items, and summary calculations.
+final Map<String, HealthReferenceRange?> _referenceRangeCache = {};
+const _maxReferenceRangeCacheSize = 256;
+
 HealthReferenceRange? parseHealthReferenceRange(
   String? sourceText, {
   String expectedUnit = '',
 }) {
   if (sourceText == null || sourceText.trim().isEmpty) return null;
   final text = sourceText.trim();
+  final cacheKey = '$text\u0000$expectedUnit';
+  if (_referenceRangeCache.containsKey(cacheKey)) {
+    return _referenceRangeCache[cacheKey];
+  }
+
+  final parsed = _parseHealthReferenceRangeUncached(
+    text,
+    expectedUnit: expectedUnit,
+  );
+  if (_referenceRangeCache.length >= _maxReferenceRangeCacheSize) {
+    _referenceRangeCache.remove(_referenceRangeCache.keys.first);
+  }
+  _referenceRangeCache[cacheKey] = parsed;
+  return parsed;
+}
+
+HealthReferenceRange? _parseHealthReferenceRangeUncached(
+  String text, {
+  required String expectedUnit,
+}) {
   final range = _referenceRangePattern.firstMatch(text);
   if (range != null) {
     final unit = range.namedGroup('unit')!.trim();
@@ -461,9 +486,16 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 
 bool _referenceUnitsMatch(String rangeUnit, String expectedUnit) {
   if (expectedUnit.isEmpty || rangeUnit.isEmpty) return true;
+  if (rangeUnit == expectedUnit) return true;
+  final rangeTrimmed = rangeUnit.trim();
+  final expectedTrimmed = expectedUnit.trim();
+  if (rangeTrimmed == expectedTrimmed) return true;
+  if (!rangeTrimmed.contains(' ') && !expectedTrimmed.contains(' ')) {
+    return false;
+  }
   String normalize(String unit) =>
       unit.trim().replaceAll(_multipleWhitespacePattern, ' ');
-  return normalize(rangeUnit) == normalize(expectedUnit);
+  return normalize(rangeTrimmed) == normalize(expectedTrimmed);
 }
 
 List<HealthTrendPoint> pointsWithinRange(
