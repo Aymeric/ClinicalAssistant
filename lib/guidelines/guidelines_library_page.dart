@@ -8,13 +8,7 @@ import 'guideline_source.dart';
 import 'guideline_storage_service.dart';
 import 'guideline_viewer_page.dart';
 
-enum GuidelineViewMode {
-  all,
-  guidelines,
-  favorites,
-  downloaded,
-  publishers,
-}
+enum GuidelineViewMode { all, guidelines, favorites, downloaded, publishers }
 
 extension GuidelineViewModeLabel on GuidelineViewMode {
   String get label => switch (this) {
@@ -270,10 +264,7 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: colors.primary,
-                  ),
+                  Icon(Icons.info_outline, color: colors.primary),
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
@@ -322,17 +313,14 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
               for (final mode in GuidelineViewMode.values)
                 ChoiceChip(
                   key: ValueKey('guideline-view-mode-${mode.name}'),
-                  label: Text(
-                    switch (mode) {
-                      GuidelineViewMode.downloaded
-                          when _downloadedIds.isNotEmpty =>
-                        '${mode.label} (${_downloadedIds.length})',
-                      GuidelineViewMode.favorites
-                          when _favoriteIds.isNotEmpty =>
-                        '${mode.label} (${_favoriteIds.length})',
-                      _ => mode.label,
-                    },
-                  ),
+                  label: Text(switch (mode) {
+                    GuidelineViewMode.downloaded
+                        when _downloadedIds.isNotEmpty =>
+                      '${mode.label} (${_downloadedIds.length})',
+                    GuidelineViewMode.favorites when _favoriteIds.isNotEmpty =>
+                      '${mode.label} (${_favoriteIds.length})',
+                    _ => mode.label,
+                  }),
                   selected: _viewMode == mode,
                   onSelected: (_) => setState(() => _viewMode = mode),
                 ),
@@ -389,7 +377,8 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
           const SizedBox(height: 16),
 
           // Offline downloads & favorites summary card
-          if (!_loadingDownloads && (_downloadedIds.isNotEmpty || _favoriteIds.isNotEmpty)) ...[
+          if (!_loadingDownloads &&
+              (_downloadedIds.isNotEmpty || _favoriteIds.isNotEmpty)) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
@@ -402,9 +391,7 @@ class _GuidelinesLibraryPageState extends State<GuidelinesLibraryPage> {
               child: Row(
                 children: [
                   Icon(
-                    _downloadedIds.isNotEmpty
-                        ? Icons.offline_pin
-                        : Icons.star,
+                    _downloadedIds.isNotEmpty ? Icons.offline_pin : Icons.star,
                     color: colors.primary,
                     size: 20,
                   ),
@@ -651,10 +638,7 @@ class _ClinicalGuidelineCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text(
-                    guideline.summary,
-                    style: theme.textTheme.bodyMedium,
-                  ),
+                  Text(guideline.summary, style: theme.textTheme.bodyMedium),
                   const SizedBox(height: 10),
                   Text(
                     'Key guidance: ${guideline.recommendations.first.text}',
@@ -685,59 +669,59 @@ class _ClinicalGuidelineCard extends StatelessWidget {
                     color: colors.onSurfaceVariant,
                   ),
                 ),
-                  Wrap(
-                    spacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
+                Wrap(
+                  spacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    IconButton(
+                      key: ValueKey('guideline-favorite-${guideline.id}'),
+                      tooltip: isFavorite
+                          ? 'Remove from favorites'
+                          : 'Save to favorites',
+                      icon: Icon(
+                        isFavorite ? Icons.star : Icons.star_border,
+                        color: isFavorite ? Colors.amber[700] : null,
+                        size: 20,
+                      ),
+                      onPressed: onToggleFavorite,
+                    ),
+                    if (isDownloaded)
                       IconButton(
-                        key: ValueKey('guideline-favorite-${guideline.id}'),
-                        tooltip: isFavorite
-                            ? 'Remove from favorites'
-                            : 'Save to favorites',
-                        icon: Icon(
-                          isFavorite ? Icons.star : Icons.star_border,
-                          color: isFavorite ? Colors.amber[700] : null,
-                          size: 20,
-                        ),
-                        onPressed: onToggleFavorite,
+                        key: ValueKey('guideline-delete-${guideline.id}'),
+                        tooltip: 'Remove download',
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        onPressed: onRemove,
+                      )
+                    else
+                      TextButton.icon(
+                        key: ValueKey('guideline-download-${guideline.id}'),
+                        onPressed: isDownloading ? null : onDownload,
+                        icon: isDownloading
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.download, size: 18),
+                        label: const Text('Download'),
                       ),
-                      if (isDownloaded)
-                        IconButton(
-                          key: ValueKey('guideline-delete-${guideline.id}'),
-                          tooltip: 'Remove download',
-                          icon: const Icon(Icons.delete_outline, size: 18),
-                          onPressed: onRemove,
-                        )
-                      else
-                        TextButton.icon(
-                          key: ValueKey('guideline-download-${guideline.id}'),
-                          onPressed: isDownloading ? null : onDownload,
-                          icon: isDownloading
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.download, size: 18),
-                          label: const Text('Download'),
-                        ),
-                      FilledButton.tonal(
-                        key: ValueKey('guideline-view-${guideline.id}'),
-                        onPressed: onView,
-                        child: const Text('View'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    FilledButton.tonal(
+                      key: ValueKey('guideline-view-${guideline.id}'),
+                      onPressed: onView,
+                      child: const Text('View'),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
   }
+}
 
 class _GuidelineSourceCard extends StatelessWidget {
   const _GuidelineSourceCard({required this.source, required this.onOpen});
@@ -869,42 +853,35 @@ class _NoGuidelineSources extends StatelessWidget {
     final icon = isFavoriteFilter
         ? Icons.star_border
         : (isDownloadedFilter
-            ? Icons.download_for_offline_outlined
-            : Icons.search_off);
+              ? Icons.download_for_offline_outlined
+              : Icons.search_off);
 
     final title = isFavoriteFilter
         ? 'No favorite guidelines'
         : (isDownloadedFilter
-            ? 'No downloaded guidelines'
-            : 'No matching sources');
+              ? 'No downloaded guidelines'
+              : 'No matching sources');
 
     final message = isFavoriteFilter
         ? 'Tap the star icon on any guideline to save it to your favorites.'
         : (isDownloadedFilter
-            ? 'Tap "Download" on any clinical guideline to read it offline.'
-            : 'Try another search or change the filters.');
+              ? 'Tap "Download" on any clinical guideline to read it offline.'
+              : 'Try another search or change the filters.');
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 36,
-              color: colors.onSurfaceVariant,
-            ),
+            Icon(icon, size: 36, color: colors.onSurfaceVariant),
             const SizedBox(height: 10),
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colors.onSurfaceVariant,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             if ((isDownloadedFilter || isFavoriteFilter) &&

@@ -56,10 +56,7 @@ class GuidelinePdfExportService {
                 ),
                 pw.Text(
                   'ID: ${guideline.identifier} · ${guideline.publisher}',
-                  style: pw.TextStyle(
-                    fontSize: 8,
-                    color: _subtleText,
-                  ),
+                  style: pw.TextStyle(fontSize: 8, color: _subtleText),
                 ),
               ],
             ),
@@ -177,10 +174,7 @@ class GuidelinePdfExportService {
                     'Published: ${_formatDate(guideline.publishedDate)}'
                     '${guideline.lastUpdatedDate != null ? ' · Updated: ${_formatDate(guideline.lastUpdatedDate!)}' : ''}'
                     ' · Exported: ${_formatDate(effectiveGeneratedAt)}',
-                    style: pw.TextStyle(
-                      fontSize: 8,
-                      color: _subtleText,
-                    ),
+                    style: pw.TextStyle(fontSize: 8, color: _subtleText),
                   ),
                 ],
               ),
@@ -215,10 +209,7 @@ class GuidelinePdfExportService {
                     pw.SizedBox(height: 5),
                     pw.Text(
                       notes,
-                      style: const pw.TextStyle(
-                        fontSize: 9,
-                        lineSpacing: 2,
-                      ),
+                      style: const pw.TextStyle(fontSize: 9, lineSpacing: 2),
                     ),
                   ],
                 ),
@@ -238,14 +229,14 @@ class GuidelinePdfExportService {
             pw.SizedBox(height: 6),
             pw.Text(
               guideline.summary,
-              style: const pw.TextStyle(
-                fontSize: 9,
-                lineSpacing: 2.2,
-              ),
+              style: const pw.TextStyle(fontSize: 9, lineSpacing: 2.2),
             ),
             pw.SizedBox(height: 6),
             pw.Container(
-              padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const pw.EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
               decoration: pw.BoxDecoration(
                 color: _neutralBg,
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
@@ -293,7 +284,9 @@ class GuidelinePdfExportService {
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.white,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(6),
+                  ),
                   border: pw.Border.all(color: _borderColor, width: 0.6),
                 ),
                 child: pw.Column(
@@ -370,7 +363,9 @@ class GuidelinePdfExportService {
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   color: _neutralBg,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(6),
+                  ),
                   border: pw.Border.all(color: _borderColor, width: 0.6),
                 ),
                 child: pw.Column(
@@ -428,10 +423,7 @@ class GuidelinePdfExportService {
                   pw.SizedBox(height: 4),
                   pw.Text(
                     'Online Reference: ${guideline.webUrl}',
-                    style: pw.TextStyle(
-                      fontSize: 7.5,
-                      color: _accentColor,
-                    ),
+                    style: pw.TextStyle(fontSize: 7.5, color: _accentColor),
                   ),
                 ],
               ),
@@ -442,8 +434,10 @@ class GuidelinePdfExportService {
     );
 
     final dir = outputDirectory ?? await _resolveOutputDirectory();
-    final sanitizedId =
-        guideline.id.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+    final sanitizedId = guideline.id.replaceAll(
+      RegExp(r'[^a-zA-Z0-9_\-]'),
+      '_',
+    );
     final file = File('${dir.path}/guideline_$sanitizedId.pdf');
     await file.writeAsBytes(await pdf.save(), flush: true);
     return file;

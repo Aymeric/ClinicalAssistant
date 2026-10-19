@@ -1024,8 +1024,9 @@ class _FhirConnectionFormState extends State<FhirConnectionForm> {
       _baseController.text = values[0] ?? '';
       _clientController.text = values[1] ?? '';
       if (_baseController.text.isNotEmpty) {
-        final matchedPreset =
-            FhirProviderPreset.findByBaseUrl(_baseController.text);
+        final matchedPreset = FhirProviderPreset.findByBaseUrl(
+          _baseController.text,
+        );
         _selectedPresetId = matchedPreset?.id ?? 'custom';
       }
       final hasSavedRefreshToken =
@@ -1162,10 +1163,7 @@ class _FhirConnectionFormState extends State<FhirConnectionForm> {
                   ...FhirProviderPreset.standardPresets.map(
                     (preset) => DropdownMenuItem(
                       value: preset.id,
-                      child: Text(
-                        preset.name,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: Text(preset.name, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ],
@@ -1187,15 +1185,19 @@ class _FhirConnectionFormState extends State<FhirConnectionForm> {
                         });
                       },
               ),
-              if (_selectedPresetId != null && _selectedPresetId != 'custom') ...[
+              if (_selectedPresetId != null &&
+                  _selectedPresetId != 'custom') ...[
                 const SizedBox(height: 12),
                 Builder(
                   builder: (context) {
                     final preset = FhirProviderPreset.standardPresets
                         .firstWhere((p) => p.id == _selectedPresetId);
-                    if (preset.instructions == null) return const SizedBox.shrink();
+                    if (preset.instructions == null)
+                      return const SizedBox.shrink();
                     return Card(
-                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.35),
+                      color: theme.colorScheme.secondaryContainer.withValues(
+                        alpha: 0.35,
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -1225,9 +1227,14 @@ class _FhirConnectionFormState extends State<FhirConnectionForm> {
               ],
               const SizedBox(height: 12),
               Card(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.45,
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       const Icon(Icons.link, size: 18),

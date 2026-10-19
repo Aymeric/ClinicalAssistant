@@ -10,9 +10,7 @@ class PrivacyPolicyPage extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Privacy & Data Governance'),
-      ),
+      appBar: AppBar(title: const Text('Privacy & Data Governance')),
       body: PageContent(
         children: [
           Card(
