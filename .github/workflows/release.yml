@@ -151,15 +151,16 @@ jobs:
           echo "Release notes:"
           cat distribution/whatsnew/whatsnew-en-US
 
+      - name: Check Google Play credentials status
+        if: ${{ secrets.PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON == '' }}
+        run: echo "::warning::PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON secret not configured; skipping upload to Google Play Store."
+
       - name: Publish to Google Play Store
-        if: env.PLAY_STORE_JSON != '' && env.PLAY_TRACK != 'none'
+        if: ${{ secrets.PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON != '' && (github.event.inputs.play_track != 'none') }}
         uses: r0adkll/upload-google-play@v1.1.5
-        env:
-          PLAY_STORE_JSON: ${{ secrets.PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON }}
-          PLAY_TRACK: ${{ github.event.inputs.play_track || 'internal' }}
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON }}
-          packageName: ${{ secrets.ANDROID_PACKAGE_NAME || 'com.example.clinical_assistant' }}
+          packageName: ${{ vars.ANDROID_PACKAGE_NAME || secrets.ANDROID_PACKAGE_NAME || 'com.cidevelop.clinicalassistant' }}
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           track: ${{ github.event.inputs.play_track || 'internal' }}
           status: 'completed'
@@ -203,15 +204,17 @@ jobs:
           pod install
 
       - name: Configure iOS Signing Keychain & Profiles
+        id: ios_signing
         env:
           CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
           PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           EXPORT_OPTIONS_PLIST: ${{ secrets.IOS_EXPORT_OPTIONS_PLIST }}
-          BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID || 'com.cidevelop.clinicalAssistant' }}
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || secrets.IOS_BUNDLE_ID || 'com.cidevelop.clinicalAssistant' }}
+          TEAM_ID: ${{ vars.APPLE_TEAM_ID || secrets.APPLE_TEAM_ID || '2247Y6M95E' }}
         run: |
           if [ -n "$CERTIFICATE_BASE64" ] && [ -n "$PROVISIONING_PROFILE_BASE64" ]; then
+            echo "has_signing=true" >> "$GITHUB_OUTPUT"
             # Decode certificate
             echo "$CERTIFICATE_BASE64" | base64 --decode > certificate.p12
 
@@ -273,33 +276,25 @@ jobs:
             sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID; PROVISIONING_PROFILE = $PROFILE_UUID;/g" ios/Runner.xcodeproj/project.pbxproj
             echo "iOS signing and ExportOptions configured."
           else
-            echo "iOS signing credentials not fully provided; creating default ExportOptions for unmanaged export."
-            cat <<EOF > ios/ExportOptions.plist
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>destination</key>
-              <string>export</string>
-              <key>method</key>
-              <string>app-store</string>
-              <key>uploadSymbols</key>
-              <true/>
-          </dict>
-          </plist>
-          EOF
+            echo "has_signing=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::iOS signing credentials (IOS_DISTRIBUTION_CERTIFICATE_BASE64, IOS_PROVISIONING_PROFILE_BASE64) not provided; skipping signed IPA export."
           fi
 
-      - name: Build iOS IPA
+      - name: Build iOS Archive & IPA
         run: |
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --build-number=${{ github.run_number }}
+          if [ "${{ steps.ios_signing.outputs.has_signing }}" = "true" ]; then
+            flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --build-number=${{ github.run_number }}
+          else
+            flutter build ipa --release --no-codesign --build-number=${{ github.run_number }}
+          fi
 
       - name: Upload iOS IPA Artifact
+        if: ${{ steps.ios_signing.outputs.has_signing == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: release-ipa
           path: build/ios/ipa/*.ipa
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Prepare TestFlight What-To-Test Notes
         env:
@@ -319,11 +314,15 @@ jobs:
       - name: Check Apple Deployment Credentials
         id: apple_creds
         run: |
-          echo "has_api_key=${{ secrets.APP_STORE_CONNECT_API_KEY_ID != '' && secrets.APP_STORE_CONNECT_API_ISSUER_ID != '' }}" >> "$GITHUB_OUTPUT"
+          echo "has_api_key=${{ secrets.APP_STORE_CONNECT_API_KEY_ID != '' && secrets.APP_STORE_CONNECT_API_ISSUER_ID != '' && secrets.APP_STORE_CONNECT_API_PRIVATE_KEY != '' }}" >> "$GITHUB_OUTPUT"
           echo "has_password=${{ secrets.APP_STORE_CONNECT_USERNAME != '' && secrets.APP_STORE_CONNECT_PASSWORD != '' }}" >> "$GITHUB_OUTPUT"
 
+      - name: Warn Missing Apple Deployment Credentials
+        if: ${{ (steps.ios_signing.outputs.has_signing == 'true') && (steps.apple_creds.outputs.has_api_key != 'true') && (steps.apple_creds.outputs.has_password != 'true') }}
+        run: echo "::warning::App Store Connect API credentials or app-specific password not configured; skipping upload to Apple TestFlight / App Store."
+
       - name: Upload to Apple TestFlight / App Store (API Key)
-        if: ${{ (github.event.inputs.deploy_apple != 'false') && (steps.apple_creds.outputs.has_api_key == 'true') }}
+        if: ${{ (steps.ios_signing.outputs.has_signing == 'true') && (github.event.inputs.deploy_apple != 'false') && (steps.apple_creds.outputs.has_api_key == 'true') }}
         uses: apple-actions/upload-testflight-build@v5
         with:
           app-path: build/ios/ipa/*.ipa
@@ -332,7 +331,7 @@ jobs:
           api-private-key: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
 
       - name: Upload to Apple TestFlight (App-Specific Password Fallback)
-        if: ${{ (github.event.inputs.deploy_apple != 'false') && (steps.apple_creds.outputs.has_api_key != 'true') && (steps.apple_creds.outputs.has_password == 'true') }}
+        if: ${{ (steps.ios_signing.outputs.has_signing == 'true') && (github.event.inputs.deploy_apple != 'false') && (steps.apple_creds.outputs.has_api_key != 'true') && (steps.apple_creds.outputs.has_password == 'true') }}
         run: |
           IPA_FILE=$(ls build/ios/ipa/*.ipa | head -n 1)
           xcrun altool --upload-app --type ios -f "$IPA_FILE" \
@@ -356,9 +355,9 @@ jobs:
       - name: Organize release files
         run: |
           mkdir -p dist
-          find release-artifacts -name "*.apk" -exec cp {} dist/ \;
-          find release-artifacts -name "*.aab" -exec cp {} dist/ \;
-          find release-artifacts -name "*.ipa" -exec cp {} dist/ \;
+          find release-artifacts -name "*.apk" -exec cp {} dist/ \; 2>/dev/null || true
+          find release-artifacts -name "*.aab" -exec cp {} dist/ \; 2>/dev/null || true
+          find release-artifacts -name "*.ipa" -exec cp {} dist/ \; 2>/dev/null || true
           ls -la dist/
 
       - name: Create or Update GitHub Release
@@ -369,7 +368,4 @@ jobs:
           tag_name: ${{ github.ref_name }}
           draft: ${{ github.event.inputs.draft_release == 'true' }}
           generate_release_notes: true
-          files: |
-            dist/*.apk
-            dist/*.aab
-            dist/*.ipa
+          files: dist/*

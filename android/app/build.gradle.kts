@@ -16,7 +16,7 @@ if (keystorePropertiesFile != null && keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.clinical_assistant"
+    namespace = "com.cidevelop.clinicalassistant"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -27,8 +27,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.clinical_assistant"
+        applicationId = "com.cidevelop.clinicalassistant"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 28

@@ -41,7 +41,7 @@ Navigate to your repository on GitHub:
 | `ANDROID_KEY_ALIAS` | Alias name for the upload key | (e.g., `upload` or `clinical_assistant`) |
 | `ANDROID_KEY_PASSWORD` | Password for the key alias | Provided during keystore generation |
 | `PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON` | Google Play Service Account JSON key | Google Cloud Console → Service Accounts with Google Play Developer API permissions |
-| `ANDROID_PACKAGE_NAME` *(optional)* | Application ID in Google Play Console | Defaults to `com.example.clinical_assistant` |
+| `ANDROID_PACKAGE_NAME` *(optional)* | Application ID in Google Play Console | Defaults to `com.cidevelop.clinicalassistant` |
 
 #### Generating an Android Keystore (if you do not have one):
 ```bash

@@ -1192,8 +1192,9 @@ class _FhirConnectionFormState extends State<FhirConnectionForm> {
                   builder: (context) {
                     final preset = FhirProviderPreset.standardPresets
                         .firstWhere((p) => p.id == _selectedPresetId);
-                    if (preset.instructions == null)
+                    if (preset.instructions == null) {
                       return const SizedBox.shrink();
+                    }
                     return Card(
                       color: theme.colorScheme.secondaryContainer.withValues(
                         alpha: 0.35,

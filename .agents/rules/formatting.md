@@ -1,4 +1,4 @@
-# Code Formatting Verification Rule
+# Code Formatting & Static Analysis Verification Rule
 
 ## Scope
 This rule applies to all Dart code (`.dart` files) in this workspace.
@@ -10,5 +10,8 @@ Whenever any Dart file is created, edited, or refactored:
    ```bash
    dart format --output=none --set-exit-if-changed .
    ```
-3. **No Unformatted Code**: Never conclude a response or mark a task as complete if any Dart file has unformatted code or formatting discrepancies.
-4. **Static Analysis & Syntax Check**: If formatting reports any issues or fails, inspect and resolve syntax or formatting errors before concluding.
+3. **Verify Static Analysis**: Ensure code passes strict analysis matching CI:
+   ```bash
+   flutter analyze --fatal-infos --fatal-warnings
+   ```
+4. **No Unformatted Code or Lints**: Never conclude a response or mark a task as complete if any Dart file has unformatted code or analyzer warnings/infos.

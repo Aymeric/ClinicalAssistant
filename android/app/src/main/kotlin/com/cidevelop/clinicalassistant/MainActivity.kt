@@ -1,4 +1,4 @@
-package com.example.clinical_assistant
+package com.cidevelop.clinicalassistant
 
 import androidx.activity.result.ActivityResultLauncher
 import io.flutter.embedding.android.FlutterFragmentActivity
