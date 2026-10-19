@@ -21,13 +21,14 @@ All roadmap features and architectural decisions must strictly adhere to the fou
 | :--- | :--- | :--- | :--- |
 | **v1.0** | **Store Readiness & Hardening** | On-device AES-GCM vault, HealthKit / Health Connect ingestion, SMART-on-FHIR presets, standalone privacy policy | **Current Phase** |
 | **v1.1** | **Clinical Scope & Document OCR** | `Condition`, `Immunization`, `AllergyIntolerance`, `Procedure`, offline paper lab OCR, Rx bottle barcode scanner | Near-Term |
-| **v1.2** | **Lab Panels, PROMs & Visit Prep** | Grouped clinical panels (CBC, CMP, Lipid), validated survey scales (PHQ-9, GAD-7), visit preparation wizard | Near-Term |
+| **v1.2** | **Lab Panels, PROMs & Drug Interactions** | Grouped clinical panels (CBC, CMP, Lipid), survey scales (PHQ-9, GAD-7), offline drug-drug & food-drug interaction check | Near-Term |
 | **v1.3** | **Zero-Knowledge Portability & Backup** | Argon2id encrypted backups, private cloud sync (WebDAV, Nextcloud, iCloud, Google Drive), Shamir's ICE keys | Mid-Term |
 | **v1.4** | **Specialized Clinical Domains** | AHA/ACC blood pressure staging, CGM Ambulatory Glucose Profiles (AGP), CKD/eGFR staging, mobility biomarkers | Mid-Term |
 | **v1.5** | **Caregiver Modes & In-Clinic Share** | Multi-profile family vaults, pediatric schedules, ephemeral local Wi-Fi / QR clinician web dashboard | Mid-Term |
-| **v2.0** | **Global Interop & Pharmacogenomics** | International Patient Summary (IPS), SMART Health Cards (SHC), C-CDA 2.1 documents, offline CPIC PGx guidance | Long-Term |
-| **v2.1** | **Direct BLE Medical Peripherals** | Bluetooth GATT direct pairing (blood pressure cuffs, pulse oximeters, glucometers, weight scales) | Long-Term |
-| **v2.2+** | **Private On-Device AI & Research** | On-device SLM (Gemini Nano / MediaPipe) clinical note translation, Synthea generator, desktop companion | Future Vision |
+| **v2.0** | **Global Interop & Pharmacogenomics** | International Patient Summary (IPS), SMART Health Cards (SHC), Apple/Google Wallet passes, offline CPIC PGx guidance | Long-Term |
+| **v2.1** | **Direct BLE Devices & Watch Apps** | Bluetooth GATT direct pairing (cuffs, glucometers, scales), Apple Watch & Wear OS standalone logging companions | Long-Term |
+| **v2.2** | **Medical Imaging, Sleep & Lifeline** | Local DICOM viewer (MRI/CT/X-Ray), multi-track clinical lifeline, sleep architecture, complex titration regimens, Advance Directives (POLST) | Long-Term |
+| **v2.3+** | **Private On-Device AI & Research** | On-device SLM (Gemini Nano / MediaPipe) clinical note translation, private ClinicalTrials matching, desktop app | Future Vision |
 
 ---
 
@@ -68,9 +69,9 @@ Focus: Hardening current functionality, platform compliance, security review, an
 
 ---
 
-## Milestone 2: Clinical Data Expansion, OCR & PROMs (Near-Term)
+## Milestone 2: Clinical Scope, OCR, PROMs & Medication Safety (Near-Term)
 
-Focus: Expanding beyond lab observations to encompass broader clinical history, paper document ingestion, standardized survey instruments, and visit workflows.
+Focus: Expanding beyond lab observations to encompass broader clinical history, paper document ingestion, standardized survey instruments, cross-provider reconciliation, and medication safety checks.
 
 - [ ] **Expanded FHIR Resource Ingestion**:
   - [ ] **Conditions & Diagnoses (`Condition`)**:
@@ -100,22 +101,30 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - **SF-12 / HAQ**: Functional health status and quality-of-life questionnaires.
   - [ ] Ingest and export responses as standard FHIR `Questionnaire` and `QuestionnaireResponse` resources.
   - [ ] Longitudinal survey score tracking plotted directly alongside medications and biometric trends.
-- [ ] **Standardized Terminology & Mapping**:
-  - [ ] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
-  - [ ] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
-- [ ] **Enhanced Lab Panel Grouping**:
-  - [ ] Automatically group related lab observations into standard clinical panels:
-    - **Complete Blood Count (CBC)**: WBC, RBC, Hemoglobin, Hematocrit, Platelets, MCV, MCH, MCHC, RDW.
-    - **Comprehensive Metabolic Panel (CMP)**: Sodium, Potassium, Chloride, CO2, BUN, Creatinine, eGFR, Glucose, Calcium, Total Protein, Albumin, Bilirubin, AST, ALT, Alkaline Phosphatase.
-    - **Lipid Profile**: Total Cholesterol, HDL, LDL, Triglycerides, Non-HDL, TC/HDL Ratio.
-    - **Thyroid Panel**: TSH, Free T4, Free T3.
-    - **Glycemic Control**: Fasting Glucose, HbA1c, Estimated Average Glucose (eAG).
-  - [ ] Longitudinal multi-analyte timeline comparisons and side-by-side table matrices across test dates.
-  - [ ] Fasting vs. Postprandial state tagging for metabolic observations.
-- [ ] **Medication Management Enhancements**:
+- [ ] **Medication Management & Interaction Safety**:
+  - [ ] **Offline Drug-Drug & Food-Drug Interaction Checker**:
+    - Bundled offline open pharmacology interaction dataset (open FDA / RxNorm / open DrugBank data).
+    - Automatically flags known interactions between active logged medications (e.g., NSAIDs + ACE inhibitors; Potassium + Spironolactone).
+    - Highlights common dietary interactions (e.g., Grapefruit juice with Statins; high-Vitamin K foods with Warfarin).
+    - Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
   - [ ] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
   - [ ] Log medication adherence history against prescribed regimens.
   - [ ] Discontinue / archive medications with reason annotations and date effective.
+- [ ] **Standardized Terminology, Mapping & Deduplication**:
+  - [ ] **Cross-Provider Record Reconciliation**:
+    - Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
+    - Groups equivalent readings into a unified longitudinal timeline while retaining all original source document links and provenance.
+  - [ ] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
+  - [ ] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
+- [ ] **Clinical Safety & Critical Value Red-Flag Alerts**:
+  - [ ] High-visibility emergency caution banners when newly entered or imported vitals cross consensus critical red-flag thresholds:
+    - *Hypertensive Crisis*: Systolic $\ge 180$ mmHg and/or Diastolic $\ge 120$ mmHg.
+    - *Severe Hypoglycemia*: Blood glucose $< 54$ mg/dL ($< 3.0$ mmol/L).
+    - *Severe Hypoxemia*: $SpO_2 < 88\%$.
+  - [ ] Prompts immediate emergency care or physician contact without automated clinical triage assertions.
+- [ ] **Multi-Modal Hands-Free Input**:
+  - [ ] **Offline Voice Logging**:
+    - On-device speech recognition (Apple Speech framework / Android On-Device Speech Recognizer) for voice logging vitals: *"Blood pressure 128 over 82, pulse 70"* parsed into structured paired records.
 - [ ] **Doctor Visit Preparation Wizard**:
   - [ ] Step-by-step visit preparation flow: select recent out-of-range lab results, recent blood pressure/glucose trends, active medication questions, and personal agenda items.
   - [ ] Specialty-tailored PDF export templates (e.g., Cardiology, Endocrinology, Annual Wellness Examination).
@@ -190,10 +199,10 @@ Focus: Empowering patients with secure portability, zero-knowledge sync, emergen
 - [ ] **Emergency Trustee Access (Shamir's Secret Sharing)**:
   - [ ] Cryptographically splits the vault backup recovery key into a $k$-of-$n$ Shamir's Secret Sharing scheme (e.g., 2-of-3 split between trusted family members or medical power of attorney).
   - [ ] Grants designated trustees emergency access in incapacitating medical events without creating cloud backdoors.
-- [ ] **SMART Health Cards & Verifiable Credentials**:
+- [ ] **SMART Health Cards & Wallet Passes**:
   - [ ] Display and parse SMART Health Cards (SHC) QR codes for immunizations and lab results.
   - [ ] Verify digital signatures against known issuer public key registries (VCI registry).
-  - [ ] Generate verifiable SMART Health Card QR codes from imported provider immunization records.
+  - [ ] Generate Apple Wallet (`.pkpass`) and Google Wallet health passes for offline presentation of verified credentials.
 - [ ] **Advanced Audit & Security Controls**:
   - [ ] Biometric app lock (Face ID / Touch ID / Android BiometricPrompt) on launch or return to foreground with custom grace period.
   - [ ] Detailed local audit log of data imports, exports, manual edits, and sync attempts.
@@ -243,9 +252,9 @@ Focus: Cross-border patient mobility, legacy document ingestion, and evidence-ba
 
 ---
 
-## Milestone 7: Direct Medical Peripherals (BLE) & Continuous Streams (Future Vision)
+## Milestone 7: Direct Medical Peripherals (BLE) & Smart Watch Apps (Long-Term)
 
-Focus: Standalone hardware interop independent of platform health stores.
+Focus: Standalone hardware interop independent of platform health stores and glanceable wrist companions.
 
 - [ ] **Direct Bluetooth LE (BLE) Medical Devices**:
   - [ ] Pair directly with standard Bluetooth SIG GATT health profile devices:
@@ -254,13 +263,62 @@ Focus: Standalone hardware interop independent of platform health stores.
     - **Pulse Oximeters**: GATT Pulse Oximeter Service (`0x1822`) and Continuous Measurement characteristic (`0x2A5F`).
     - **Weight Scales**: GATT Weight Scale Service (`0x181D`) and Weight Measurement characteristic (`0x2A98`).
   - [ ] Direct pairing provides hardware access on devices lacking Apple Health or Google Play / Health Connect services (e.g., de-Googled Android, custom distributions).
+- [ ] **Apple Watch & Wear OS Native Companion Apps**:
+  - [ ] Lightweight standalone wrist companions for 1-tap medication adherence and quick vitals logging.
+  - [ ] Complications & Tiles displaying next scheduled dose and today's adherence ring.
+  - [ ] Secure direct peer-to-peer watch-to-phone sync via `WatchConnectivity` (iOS) and `Wearable Data Layer` (Android).
 - [ ] **High-Frequency Wearable Data Stream Optimizations**:
   - [ ] In-memory downsampling (LTTB - Largest Triangle Three Buckets algorithm) for rendering 100,000+ data points smoothly at 60/120 FPS on mobile hardware.
   - [ ] Background caching of time-series aggregates without storing raw multi-sample telemetry.
 
 ---
 
-## Milestone 8: Private On-Device AI, Research Tooling & Companion Apps (Future Vision)
+## Milestone 8: Medical Imaging, Sleep Architecture, Clinical Lifeline & Regimens (Long-Term)
+
+Focus: Expanding to multi-modal medical imaging, circadian sleep architecture, disease trajectory visualization, complex medication titration, and legal health directives.
+
+- [ ] **Medical Imaging & Offline DICOM Viewer**:
+  - [ ] Ingest DICOM Part 10 files (`.dcm` files and ZIP archives) from hospital CD exports or patient portal downloads into the local encrypted vault.
+  - [ ] On-device parsing of imaging series metadata (Modality: CT, MRI, X-Ray, Ultrasound; Series / Instance UID, Slice Thickness, Orientation).
+  - [ ] Interactive high-performance slice viewer:
+    - Multi-frame slice scrubbing, pan, and continuous zoom.
+    - Window Level (WL) and Window Width (WW) contrast adjustments with standard radiological presets (Bone, Soft Tissue, Lung, Mediastinum).
+    - Calibrated planar distance measurement tools (in millimeters).
+  - [ ] Link imaging series directly to corresponding `DiagnosticReport` narrative impressions.
+- [ ] **Unified Multi-Track Clinical Lifeline Canvas**:
+  - [ ] Pan-and-zoom chronological visual lifeline integrating multiple clinical dimensions simultaneously:
+    - **Track 1**: Active, recurring, and resolved diagnoses (`Condition`).
+    - **Track 2**: Clinical procedures, surgeries, and hospitalizations (`Procedure`).
+    - **Track 3**: Medication courses, titrations, and discontinuations (`MedicationStatement`).
+    - **Track 4**: Key laboratory biomarker trajectories (`Observation`).
+    - **Track 5**: Patient-reported symptom flare-ups and PROM scores (`QuestionnaireResponse`).
+  - [ ] Instantly identify temporal correlations (e.g., observing whether initiating a new antihypertensive corresponded with drops in blood pressure and changes in serum creatinine).
+- [ ] **Sleep Architecture & Circadian Analysis**:
+  - [ ] Ingest detailed polysomnography and wearable sleep stages (Deep, REM, Core/Light, Awake periods, Sleep Latency, Sleep Efficiency) from Apple HealthKit and Health Connect.
+  - [ ] Circadian midpoint regularity and bedtime consistency tracking.
+  - [ ] Correlation overlays: Sleep duration and efficiency plotted against next-morning blood pressure surges and resting heart rate variability (HRV).
+- [ ] **Complex Medication Titration & Tapering Schedules**:
+  - [ ] Support non-static, dynamic medication regimens:
+    - Step-down tapering schedules (e.g., Oral Corticosteroid / Prednisone tapers).
+    - Multi-week escalation titration schedules (e.g., GLP-1 receptor agonists, Beta-blockers, Neuropathic agents).
+    - Cross-tapering schedules between medications.
+  - [ ] Dynamic calendar reminders and flexible dose adherence logging tailored to escalating/tapering regimens.
+- [ ] **Advance Directives, Living Will & Emergency Orders (POLST / MOLST)**:
+  - [ ] Secure encrypted storage and classification for legal healthcare directives:
+    - Advance Healthcare Directives and Living Wills.
+    - Medical Power of Attorney (MPOA) designation and emergency contact verification.
+    - Physician Orders for Life-Sustaining Treatment (POLST) / Medical Orders for Life-Sustaining Treatment (MOLST) / Out-of-Hospital DNR orders.
+  - [ ] Fast-access emergency presentation view accessible directly from the Emergency Medical ID screen for emergency personnel.
+- [ ] **Laboratory Assay Methodology Harmonization**:
+  - [ ] Ingest and track laboratory testing methodology metadata (e.g., HbA1c HPLC vs. enzymatic immunoassay; high-sensitivity Cardiac Troponin hs-cTn vs. conventional Troponin; immunoassay vs. LC-MS/MS for hormone levels).
+  - [ ] Visual harmonization warnings when comparing serial lab results from different laboratory chains or methodology shifts that account for variance in numeric values or reference intervals.
+- [ ] **Touchless Optical Vitals Spot-Check (rPPG)**:
+  - [ ] On-device camera-based optical photoplethysmography (finger placed over smartphone camera lens and LED flash) to calculate resting heart rate and estimate respiratory rate without requiring external BLE hardware.
+  - [ ] Purely local real-time frame buffer processing with zero video recording or storage.
+
+---
+
+## Milestone 9: Private On-Device AI, Research Tooling & Companion Apps (Future Vision)
 
 Focus: Private edge AI, inclusive design, academic research tooling, and desktop ecosystems.
 
@@ -269,6 +327,9 @@ Focus: Private edge AI, inclusive design, academic research tooling, and desktop
     - **Plain-Language Jargon Translation**: Translate complex physician shorthand and acronyms in clinical notes (`DocumentReference`) into understandable explanations.
     - **Visit Discussion Question Generator**: Suggest personalized questions to ask the physician based on the delta between out-of-range lab results and active medications.
     - **Semantic Natural Language Vault Search**: Query the vault in natural language (e.g., *"When did my doctor change my cholesterol medication?"*) strictly offline.
+- [ ] **Private Client-Side Clinical Trial Matching**:
+  - [ ] Periodically download an offline, compressed snapshot of active studies from ClinicalTrials.gov.
+  - [ ] Locally match study inclusion/exclusion criteria against patient's age, diagnoses, and lab history without transmitting any patient data off-device.
 - [ ] **Accessibility (a11y) & WCAG 2.2 AAA Compliance**:
   - [ ] Full screen-reader semantic trees (VoiceOver and TalkBack) for complex trend charts (providing interactive sonification / audio graphs and accessible tabular navigation).
   - [ ] Dynamic Type and high-scaling typography (support for up to 200% font scaling without layout clipping or text overlap).
@@ -291,6 +352,8 @@ Focus: Private edge AI, inclusive design, academic research tooling, and desktop
 |                                    APPLICATION LAYER                                    |
 |   +------------------+  +------------------+  +-------------------+  +----------------+ |
 |   | Overview/Trends  |  | Records & Panels |  | Medication Tracker|  | Guidelines Lib | |
+|   | AGP / Staging    |  | Survey PROMs     |  | Drug Interactions |  | Family Profiles| |
+|   | Lifeline Canvas  |  | DICOM Viewer     |  | Titration Regimens|  | POLST/Directiv | |
 |   +------------------+  +------------------+  +-------------------+  +----------------+ |
 +-----------------------------------------------------------------------------------------+
 |                                    CONTROLLER LAYER                                     |
@@ -304,8 +367,8 @@ Focus: Private edge AI, inclusive design, academic research tooling, and desktop
 |   | Apple HealthKit  |  | Health Connect    |  | SMART on FHIR    |  | Direct BLE     | |
 |   | Clinical Records |  | Medical Records   |  | R4 / R5 Client   |  | GATT Services  | |
 |   +------------------+  +-------------------+  +------------------+  +----------------+ |
-|   | On-Device OCR    |  | Rx Barcode Scan   |  | Local Wi-Fi P2P  |  | User-Owned Sync| |
-|   | Table Parser     |  | Offline NDC Index |  | Ephemeral Server |  | WebDAV/iCloud  | |
+|   | On-Device OCR    |  | Rx Barcode Scan   |  | Local Wi-Fi P2P  |  | Watch Sync     | |
+|   | Voice / rPPG     |  | Cross-Deduplicate |  | Ephemeral Server |  | WebDAV/iCloud  | |
 |   +------------------+  +-------------------+  +------------------+  +----------------+ |
 +-----------------------------------------------------------------------------------------+
 |                                     DATA SECURITY                                       |
