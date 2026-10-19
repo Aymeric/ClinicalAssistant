@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 
 import '../../controllers/health_data_controller.dart';
 import '../../data/vault_security_service.dart';
+import '../../integrations/fhir_provider_presets.dart';
 import '../../notifications/result_notification_manager.dart';
 import '../../notifications/result_notification_settings.dart';
 import '../../sync/foreground_sync_state.dart';
 import '../../sync/import_progress.dart';
 import '../overview/overview_page.dart';
+import '../security/privacy_policy_page.dart';
 import '../security/vault_security_card.dart';
 import '../shared/record_widgets.dart';
 
@@ -20,12 +22,10 @@ class ConnectionsPage extends StatelessWidget {
     required this.busy,
     required this.healthRecordCount,
     required this.fhirRecordCount,
-    required this.since,
     required this.syncState,
     required this.syncSettingsLoading,
     required this.syncing,
     required this.syncStatus,
-    required this.onChooseDate,
     required this.onHealthImport,
     required this.onFhirImport,
     required this.onHealthAutoSyncChanged,
@@ -50,12 +50,10 @@ class ConnectionsPage extends StatelessWidget {
   final int healthRecordCount;
   final int fhirRecordCount;
   final int syntheticRecordCount;
-  final DateTime since;
   final ForegroundSyncState? syncState;
   final bool syncSettingsLoading;
   final bool syncing;
   final String? syncStatus;
-  final VoidCallback onChooseDate;
   final VoidCallback onHealthImport;
   final FhirPortalConnectCallback onFhirImport;
   final ValueChanged<bool> onHealthAutoSyncChanged;
@@ -143,53 +141,6 @@ class ConnectionsPage extends StatelessWidget {
             buttonLabel: 'Connect Health Connect',
             onPressed: busy ? null : onHealthImport,
           ),
-        if (Platform.isIOS || Platform.isAndroid) ...[
-          const SizedBox(height: 14),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_month_outlined,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text(
-                          'Health-platform date range',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: onChooseDate,
-                        child: const Text('Change'),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    '${since.year <= 1900 ? 'All available history' : 'From ${since.year}-${since.month.toString().padLeft(2, '0')}-${since.day.toString().padLeft(2, '0')}'} to today',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    Platform.isAndroid
-                        ? 'Lab results require Health Connect Medical Records support and separate permission. Health Connect may limit history to 30 days unless history access is enabled.'
-                        : 'HealthKit measurements and clinical lab records use separate permission prompts. Only approved records stored in Apple Health can be imported.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
         const SizedBox(height: 14),
         FhirConnectionForm(
           busy: busy,
@@ -242,10 +193,29 @@ class ConnectionsPage extends StatelessWidget {
                   'Records are encrypted on this device. Removing them here does not remove them from the original source.',
                 ),
                 const SizedBox(height: 12),
-                TextButton.icon(
-                  onPressed: busy ? null : onDeleteRecords,
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Delete records from this device'),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    TextButton.icon(
+                      onPressed: busy ? null : onDeleteRecords,
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Delete records from this device'),
+                    ),
+                    TextButton.icon(
+                      key: const ValueKey('privacy-policy-entry'),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PrivacyPolicyPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.shield_outlined),
+                      label: const Text('Privacy & data governance'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1011,6 +981,7 @@ class _FhirConnectionFormState extends State<FhirConnectionForm> {
   var _rememberPortalForAutoSync = false;
   var _savedPortalAutoSync = false;
   String? _configError;
+  String? _selectedPresetId = 'custom';
 
   @override
   void initState() {
@@ -1052,6 +1023,11 @@ class _FhirConnectionFormState extends State<FhirConnectionForm> {
       if (!mounted) return;
       _baseController.text = values[0] ?? '';
       _clientController.text = values[1] ?? '';
+      if (_baseController.text.isNotEmpty) {
+        final matchedPreset =
+            FhirProviderPreset.findByBaseUrl(_baseController.text);
+        _selectedPresetId = matchedPreset?.id ?? 'custom';
+      }
       final hasSavedRefreshToken =
           values[2] == 'true' &&
           values[3] != null &&
@@ -1169,6 +1145,135 @@ class _FhirConnectionFormState extends State<FhirConnectionForm> {
                 ),
               ),
               const SizedBox(height: 18),
+              DropdownButtonFormField<String>(
+                key: const ValueKey('fhir-preset-dropdown'),
+                decoration: const InputDecoration(
+                  labelText: 'Provider / Sandbox Preset',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.dns_outlined),
+                ),
+                initialValue: _selectedPresetId,
+                isExpanded: true,
+                items: [
+                  const DropdownMenuItem(
+                    value: 'custom',
+                    child: Text('Custom FHIR Server (Manual URL)'),
+                  ),
+                  ...FhirProviderPreset.standardPresets.map(
+                    (preset) => DropdownMenuItem(
+                      value: preset.id,
+                      child: Text(
+                        preset.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: widget.busy || _loadingConfig
+                    ? null
+                    : (id) {
+                        setState(() {
+                          _selectedPresetId = id;
+                          if (id != null && id != 'custom') {
+                            final preset = FhirProviderPreset.standardPresets
+                                .firstWhere((p) => p.id == id);
+                            _baseController.text = preset.baseUrl;
+                            if (preset.defaultClientId != null &&
+                                preset.defaultClientId!.isNotEmpty &&
+                                _clientController.text.trim().isEmpty) {
+                              _clientController.text = preset.defaultClientId!;
+                            }
+                          }
+                        });
+                      },
+              ),
+              if (_selectedPresetId != null && _selectedPresetId != 'custom') ...[
+                const SizedBox(height: 12),
+                Builder(
+                  builder: (context) {
+                    final preset = FhirProviderPreset.standardPresets
+                        .firstWhere((p) => p.id == _selectedPresetId);
+                    if (preset.instructions == null) return const SizedBox.shrink();
+                    return Card(
+                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.35),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 18,
+                              color: theme.colorScheme.secondary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                preset.instructions!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSecondaryContainer,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+              const SizedBox(height: 12),
+              Card(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.link, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'OAuth 2.0 Redirect URI',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              FhirProviderPreset.appRedirectUri,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontFamily: 'monospace',
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 16),
+                        tooltip: 'Copy redirect URI',
+                        onPressed: () {
+                          Clipboard.setData(
+                            const ClipboardData(
+                              text: FhirProviderPreset.appRedirectUri,
+                            ),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Redirect URI copied to clipboard'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _baseController,
                 keyboardType: TextInputType.url,

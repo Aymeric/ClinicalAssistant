@@ -112,9 +112,8 @@ permissions for the shared data types, including step access, are requested at
 import time. Reading an individual workout route may also require separate
 Health Connect consent; routes that are not yet accessible are marked
 accordingly rather than reported as imported route samples. Manual imports on
-both platforms default to all available history; use the date-range control to
-narrow an import. Android also uses ten-year query windows, which may use more
-memory than the previous smaller batches. Health Connect may limit access to
+both platforms download all available history directly (Android uses ten-year
+query windows). Health Connect may limit access to
 the most recent 30 days unless historical access is granted in Health Connect;
 when supported, the app requests that access for imports spanning older dates.
 On devices with Health Connect Medical Records support, laboratory `Observation`
@@ -150,3 +149,7 @@ register the OAuth redirect URI with each supported portal, and publish an
 accurate privacy policy. Integrations must be tested on physical iOS and
 Android devices with real provider registrations; desktop and simulator
 environments do not provide the native health stores.
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned milestones, upcoming features, and technical initiatives.

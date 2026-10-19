@@ -136,7 +136,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
       VaultSecurityService(storage: widget.controller?.syncValueStore);
   final _exporter = HealthExportService();
   var _selectedIndex = 0;
-  var _since = DateTime(1900);
+  static final _since = DateTime(1900);
   var _exporting = false;
   var _syncSettingsLoading = true;
   var _syncing = false;
@@ -717,17 +717,6 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _chooseStartDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _since,
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-      helpText: 'IMPORT RECORDS FROM',
-    );
-    if (date != null) setState(() => _since = date);
-  }
-
   Future<void> _exportVaultBackup() async {
     final passwordController = TextEditingController();
     final confirmController = TextEditingController();
@@ -944,12 +933,10 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         healthRecordCount: _controller.healthRecordCount,
         fhirRecordCount: _controller.fhirRecordCount,
         syntheticRecordCount: _controller.syntheticRecordCount,
-        since: _since,
         syncState: _syncState,
         syncSettingsLoading: _syncSettingsLoading,
         syncing: _syncing,
         syncStatus: _syncStatus,
-        onChooseDate: _chooseStartDate,
         onHealthImport: _importHealth,
         onFhirImport: _importFhir,
         onLoadSyntheticDemo: _loadSyntheticDemo,
