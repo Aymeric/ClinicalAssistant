@@ -151,12 +151,20 @@ jobs:
           echo "Release notes:"
           cat distribution/whatsnew/whatsnew-en-US
 
-      - name: Check Google Play credentials status
-        if: ${{ secrets.PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON == '' }}
-        run: echo "::warning::PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON secret not configured; skipping upload to Google Play Store."
+      - name: Check Google Play Credentials
+        id: play_creds
+        env:
+          PLAY_STORE_JSON: ${{ secrets.PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_STORE_JSON" ]; then
+            echo "has_creds=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_creds=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON secret not configured; skipping upload to Google Play Store."
+          fi
 
       - name: Publish to Google Play Store
-        if: ${{ secrets.PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON != '' && (github.event.inputs.play_track != 'none') }}
+        if: ${{ steps.play_creds.outputs.has_creds == 'true' && (github.event.inputs.play_track != 'none') }}
         uses: r0adkll/upload-google-play@v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_UPLOAD_SERVICE_ACCOUNT_JSON }}
