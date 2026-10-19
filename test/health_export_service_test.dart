@@ -179,7 +179,7 @@ void main() {
       unit: '@mg/dL',
       recordedAt: DateTime.utc(2026, 9, 20),
       category: RecordCategory.lab,
-      source: '=EVIL()',
+      source: '   =EVIL()',
       code: '\t1234',
       referenceRange: '-10% drop',
       status: '\rfinal',
@@ -201,7 +201,7 @@ void main() {
     expect(csv, contains("'=HYPERLINK"));
     expect(csv, contains("'+100"));
     expect(csv, contains("'@mg/dL"));
-    expect(csv, contains("'=EVIL()"));
+    expect(csv, contains("'   =EVIL()"));
     expect(csv, contains("'\t1234"));
     expect(csv, contains("'-10% drop"));
     expect(csv, contains("'\rfinal"));
