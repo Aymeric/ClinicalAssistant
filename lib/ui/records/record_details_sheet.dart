@@ -200,7 +200,22 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
                       size: 20,
                       color: widget.isPinned ? colors.primary : null,
                     ),
-                    onPressed: widget.onTogglePin,
+                    onPressed: () {
+                      final wasPinned = widget.isPinned;
+                      widget.onTogglePin?.call();
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              wasPinned
+                                  ? '${record.name} unpinned from Overview'
+                                  : '${record.name} pinned to Overview',
+                            ),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                    },
                   ),
                 if (widget.onEdit != null)
                   IconButton(

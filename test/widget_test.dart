@@ -9,6 +9,7 @@ import 'package:clinical_assistant/notifications/result_notification_manager.dar
 import 'package:clinical_assistant/notifications/result_notification_preferences.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
 import 'package:clinical_assistant/sync/import_progress.dart';
+import 'package:clinical_assistant/ui/records/record_details_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
@@ -914,6 +915,62 @@ void main() {
     expect(find.text('Connected'), findsOneWidget);
     expect(find.text('1 imported'), findsOneWidget);
   });
+
+  testWidgets(
+    'shows SnackBar feedback when toggling pin status on RecordDetailsSheet',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final record = HealthRecord(
+        id: 'test:heart-rate',
+        name: 'Heart Rate',
+        value: '72',
+        unit: 'bpm',
+        recordedAt: DateTime(2026, 9, 10),
+        category: RecordCategory.vital,
+        source: 'Manual Entry',
+      );
+
+      var isPinned = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                return RecordDetailsSheet(
+                  record: record,
+                  isNumeric: true,
+                  isPinned: isPinned,
+                  onTogglePin: () {
+                    setState(() {
+                      isPinned = !isPinned;
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap pin button to pin
+      await tester.tap(find.byIcon(Icons.push_pin_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Heart Rate pinned to Overview'), findsOneWidget);
+
+      // Tap pin button to unpin
+      await tester.tap(find.byIcon(Icons.push_pin));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Heart Rate unpinned from Overview'), findsOneWidget);
+    },
+  );
 }
 
 HealthRecord _recordForDate(String name, DateTime recordedAt) => HealthRecord(
