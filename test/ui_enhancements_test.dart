@@ -749,6 +749,57 @@ void main() {
       expect(find.byTooltip('Edit manual record'), findsNothing);
     },
   );
+
+  testWidgets(
+    'record details sheet displays accessible close button and dismisses on tap',
+    (tester) async {
+      tester.view.physicalSize = const Size(420, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final record = HealthRecord(
+        id: 'vital:temp',
+        name: 'Body Temperature',
+        value: '98.6',
+        unit: '°F',
+        recordedAt: DateTime.utc(2025, 5, 8, 9, 0),
+        category: RecordCategory.vital,
+        source: 'Apple Health',
+      );
+
+      final controller = HealthDataController(
+        store: _MemoryRecordStore([record]),
+        fhirImporter: FhirPortalImporter(
+          client: MockClient((_) async => throw StateError('No net')),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: HealthHome(controller: controller)),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to Records tab
+      await tester.tap(find.byIcon(Icons.list_alt_outlined));
+      await tester.pumpAndSettle();
+
+      // Open detail sheet
+      await tester.tap(find.text('Body Temperature'));
+      await tester.pumpAndSettle();
+
+      // Verify 'Close details' tooltip button is present
+      final closeBtn = find.byTooltip('Close details');
+      expect(closeBtn, findsOneWidget);
+
+      // Tap 'Close details'
+      await tester.tap(closeBtn);
+      await tester.pumpAndSettle();
+
+      // Verify detail sheet is closed
+      expect(find.byTooltip('Copy all details'), findsNothing);
+    },
+  );
 }
 
 class _MemoryRecordStore extends EncryptedRecordStore {
