@@ -599,6 +599,7 @@ class OverviewPage extends StatelessWidget {
                     icon: Icons.insights_outlined,
                     label: 'Trends',
                     subtitle: 'Vitals & labs',
+                    tooltip: 'Open Vitals & Labs Trends',
                     onTap: onOpenTrends,
                   ),
                 ),
@@ -609,6 +610,7 @@ class OverviewPage extends StatelessWidget {
                     icon: Icons.folder_outlined,
                     label: 'Records',
                     subtitle: 'All entries',
+                    tooltip: 'View all recorded entries',
                     onTap: onOpenRecords ?? onSeeAll,
                   ),
                 ),
@@ -619,6 +621,7 @@ class OverviewPage extends StatelessWidget {
                     icon: Icons.share_outlined,
                     label: 'Export',
                     subtitle: 'PDF, CSV, FHIR',
+                    tooltip: 'Export records to PDF, CSV, or FHIR',
                     onTap: onOpenExport,
                   ),
                 ),
@@ -630,6 +633,7 @@ class OverviewPage extends StatelessWidget {
                       icon: Icons.edit_note,
                       label: 'Log',
                       subtitle: 'Add reading',
+                      tooltip: 'Log a manual health measurement',
                       onTap: onLogMeasurement,
                     ),
                   ),
@@ -848,55 +852,62 @@ class OverviewQuickButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.subtitle,
+    this.tooltip,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String subtitle;
+  final String? tooltip;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Material(
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.6)),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 20, color: colors.primary),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
+    final buttonTooltip = tooltip ?? '$label: $subtitle';
+
+    return Tooltip(
+      message: buttonTooltip,
+      child: Material(
+        color: colors.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.6)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 20, color: colors.primary),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 10,
-                    color: colors.onSurfaceVariant,
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 10,
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -972,45 +983,53 @@ class CategorySummaryBadge extends StatelessWidget {
     final colors = theme.colorScheme;
     final catColor = categoryColor(category, colors);
     final catIcon = categoryIcon(category);
+    final label = categoryLabel(category);
 
-    return Material(
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(catIcon, size: 16, color: catColor),
-              const SizedBox(width: 6),
-              Text(
-                categoryLabel(category),
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: catColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$count',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: catColor,
+    return Tooltip(
+      message:
+          'Filter records by $label ($count ${count == 1 ? 'entry' : 'entries'})',
+      child: Material(
+        color: colors.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(catIcon, size: 16, color: catColor),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: catColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: catColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
