@@ -175,19 +175,28 @@ class GuidelineStorageService {
     }
   }
 
+  static final _unsafeControlChars = RegExp(
+    r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]',
+  );
+  static const int maxNotesLength = 5000;
+
   Future<void> saveGuidelineNotes(String guidelineId, String notes) async {
     final dir = await directory;
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);
     }
     final file = _notesFile(dir, guidelineId);
-    final trimmed = notes.trim();
-    if (trimmed.isEmpty) {
+    // Security: Sanitize control characters and restrict length to prevent DoS or storage exhaustion.
+    var sanitized = notes.replaceAll(_unsafeControlChars, '').trim();
+    if (sanitized.length > maxNotesLength) {
+      sanitized = sanitized.substring(0, maxNotesLength).trim();
+    }
+    if (sanitized.isEmpty) {
       if (file.existsSync()) {
         file.deleteSync();
       }
     } else {
-      file.writeAsStringSync(trimmed, flush: true);
+      file.writeAsStringSync(sanitized, flush: true);
     }
   }
 

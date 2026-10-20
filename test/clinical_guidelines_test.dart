@@ -364,6 +364,33 @@ void main() {
       await service.deleteGuidelineNotes(id);
       expect(await service.getGuidelineNotes(id), isNull);
     });
+
+    test(
+      'sanitizes unsafe control characters and truncates long notes',
+      () async {
+        const id = 'nice-ng136-hypertension';
+
+        // Test control character stripping while preserving newlines and tabs
+        await service.saveGuidelineNotes(
+          id,
+          'Note with \x00null\x07bell and \nnewline and \ttab',
+        );
+        expect(
+          await service.getGuidelineNotes(id),
+          'Note with nullbell and \nnewline and \ttab',
+        );
+
+        // Test length truncation at 5000 chars
+        final longNote = 'A' * 6000;
+        await service.saveGuidelineNotes(id, longNote);
+        final retrieved = await service.getGuidelineNotes(id);
+        expect(retrieved, isNotNull);
+        expect(retrieved!.length, 5000);
+        expect(retrieved, 'A' * 5000);
+
+        await service.deleteGuidelineNotes(id);
+      },
+    );
   });
 
   group('GuidelinePdfExportService', () {
