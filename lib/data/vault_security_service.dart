@@ -31,7 +31,9 @@ class VaultSecurityService {
     FlutterSecureStorage? secureStorage,
     Pbkdf2? pbkdf2,
     Pbkdf2? legacyPbkdf2,
-  }) : _storage =
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now,
+       _storage =
            storage ??
            SecureSyncValueStore(
              storage: secureStorage ?? const FlutterSecureStorage(),
@@ -53,6 +55,7 @@ class VaultSecurityService {
   static const _pinSaltKey = 'vault_pin_salt_v1';
   static const _timeoutKey = 'vault_autolock_timeout_v1';
 
+  final DateTime Function() _clock;
   final SyncValueStore _storage;
   final Pbkdf2 _pbkdf2;
   final Pbkdf2 _legacyPbkdf2;
@@ -67,7 +70,7 @@ class VaultSecurityService {
 
   int get remainingLockoutSeconds {
     if (_lockoutUntil == null) return 0;
-    final diff = _lockoutUntil!.difference(DateTime.now()).inSeconds;
+    final diff = _lockoutUntil!.difference(_clock()).inSeconds;
     return diff > 0 ? diff : 0;
   }
 
@@ -83,8 +86,8 @@ class VaultSecurityService {
   }
 
   Future<void> setPin(String pin) async {
-    if (pin.length < 4) {
-      throw ArgumentError('PIN must be at least 4 digits');
+    if (pin.length < 4 || pin.length > 32) {
+      throw ArgumentError('PIN must be between 4 and 32 characters');
     }
     final salt = _generateSalt();
     final hash = await _hashPin(pin, salt);
@@ -96,7 +99,7 @@ class VaultSecurityService {
   }
 
   Future<bool> verifyPin(String enteredPin) async {
-    if (isRateLimited) {
+    if (isRateLimited || enteredPin.length > 32) {
       return false;
     }
 
@@ -138,7 +141,13 @@ class VaultSecurityService {
       } else {
         _failedAttempts++;
         if (_failedAttempts >= 5) {
-          _lockoutUntil = DateTime.now().add(const Duration(seconds: 30));
+          // Security: Progressive rate-limiting lockout backoff mitigates brute-force PIN attacks
+          final lockoutDuration = switch (_failedAttempts) {
+            >= 15 => const Duration(minutes: 15),
+            >= 10 => const Duration(minutes: 5),
+            _ => const Duration(seconds: 30),
+          };
+          _lockoutUntil = _clock().add(lockoutDuration);
         }
         return false;
       }
@@ -193,7 +202,7 @@ class VaultSecurityService {
   }
 
   void onAppBackgrounded() {
-    _backgroundedAt = DateTime.now();
+    _backgroundedAt = _clock();
   }
 
   Future<bool> shouldLockOnResume() async {
@@ -216,7 +225,7 @@ class VaultSecurityService {
     }
 
     if (_backgroundedAt != null) {
-      final elapsed = DateTime.now().difference(_backgroundedAt!);
+      final elapsed = _clock().difference(_backgroundedAt!);
       final duration = timeout.duration;
       if (duration != null && elapsed >= duration) {
         _isLocked = true;
