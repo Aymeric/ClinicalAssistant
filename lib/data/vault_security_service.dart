@@ -246,12 +246,17 @@ class VaultSecurityService {
     return derived.extractBytes();
   }
 
-  bool _constantTimeCompare(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    var result = 0;
-    for (var i = 0; i < a.length; i++) {
+  /// Compares two byte lists in constant time to prevent timing attacks.
+  /// Visible for testing.
+  bool constantTimeCompare(List<int> a, List<int> b) {
+    var result = a.length ^ b.length;
+    final minLength = a.length < b.length ? a.length : b.length;
+    for (var i = 0; i < minLength; i++) {
       result |= a[i] ^ b[i];
     }
     return result == 0;
   }
+
+  bool _constantTimeCompare(List<int> a, List<int> b) =>
+      constantTimeCompare(a, b);
 }

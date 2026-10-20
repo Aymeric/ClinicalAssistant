@@ -151,5 +151,22 @@ void main() {
       await service.setTimeout(AutoLockTimeout.never);
       expect(await service.shouldLockOnResume(), isFalse);
     });
+
+    test(
+      'constantTimeCompare safely compares matching and non-matching lengths',
+      () {
+        final listA = [1, 2, 3, 4, 5];
+        final listEqual = [1, 2, 3, 4, 5];
+        final listDiffContent = [1, 2, 3, 4, 6];
+        final listShorter = [1, 2, 3, 4];
+        final listLonger = [1, 2, 3, 4, 5, 6];
+
+        expect(service.constantTimeCompare(listA, listEqual), isTrue);
+        expect(service.constantTimeCompare(listA, listDiffContent), isFalse);
+        expect(service.constantTimeCompare(listA, listShorter), isFalse);
+        expect(service.constantTimeCompare(listA, listLonger), isFalse);
+        expect(service.constantTimeCompare([], []), isTrue);
+      },
+    );
   });
 }
