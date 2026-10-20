@@ -166,9 +166,14 @@ class VaultBackupService {
       throw const FormatException('Decrypted content is not a record list.');
     }
 
-    return recordsJson
-        .map((r) => HealthRecord.fromJson(Map<String, Object?>.from(r as Map)))
-        .toList();
+    return recordsJson.map((r) {
+      if (r is! Map) {
+        throw const FormatException(
+          'Decrypted record is not a valid JSON object.',
+        );
+      }
+      return HealthRecord.fromJson(Map<String, Object?>.from(r));
+    }).toList();
   }
 }
 

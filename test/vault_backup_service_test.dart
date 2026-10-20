@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:clinical_assistant/data/vault_backup_service.dart';
 import 'package:clinical_assistant/models/health_record.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -187,5 +188,38 @@ void main() {
         );
       },
     );
+
+    test('rejects decrypted records with non-object elements', () async {
+      const password = 'valid-password-123';
+      final validBackup = await service.exportEncryptedBackup(
+        sampleRecords,
+        password,
+      );
+      final decoded = jsonDecode(validBackup) as Map<String, dynamic>;
+
+      // Re-encrypt a cleartext payload containing non-map items
+      final cipher = AesGcm.with256bits();
+      final kdf = Pbkdf2(
+        macAlgorithm: Hmac.sha256(),
+        iterations: 100000,
+        bits: 256,
+      );
+      final salt = base64Decode(decoded['kdf']['salt'] as String);
+      final key = await kdf.deriveKeyFromPassword(
+        password: password,
+        nonce: salt,
+      );
+      final invalidCleartext = utf8.encode(jsonEncode([123, 'not-a-map']));
+      final box = await cipher.encrypt(invalidCleartext, secretKey: key);
+
+      decoded['cipher']['ciphertext'] = base64Encode(box.cipherText);
+      decoded['cipher']['nonce'] = base64Encode(box.nonce);
+      decoded['cipher']['mac'] = base64Encode(box.mac.bytes);
+
+      expect(
+        () => service.restoreEncryptedBackup(jsonEncode(decoded), password),
+        throwsFormatException,
+      );
+    });
   });
 }
