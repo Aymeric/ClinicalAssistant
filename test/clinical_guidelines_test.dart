@@ -273,6 +273,41 @@ void main() {
       expect(await service.getDownloadedGuidelines(), isEmpty);
     });
 
+    test('rejects downloading guidelines with non-HTTPS URLs', () async {
+      final baseGuideline = ClinicalGuidelineCatalog.guidelines.first;
+      final insecureGuideline = ClinicalGuideline(
+        id: 'insecure-test-guideline',
+        title: baseGuideline.title,
+        shortTitle: baseGuideline.shortTitle,
+        identifier: baseGuideline.identifier,
+        publisher: baseGuideline.publisher,
+        sourceId: baseGuideline.sourceId,
+        jurisdiction: baseGuideline.jurisdiction,
+        topic: baseGuideline.topic,
+        publishedDate: baseGuideline.publishedDate,
+        summary: baseGuideline.summary,
+        targetAudience: baseGuideline.targetAudience,
+        evidenceGrade: baseGuideline.evidenceGrade,
+        recommendations: baseGuideline.recommendations,
+        sections: baseGuideline.sections,
+        webUrl: baseGuideline.webUrl,
+        downloadUrl: Uri.parse('http://example.com/insecure.pdf'),
+        fileSizeBytes: baseGuideline.fileSizeBytes,
+        citation: baseGuideline.citation,
+      );
+
+      expect(
+        () => service.downloadGuideline(insecureGuideline),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('HTTPS'),
+          ),
+        ),
+      );
+    });
+
     test('deleteAllDownloadedGuidelines removes all saved files', () async {
       final g1 = ClinicalGuidelineCatalog.guidelines[0];
       final g2 = ClinicalGuidelineCatalog.guidelines[1];

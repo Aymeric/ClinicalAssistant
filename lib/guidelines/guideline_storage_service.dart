@@ -48,6 +48,13 @@ class GuidelineStorageService {
     ClinicalGuideline guideline, {
     http.Client? client,
   }) async {
+    // Security: Enforce HTTPS scheme to prevent downloading guidelines over cleartext HTTP
+    if (guideline.downloadUrl.scheme != 'https') {
+      throw ArgumentError(
+        'Guideline download URL must use HTTPS transport security.',
+      );
+    }
+
     final dir = await directory;
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);
