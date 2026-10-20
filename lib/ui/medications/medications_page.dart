@@ -41,6 +41,41 @@ class _MedicationsPageState extends State<MedicationsPage> {
     );
   }
 
+  Future<void> _confirmDeleteMedication(HealthRecord med) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text('Delete ${med.name}?'),
+        content: Text(
+          'Are you sure you want to delete this medication and its adherence history? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await widget.controller.deleteRecord(med.id);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Deleted ${med.name}')));
+      }
+    }
+  }
+
   Future<void> _quickLogDose(HealthRecord med) async {
     await widget.controller.logMedicationDose(med);
     if (mounted) {
@@ -465,7 +500,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                         'active',
                       );
                     } else if (action == 'delete') {
-                      await widget.controller.deleteRecord(med.id);
+                      await _confirmDeleteMedication(med);
                     }
                   },
                   itemBuilder: (ctx) => [
@@ -476,7 +511,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                           children: [
                             Icon(Icons.edit_note, size: 20),
                             SizedBox(width: 8),
-                            Text('Log dose with note...'),
+                            Expanded(child: Text('Log dose with note...')),
                           ],
                         ),
                       ),
@@ -486,7 +521,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                           children: [
                             Icon(Icons.pause, size: 20),
                             SizedBox(width: 8),
-                            Text('Pause medication'),
+                            Expanded(child: Text('Pause medication')),
                           ],
                         ),
                       ),
@@ -496,7 +531,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                           children: [
                             Icon(Icons.stop_circle_outlined, size: 20),
                             SizedBox(width: 8),
-                            Text('Discontinue'),
+                            Expanded(child: Text('Discontinue')),
                           ],
                         ),
                       ),
@@ -507,7 +542,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                           children: [
                             Icon(Icons.play_arrow, size: 20),
                             SizedBox(width: 8),
-                            Text('Mark Active'),
+                            Expanded(child: Text('Mark Active')),
                           ],
                         ),
                       ),
@@ -518,7 +553,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                         children: [
                           Icon(Icons.history, size: 20),
                           SizedBox(width: 8),
-                          Text('Adherence history'),
+                          Expanded(child: Text('Adherence history')),
                         ],
                       ),
                     ),
@@ -532,7 +567,12 @@ class _MedicationsPageState extends State<MedicationsPage> {
                             color: Colors.red,
                           ),
                           SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
+                          Expanded(
+                            child: Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -573,17 +613,20 @@ class _MedicationsPageState extends State<MedicationsPage> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      key: ValueKey('log-dose-${med.name}'),
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    child: Tooltip(
+                      message: 'Log a dose immediately',
+                      child: OutlinedButton.icon(
+                        key: ValueKey('log-dose-${med.name}'),
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
+                        onPressed: () => _quickLogDose(med),
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text('Mark Taken'),
                       ),
-                      onPressed: () => _quickLogDose(med),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('Mark Taken'),
                     ),
                   ),
                   const SizedBox(width: 8),
