@@ -440,7 +440,18 @@ class GuidelinePdfExportService {
     );
     final file = File('${dir.path}/guideline_$sanitizedId.pdf');
     await file.writeAsBytes(await pdf.save(), flush: true);
+    await _restrictFilePermissions(file);
     return file;
+  }
+
+  Future<void> _restrictFilePermissions(File file) async {
+    // Restrict permissions to user read/write only (0600) on POSIX platforms
+    // to safeguard exported health data against local process access.
+    if (!Platform.isWindows) {
+      try {
+        await Process.run('chmod', ['600', file.path]);
+      } catch (_) {}
+    }
   }
 
   Future<Directory> _resolveOutputDirectory() async {
