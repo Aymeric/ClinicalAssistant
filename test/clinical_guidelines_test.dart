@@ -185,6 +185,21 @@ void main() {
         isFalse,
       );
     });
+
+    test(
+      'findRelatedGuidelines returns cached results on subsequent calls',
+      () {
+        final firstCall = ClinicalGuidelineCatalog.findRelatedGuidelines(
+          measurementName: 'Blood Pressure',
+        );
+        final secondCall = ClinicalGuidelineCatalog.findRelatedGuidelines(
+          measurementName: 'Blood Pressure',
+        );
+
+        // Identical instance returned from cache
+        expect(identical(firstCall, secondCall), isTrue);
+      },
+    );
   });
 
   group('ClinicalGuideline JSON Serialization', () {

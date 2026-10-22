@@ -1098,6 +1098,17 @@ abstract final class ClinicalGuidelineCatalog {
         .toList(growable: false);
   }
 
+  static final Map<String, ClinicalGuideline> _guidelineById = {
+    for (final g in guidelines) g.id: g,
+  };
+
+  static final _nonAlphanumericPattern = RegExp(r'[^a-z0-9]+');
+
+  // Cache related guideline query results to prevent redundant regex evaluation and string tokenization
+  static final Map<String, List<ClinicalGuideline>> _relatedGuidelinesCache =
+      {};
+  static const int _maxCacheSize = 128;
+
   /// Returns curated clinical guidelines related to a specific measurement or
   /// record type for educational reference and doctor-patient discussion.
   ///
@@ -1123,8 +1134,12 @@ abstract final class ClinicalGuidelineCatalog {
             .trim() ??
         '';
 
+    final cacheKey = '$name|$cat|$code';
+    final cached = _relatedGuidelinesCache[cacheKey];
+    if (cached != null) return cached;
+
     final tokens = name
-        .split(RegExp(r'[^a-z0-9]+'))
+        .split(_nonAlphanumericPattern)
         .where((t) => t.isNotEmpty)
         .toSet();
 
@@ -1133,7 +1148,7 @@ abstract final class ClinicalGuidelineCatalog {
 
     void addGuideline(String id) {
       if (matchedIds.add(id)) {
-        final found = guidelines.where((g) => g.id == id).firstOrNull;
+        final found = _guidelineById[id];
         if (found != null) {
           matched.add(found);
         }
@@ -1320,7 +1335,12 @@ abstract final class ClinicalGuidelineCatalog {
       addGuideline('aus-immunisation-influenza');
     }
 
-    return List.unmodifiable(matched);
+    final result = List<ClinicalGuideline>.unmodifiable(matched);
+    if (_relatedGuidelinesCache.length >= _maxCacheSize) {
+      _relatedGuidelinesCache.clear();
+    }
+    _relatedGuidelinesCache[cacheKey] = result;
+    return result;
   }
 
   /// Quick check whether any evidence-based guideline matches the given
