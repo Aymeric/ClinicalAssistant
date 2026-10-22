@@ -174,6 +174,18 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
   }
 
   Future<void> _openOfficialSource() async {
+    if (widget.guideline.webUrl.scheme != 'https') {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Only HTTPS links are supported for external launch.',
+            ),
+          ),
+        );
+      return;
+    }
     try {
       final opened = await launchUrl(
         widget.guideline.webUrl,

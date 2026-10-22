@@ -966,5 +966,70 @@ void main() {
         expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'GuidelineViewerPage blocks external launch for non-HTTPS web URLs',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 1000);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final baseGuideline = ClinicalGuidelineCatalog.guidelines.first;
+        final insecureGuideline = ClinicalGuideline(
+          id: 'insecure-weburl-guideline',
+          title: baseGuideline.title,
+          shortTitle: baseGuideline.shortTitle,
+          identifier: baseGuideline.identifier,
+          publisher: baseGuideline.publisher,
+          sourceId: baseGuideline.sourceId,
+          jurisdiction: baseGuideline.jurisdiction,
+          topic: baseGuideline.topic,
+          publishedDate: baseGuideline.publishedDate,
+          summary: baseGuideline.summary,
+          targetAudience: baseGuideline.targetAudience,
+          evidenceGrade: baseGuideline.evidenceGrade,
+          recommendations: baseGuideline.recommendations,
+          sections: baseGuideline.sections,
+          webUrl: Uri.parse('http://insecure-example.com/guideline'),
+          downloadUrl: baseGuideline.downloadUrl,
+          fileSizeBytes: baseGuideline.fileSizeBytes,
+          citation: baseGuideline.citation,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: GuidelineViewerPage(
+              guideline: insecureGuideline,
+              storageService: service,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final scrollable = find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+
+        await tester.scrollUntilVisible(
+          find.text('Official site'),
+          100,
+          scrollable: scrollable,
+        );
+        await tester.ensureVisible(find.text('Official site'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Official site'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Only HTTPS links are supported for external launch.'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }
