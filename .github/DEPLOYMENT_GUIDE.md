@@ -88,17 +88,23 @@ keytool -genkey -v -keystore android/app/upload-keystore.jks \
 
 To test building release binaries locally before pushing:
 
+Choose a build number that has not already been uploaded for the current app
+version. The GitHub release workflow uses its run number; verify that it is
+higher than the latest store build before triggering a release.
+
 ### Android:
 ```bash
+BUILD_NUMBER=14 # Replace with the next unused build number.
+
 # Build release APK
-flutter build apk --release
+flutter build apk --release --build-number="$BUILD_NUMBER"
 
 # Build AppBundle for Google Play
-flutter build appbundle --release
+flutter build appbundle --release --build-number="$BUILD_NUMBER"
 ```
 
 ### iOS:
 ```bash
 # Build archive & IPA (requires macOS and Xcode)
-flutter build ipa --release
+flutter build ipa --release --build-number="$BUILD_NUMBER"
 ```
