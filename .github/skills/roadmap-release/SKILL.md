@@ -1,5 +1,5 @@
 ---
-name: release
+name: roadmap-release
 description: "Use when preparing a Clinical Assistant release: review commits, choose a version, update release documentation and roadmap, reconcile GitHub issues, run project quality gates, and verify the Android/iOS release workflow."
 ---
 
@@ -87,12 +87,15 @@ the change set does not clearly indicate patch, minor, or major impact.
    flutter test
    ```
 
-   Build platform artifacts when requested and the required host, signing
-   credentials, and provisioning are available. The local commands are
-   `flutter build appbundle --release` and `flutter build ipa --release`; use
-   an unused build number where needed. GitHub Actions also builds Android APK
-   and App Bundle artifacts, configures iOS signing from repository secrets,
-   uploads to configured stores, and can attach artifacts to a GitHub Release.
+   Do not build platform artifacts locally as part of routine release
+   preparation. The tag-triggered GitHub Actions workflow is the canonical
+   release build: it builds Android APK and App Bundle artifacts, configures
+   iOS signing from repository secrets, uploads to configured stores, and can
+   attach artifacts to a GitHub Release. Run a local platform build only when
+   the user explicitly requests a local artifact or when reproducing a CI build
+   failure. The local commands are `flutter build appbundle --release` and
+   `flutter build ipa --release`; use an unused build number where needed.
+   A successful local build does not confirm store-ready signing or deployment.
    Never print or ask the user to paste credentials into chat.
 
 10. **Ask before committing and triggering deployment.** After release
