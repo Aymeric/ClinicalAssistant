@@ -410,6 +410,29 @@ void main() {
         expect(file.path.endsWith('.pdf'), isTrue);
       },
     );
+
+    test(
+      'restricts PDF export file permissions to user read/write only on POSIX systems',
+      () async {
+        const exporter = GuidelinePdfExportService();
+        final guideline = ClinicalGuidelineCatalog.guidelines.first;
+        final file = await exporter.generateGuidelinePdf(
+          guideline: guideline,
+          patientNotes: 'Confidential clinical discussion notes',
+          outputDirectory: tempDir,
+        );
+
+        expect(file.existsSync(), isTrue);
+        if (!Platform.isWindows) {
+          final stat = file.statSync();
+          final modeString = stat.mode.toRadixString(8);
+          expect(
+            modeString.endsWith('600') || modeString.endsWith('700'),
+            isTrue,
+          );
+        }
+      },
+    );
   });
 
   group('Guideline UI & Viewer Integration', () {
