@@ -43,7 +43,7 @@ void main() {
 
     final records = await HealthConnectMedicalRecordsImporter(
       channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026, 1, 1));
+    ).importLabRecords();
 
     expect(records, hasLength(1));
     expect(
@@ -87,10 +87,13 @@ void main() {
 
     final records = await HealthConnectMedicalRecordsImporter(
       channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026, 1, 1));
+    ).importLabRecords();
 
-    expect(records, hasLength(1));
-    expect(records.single.sourceData?['id'], '2026-01-01');
+    expect(records, hasLength(2));
+    expect(records.map((record) => record.sourceData?['id']), [
+      '2025-12-31',
+      '2026-01-01',
+    ]);
   });
 
   test('does not read labs when Health Connect access is denied', () async {
@@ -108,7 +111,7 @@ void main() {
 
     final records = await HealthConnectMedicalRecordsImporter(
       channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026), onStatus: statuses.add);
+    ).importLabRecords(onStatus: statuses.add);
 
     expect(records, isEmpty);
     expect(methods, ['isMedicalRecordsAvailable', 'requestLabReadPermission']);
@@ -126,7 +129,7 @@ void main() {
 
     final records = await HealthConnectMedicalRecordsImporter(
       channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026), onStatus: statuses.add);
+    ).importLabRecords(onStatus: statuses.add);
 
     expect(records, isEmpty);
     expect(methods, ['isMedicalRecordsAvailable']);
@@ -147,9 +150,7 @@ void main() {
         });
 
     await expectLater(
-      HealthConnectMedicalRecordsImporter(
-        channel: channel,
-      ).importLabRecords(since: DateTime.utc(2026)),
+      HealthConnectMedicalRecordsImporter(channel: channel).importLabRecords(),
       throwsFormatException,
     );
   });

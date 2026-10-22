@@ -35,7 +35,7 @@ void main() {
 
       final records = await AppleClinicalRecordsImporter(
         channel: channel,
-      ).importLabRecords(since: DateTime.utc(2026, 1, 1));
+      ).importLabRecords();
 
       expect(records, hasLength(1));
       expect(records.single.id, 'health-clinical:org.example.hospital:lab-1');
@@ -46,8 +46,7 @@ void main() {
       expect(records.single.sourceData?['resourceType'], 'Observation');
     },
   );
-
-  test('applies the requested range to the observation date', () async {
+  test('includes historical observations for later sync discovery', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           return [
@@ -69,10 +68,13 @@ void main() {
 
     final records = await AppleClinicalRecordsImporter(
       channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026, 1, 1));
+    ).importLabRecords(timeout: const Duration(milliseconds: 5));
 
-    expect(records, hasLength(1));
-    expect(records.single.sourceData?['id'], '2026-01-01');
+    expect(records, hasLength(2));
+    expect(records.map((record) => record.sourceData?['id']), [
+      '2025-12-31',
+      '2026-01-01',
+    ]);
   });
 
   test(
@@ -82,9 +84,7 @@ void main() {
           .setMockMethodCallHandler(channel, (call) async => ['not a record']);
 
       await expectLater(
-        AppleClinicalRecordsImporter(
-          channel: channel,
-        ).importLabRecords(since: DateTime.utc(2026)),
+        AppleClinicalRecordsImporter(channel: channel).importLabRecords(),
         throwsFormatException,
       );
     },
@@ -97,11 +97,9 @@ void main() {
           return [];
         });
 
-    final records = await AppleClinicalRecordsImporter(channel: channel)
-        .importLabRecords(
-          since: DateTime.utc(2026),
-          timeout: const Duration(milliseconds: 5),
-        );
+    final records = await AppleClinicalRecordsImporter(
+      channel: channel,
+    ).importLabRecords();
 
     expect(records, isEmpty);
   });
@@ -117,7 +115,7 @@ void main() {
 
     final records = await AppleClinicalRecordsImporter(
       channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026));
+    ).importLabRecords();
 
     expect(records, isEmpty);
   });
@@ -130,7 +128,7 @@ void main() {
 
     final records = await AppleClinicalRecordsImporter(
       channel: channel,
-    ).importLabRecords(since: DateTime.utc(2026));
+    ).importLabRecords();
 
     expect(records, isEmpty);
   });

@@ -188,9 +188,7 @@ class HealthPlatformImporter {
     if (Platform.isIOS) {
       report('Reading Apple Health clinical labs');
       try {
-        records.addAll(
-          await _appleClinicalRecords.importLabRecords(since: since),
-        );
+        records.addAll(await _appleClinicalRecords.importLabRecords());
       } catch (_) {
         // Clinical labs are optional; errors should not prevent basic health sync.
       }
@@ -201,7 +199,6 @@ class HealthPlatformImporter {
       report('Reading Health Connect laboratory results');
       records.addAll(
         await _healthConnectMedicalRecords.importLabRecords(
-          since: since,
           onStatus: (message) {
             onProgress?.call(
               ImportProgress(

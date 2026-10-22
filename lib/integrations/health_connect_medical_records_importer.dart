@@ -23,7 +23,6 @@ class HealthConnectMedicalRecordsImporter {
   final FhirObservationParser _parser;
 
   Future<List<HealthRecord>> importLabRecords({
-    required DateTime since,
     HealthConnectMedicalRecordsStatusCallback? onStatus,
   }) async {
     if (!await _invokeBoolean('isMedicalRecordsAvailable')) {
@@ -98,9 +97,7 @@ class HealthConnectMedicalRecordsImporter {
         sourceId: sourceId,
         idPrefix: 'health-connect-clinical',
       );
-      records.addAll(
-        parsed.where((record) => !record.recordedAt.isBefore(since.toUtc())),
-      );
+      records.addAll(parsed);
     }
     return records;
   }

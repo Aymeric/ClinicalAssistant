@@ -18,7 +18,6 @@ class AppleClinicalRecordsImporter {
   final FhirObservationParser _parser;
 
   Future<List<HealthRecord>> importLabRecords({
-    required DateTime since,
     Duration timeout = const Duration(seconds: 12),
   }) async {
     final List<Object?>? response;
@@ -68,9 +67,7 @@ class AppleClinicalRecordsImporter {
         sourceId: sourceId,
         idPrefix: 'health-clinical',
       );
-      records.addAll(
-        parsed.where((record) => !record.recordedAt.isBefore(since.toUtc())),
-      );
+      records.addAll(parsed);
     }
     return records;
   }
