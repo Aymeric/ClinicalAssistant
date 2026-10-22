@@ -308,11 +308,23 @@ jobs:
         if: ${{ (steps.ios_signing.outputs.has_signing == 'true') && (steps.apple_creds.outputs.has_api_key != 'true') && (steps.apple_creds.outputs.has_password != 'true') }}
         run: echo "::warning::App Store Connect API credentials or app-specific password not configured; skipping upload to Apple TestFlight / App Store."
 
+      - name: Resolve IPA Path
+        if: steps.ios_signing.outputs.has_signing == 'true'
+        id: resolve_ipa
+        run: |
+          IPA_PATH=$(find build/ios/ipa -maxdepth 1 -name "*.ipa" | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "::error::No IPA found in build/ios/ipa"
+            exit 1
+          fi
+          echo "Found IPA: $IPA_PATH"
+          echo "ipa_path=$IPA_PATH" >> "$GITHUB_OUTPUT"
+
       - name: Upload to Apple TestFlight / App Store (API Key)
         if: ${{ (steps.ios_signing.outputs.has_signing == 'true') && (github.event.inputs.deploy_apple != 'false') && (steps.apple_creds.outputs.has_api_key == 'true') }}
         uses: apple-actions/upload-testflight-build@v5
         with:
-          app-path: build/ios/ipa/*.ipa
+          app-path: ${{ steps.resolve_ipa.outputs.ipa_path }}
           issuer-id: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           api-key-id: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           api-private-key: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
@@ -320,8 +332,7 @@ jobs:
       - name: Upload to Apple TestFlight (App-Specific Password Fallback)
         if: ${{ (steps.ios_signing.outputs.has_signing == 'true') && (github.event.inputs.deploy_apple != 'false') && (steps.apple_creds.outputs.has_api_key != 'true') && (steps.apple_creds.outputs.has_password == 'true') }}
         run: |
-          IPA_FILE=$(ls build/ios/ipa/*.ipa | head -n 1)
-          xcrun altool --upload-app --type ios -f "$IPA_FILE" \
+          xcrun altool --upload-app --type ios -f "${{ steps.resolve_ipa.outputs.ipa_path }}" \
             --username "${{ secrets.APP_STORE_CONNECT_USERNAME }}" \
             --password "${{ secrets.APP_STORE_CONNECT_PASSWORD }}"
 
