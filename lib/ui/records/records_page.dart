@@ -696,31 +696,57 @@ class DatePresetChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onSelected;
 
+  String get _tooltipMessage => switch (label) {
+    'All time' => 'Filter records from all time',
+    '7D' => 'Filter records from last 7 days',
+    '30D' => 'Filter records from last 30 days',
+    '90D' => 'Filter records from last 90 days',
+    '1Y' => 'Filter records from last 1 year',
+    _ => 'Filter records by $label',
+  };
+
+  String get _semanticLabel => switch (label) {
+    'All time' => 'All time date range filter',
+    '7D' => 'Last 7 days date range filter',
+    '30D' => 'Last 30 days date range filter',
+    '90D' => 'Last 90 days date range filter',
+    '1Y' => 'Last 1 year date range filter',
+    _ => '$label date range filter',
+  };
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Material(
-      color: selected ? colors.primaryContainer : colors.surface,
-      shape: StadiumBorder(
-        side: BorderSide(
-          color: selected
-              ? colors.primary
-              : colors.outlineVariant.withValues(alpha: 0.6),
-        ),
-      ),
-      child: InkWell(
-        onTap: onSelected,
-        customBorder: const StadiumBorder(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          child: Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+    return Tooltip(
+      message: _tooltipMessage,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: _semanticLabel,
+        child: Material(
+          color: selected ? colors.primaryContainer : colors.surface,
+          shape: StadiumBorder(
+            side: BorderSide(
               color: selected
-                  ? colors.onPrimaryContainer
-                  : colors.onSurfaceVariant,
+                  ? colors.primary
+                  : colors.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
+          child: InkWell(
+            onTap: onSelected,
+            customBorder: const StadiumBorder(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              child: Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? colors.onPrimaryContainer
+                      : colors.onSurfaceVariant,
+                ),
+              ),
             ),
           ),
         ),
