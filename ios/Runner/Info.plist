@@ -41,6 +41,10 @@
 	<string>Clinical Assistant reads the lab records you approve from Apple Health so you can collect and export your health history.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Clinical Assistant reads the health data types you approve so you can collect and export your health history.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Clinical Assistant uses HealthKit to import the measurements and clinical records you choose into your encrypted health history. It does not change data in Apple Health.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
