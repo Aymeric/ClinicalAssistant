@@ -95,14 +95,35 @@ the change set does not clearly indicate patch, minor, or major impact.
    uploads to configured stores, and can attach artifacts to a GitHub Release.
    Never print or ask the user to paste credentials into chat.
 
-10. **Keep release actions authorized.** Do not commit, create or push tags,
-    publish a GitHub Release, deploy to an app store, or mutate GitHub issues
-    unless the user explicitly asks for that action. Do not imply an upload
-    succeeded unless a tool or workflow confirms it. Report missing signing,
-    API credentials, review steps, or unavailable tests plainly.
+10. **Ask before committing and triggering deployment.** After release
+      preparation and checks are complete, summarize the changes and ask whether
+      the user wants you to commit and push the release changes and push a
+      `v<major.minor.patch>` tag. Explain that pushing this tag triggers
+      `.github/workflows/release.yml` to build and deploy to configured app stores.
+      Do not stage, commit, push, or tag until the user explicitly approves.
+
+      If approved:
+      - Recheck the branch, worktree, remote, and whether the target tag already
+         exists. Confirm the semantic version in `pubspec.yaml` matches the tag.
+      - Stage only the changes prepared for this release. Exclude pre-existing or
+         unrelated user changes unless the user explicitly includes them.
+      - Commit and push the release changes to the remote branch first. If the
+         branch push fails or the changes are not on the remote, stop; do not push
+         a tag that could trigger a release from a different commit.
+      - Create and push the version tag only after the release commit is available
+         on the remote. The tag push triggers the configured release workflow.
+      - Verify the push and workflow run, then report whether builds and store
+         deployments succeeded. Do not claim an upload succeeded unless confirmed
+         by the workflow or store status.
+
+      If declined, leave the changes uncommitted and untagged. Do not mutate
+      GitHub issues or publish a separate GitHub Release unless explicitly asked.
+      Report missing signing/API credentials, review steps, or unavailable tests
+      plainly.
 
 ## Completion Report
 
 Summarize the version/build decision, documentation and roadmap changes, issue
-state checked, quality gates and builds run, artifact locations, and any release
-actions not completed or compliance details requiring confirmation.
+state checked, quality gates and builds run, artifact locations, the user's
+commit/push/tag decision, workflow/deployment status, and any release actions
+not completed or compliance details requiring confirmation.
