@@ -598,28 +598,41 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () => setState(() => _showRawData = !_showRawData),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _showRawData
-                                  ? Icons.expand_less
-                                  : Icons.expand_more,
-                              color: colors.primary,
+                    child: Tooltip(
+                      message: _showRawData
+                          ? 'Hide raw FHIR source data'
+                          : 'Show raw FHIR source data',
+                      child: Semantics(
+                        button: true,
+                        label: 'Toggle raw FHIR source data',
+                        expanded: _showRawData,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () =>
+                              setState(() => _showRawData = !_showRawData),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _showRawData
+                                      ? Icons.expand_less
+                                      : Icons.expand_more,
+                                  color: colors.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Raw Source / FHIR Data',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Raw Source / FHIR Data',
-                                style: TextStyle(fontWeight: FontWeight.w600),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
