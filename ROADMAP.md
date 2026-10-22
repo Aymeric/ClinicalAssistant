@@ -1,6 +1,6 @@
 # Clinical Assistant Roadmap
 
-This roadmap outlines the strategic development milestones, feature expansions, clinical domain modules, and technical architecture initiatives for Clinical Assistant. It directly aligns with the product principles documented in [PRODUCT.md](file:///Users/aymericgrassart/Documents/Repos/github.com/Aymeric/ClinicalAssistant/PRODUCT.md) and technical requirements in [README.md](file:///Users/aymericgrassart/Documents/Repos/github.com/Aymeric/ClinicalAssistant/README.md).
+This roadmap outlines the strategic development milestones, feature expansions, clinical domain modules, and technical architecture initiatives for Clinical Assistant. It directly aligns with the product principles documented in [PRODUCT.md](PRODUCT.md) and technical requirements in [README.md](README.md).
 
 ---
 

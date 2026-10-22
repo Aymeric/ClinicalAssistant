@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.0 - 2026-10-22
+
+### Added
+
+- Refresh the iOS and Android app icons, launch screens, and brand colors.
+
+### Changed
+
+- Confirm medication deletion before removing the medication and its adherence
+  history ([PR #69](https://github.com/Aymeric/ClinicalAssistant/pull/69)); add
+  clearer action labels and accessible date-range controls
+  ([PR #72](https://github.com/Aymeric/ClinicalAssistant/pull/72)).
+- Improve clinical guideline catalog lookup and query caching
+  ([PR #71](https://github.com/Aymeric/ClinicalAssistant/pull/71)).
+
+### Security and reliability
+
+- Sanitize guideline consultation notes and limit their length to 5,000
+  characters ([PR #68](https://github.com/Aymeric/ClinicalAssistant/pull/68)).
+- Restrict exported guideline PDF file permissions to the current user
+  ([PR #70](https://github.com/Aymeric/ClinicalAssistant/pull/70)).
+
 ## 0.1.0 - 2026-10-21
 
 Initial release of Clinical Assistant.
