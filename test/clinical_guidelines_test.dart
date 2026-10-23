@@ -381,6 +381,40 @@ void main() {
     });
 
     test(
+      'restricts file permissions on created storage files to user read/write only on POSIX systems',
+      () async {
+        const id = 'nice-ng136-hypertension';
+        final guideline = ClinicalGuidelineCatalog.guidelines.first;
+
+        await service.saveGuidelineNotes(
+          id,
+          'Private note for doctor consultation',
+        );
+        await service.setFavorite(guideline.id, true);
+        await service.downloadGuideline(guideline);
+
+        if (!Platform.isWindows) {
+          final notesFile = File(
+            '${tempDir.path}/notes_${id.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_')}.txt',
+          );
+          final favoritesFile = File('${tempDir.path}/_favorites.json');
+          final downloadedFile = File(
+            '${tempDir.path}/${guideline.id.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_')}.json',
+          );
+
+          for (final f in [notesFile, favoritesFile, downloadedFile]) {
+            expect(f.existsSync(), isTrue);
+            final modeString = f.statSync().mode.toRadixString(8);
+            expect(
+              modeString.endsWith('600') || modeString.endsWith('700'),
+              isTrue,
+            );
+          }
+        }
+      },
+    );
+
+    test(
       'sanitizes unsafe control characters and truncates long notes',
       () async {
         const id = 'nice-ng136-hypertension';

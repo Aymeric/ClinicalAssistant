@@ -83,6 +83,7 @@ class GuidelineStorageService {
 
     final jsonString = jsonEncode(downloaded.toJson());
     targetFile.writeAsStringSync(jsonString, flush: true);
+    _restrictFilePermissions(targetFile);
 
     final actualSize = targetFile.lengthSync();
     return DownloadedGuideline(
@@ -149,6 +150,7 @@ class GuidelineStorageService {
     }
     final file = _favoritesFile(dir);
     file.writeAsStringSync(jsonEncode(favorites.toList()), flush: true);
+    _restrictFilePermissions(file);
   }
 
   Future<bool> toggleFavorite(String guidelineId) async {
@@ -197,6 +199,7 @@ class GuidelineStorageService {
       }
     } else {
       file.writeAsStringSync(sanitized, flush: true);
+      _restrictFilePermissions(file);
     }
   }
 
@@ -273,5 +276,15 @@ class GuidelineStorageService {
       total += item.fileSizeBytes;
     }
     return total;
+  }
+
+  void _restrictFilePermissions(File file) {
+    // Restrict permissions to user read/write only (0600) on POSIX platforms
+    // to safeguard local guideline files and notes against local process access.
+    if (!Platform.isWindows) {
+      try {
+        Process.runSync('chmod', ['600', file.path]);
+      } catch (_) {}
+    }
   }
 }
