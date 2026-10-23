@@ -148,5 +148,48 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'TrendChartPanel moving average FilterChip displays informative tooltip',
+      (tester) async {
+        final record1 = HealthRecord(
+          id: '1',
+          name: 'Heart Rate',
+          value: '70',
+          unit: 'bpm',
+          recordedAt: DateTime.utc(2025, 5, 1),
+          category: RecordCategory.vital,
+          source: 'Manual',
+        );
+        final pointsSingle = [HealthTrendPoint(record: record1, value: 70)];
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: TrendChartPanel(
+                points: pointsSingle,
+                showMovingAverage: false,
+                onMovingAverageChanged: (_) {},
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final tooltipFinder = find.byType(Tooltip);
+        expect(tooltipFinder, findsWidgets);
+
+        final tooltipWidget = tester.widget<Tooltip>(
+          find.ancestor(
+            of: find.byKey(const ValueKey('trend-moving-average')),
+            matching: find.byType(Tooltip),
+          ),
+        );
+        expect(
+          tooltipWidget.message,
+          'Requires at least 3 readings to compute moving average',
+        );
+      },
+    );
   });
 }
