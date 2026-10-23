@@ -98,6 +98,11 @@ flutter test
 flutter analyze
 ```
 
+## Beta testing
+
+- [Apple TestFlight](https://testflight.apple.com/join/wQWTZ4kZ)
+- [Google Play internal testing](https://play.google.com/apps/internaltest/4701380658244067623)
+
 ## Platform setup and limitations
 
 **iOS:** HealthKit access requires the HealthKit and Clinical Health Records
