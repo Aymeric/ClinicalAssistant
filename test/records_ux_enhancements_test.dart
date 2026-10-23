@@ -6,6 +6,7 @@ import 'package:clinical_assistant/main.dart';
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
 import 'package:clinical_assistant/sync/import_progress.dart';
+import 'package:clinical_assistant/ui/records/record_details_sheet.dart';
 import 'package:clinical_assistant/ui/records/records_page.dart';
 import 'package:clinical_assistant/ui/shared/record_widgets.dart';
 import 'package:flutter/material.dart';
@@ -274,5 +275,51 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('RecordDetailsSheet raw FHIR toggle has tooltip and semantics', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final recordWithSourceData = HealthRecord(
+      id: 'lab:raw_test',
+      name: 'Blood Pressure',
+      value: '120/80',
+      unit: 'mmHg',
+      recordedAt: DateTime.utc(2025, 5, 10),
+      category: RecordCategory.vital,
+      source: 'Epic FHIR',
+      sourceData: {'resourceType': 'Observation', 'status': 'final'},
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RecordDetailsSheet(
+            record: recordWithSourceData,
+            isNumeric: false,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tooltipFinder = find.byTooltip('Show raw FHIR source data');
+    expect(tooltipFinder, findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      tooltipFinder,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(tooltipFinder);
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Hide raw FHIR source data'), findsOneWidget);
+    expect(find.textContaining('Observation'), findsOneWidget);
   });
 }
