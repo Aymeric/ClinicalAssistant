@@ -791,7 +791,7 @@ class SyntheticDemoCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Load synthetic demonstration records (HbA1c, Cholesterol, Glucose, Creatinine, Heart Rate, Blood Pressure, and Daily Steps) spanning recent months to explore trends, charts, and exports.',
+              'Load synthetic demonstration records (labs, vital signs, daily steps, and medications) spanning recent months to explore trends, charts, exports, and medication management.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

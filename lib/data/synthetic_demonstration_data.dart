@@ -1,4 +1,5 @@
 import '../models/health_record.dart';
+import '../models/manual_medication_details.dart';
 
 const syntheticDemoSource = 'Synthetic Demo';
 const syntheticDemoSourceId = 'synthetic-demo';
@@ -288,6 +289,40 @@ List<HealthRecord> generateSyntheticDemonstrationRecords({
       ),
     );
   }
+
+  // 8. Active medications for exploring medication management.
+  records.addAll([
+    HealthRecord(
+      id: 'synthetic:medication:atorvastatin',
+      name: 'Atorvastatin',
+      value: '20 mg oral tablet once daily',
+      unit: '',
+      recordedAt: now.subtract(const Duration(days: 45)),
+      category: RecordCategory.medication,
+      source: syntheticDemoSource,
+      sourceId: syntheticDemoSourceId,
+      status: 'active',
+      sourceData: const ManualMedicationDetails(
+        frequency: 'Once daily at bedtime',
+        route: 'Oral',
+      ).withSourceData(null),
+    ),
+    HealthRecord(
+      id: 'synthetic:medication:metformin',
+      name: 'Metformin',
+      value: '500 mg oral tablet twice daily',
+      unit: '',
+      recordedAt: now.subtract(const Duration(days: 30)),
+      category: RecordCategory.medication,
+      source: syntheticDemoSource,
+      sourceId: syntheticDemoSourceId,
+      status: 'active',
+      sourceData: const ManualMedicationDetails(
+        frequency: 'Twice daily with meals',
+        route: 'Oral',
+      ).withSourceData(null),
+    ),
+  ]);
 
   return records;
 }

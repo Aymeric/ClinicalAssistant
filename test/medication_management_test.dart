@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:clinical_assistant/controllers/health_data_controller.dart';
 import 'package:clinical_assistant/data/encrypted_record_store.dart';
+import 'package:clinical_assistant/data/synthetic_demonstration_data.dart';
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/models/manual_medication_details.dart';
 import 'package:clinical_assistant/models/medication_adherence_log.dart';
@@ -48,6 +49,27 @@ class _MemorySyncValueStore implements SyncValueStore {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('synthetic demonstration data includes active medications', () {
+    final records = generateSyntheticDemonstrationRecords(
+      referenceDate: DateTime.utc(2026, 10, 23),
+    );
+    final medications = records
+        .where((record) => record.category == RecordCategory.medication)
+        .toList();
+
+    expect(medications, hasLength(2));
+    expect(medications.map((record) => record.name), [
+      'Atorvastatin',
+      'Metformin',
+    ]);
+    expect(medications.every((record) => record.status == 'active'), isTrue);
+    expect(medications.every((record) => isSyntheticRecord(record)), isTrue);
+    expect(
+      ManualMedicationDetails.fromRecord(medications.first).frequency,
+      'Once daily at bedtime',
+    );
+  });
 
   group('Medication Adherence Model', () {
     test('serializes and deserializes MedicationAdherenceLog', () {
