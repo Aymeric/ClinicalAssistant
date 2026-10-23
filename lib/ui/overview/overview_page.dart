@@ -80,9 +80,10 @@ class OverviewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labs = records.where(
-      (record) => record.category == RecordCategory.lab,
-    );
+    // Count lab results directly to avoid multiple full Iterable evaluations
+    final labCount = records
+        .where((record) => record.category == RecordCategory.lab)
+        .length;
     final latest = [...records]
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     final trendSeries = buildHealthTrendSeries(records)
@@ -113,15 +114,26 @@ class OverviewPage extends StatelessWidget {
         )
         .toList();
 
-    // Pinned metrics
+    // Pinned metrics: map series ID to latest record using computed trendSeries
+    // or by fallback map lookup to avoid O(pinned * records) filtering & sorting.
+    final latestBySeries = <String, HealthRecord>{
+      for (final series in trendSeries)
+        if (series.points.isNotEmpty) series.id: series.points.last.record,
+    };
     final pinnedRecords = <HealthRecord>[];
     for (final seriesId in pinnedSeries) {
-      final matches = records
-          .where((r) => healthTrendSeriesId(r) == seriesId)
-          .toList();
-      if (matches.isNotEmpty) {
-        matches.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-        pinnedRecords.add(matches.first);
+      var match = latestBySeries[seriesId];
+      if (match == null) {
+        final matches = records
+            .where((r) => healthTrendSeriesId(r) == seriesId)
+            .toList();
+        if (matches.isNotEmpty) {
+          matches.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+          match = matches.first;
+        }
+      }
+      if (match != null) {
+        pinnedRecords.add(match);
       }
     }
 
@@ -204,7 +216,7 @@ class OverviewPage extends StatelessWidget {
                   Text(
                     loading
                         ? 'Opening your encrypted record vault...'
-                        : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved  ·  ${labs.length} lab ${labs.length == 1 ? 'result' : 'results'}',
+                        : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved  ·  $labCount lab ${labCount == 1 ? 'result' : 'results'}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -929,8 +941,17 @@ class OverviewCategoryBreakdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+
+    // Single pass over records to aggregate counts per category,
+    // avoiding O(categories * records) linear scanning.
+    final categoryCounts = <RecordCategory, int>{};
+    for (final record in records) {
+      categoryCounts[record.category] =
+          (categoryCounts[record.category] ?? 0) + 1;
+    }
+
     final availableCategories = RecordCategory.values
-        .where((cat) => records.any((r) => r.category == cat))
+        .where((cat) => categoryCounts.containsKey(cat))
         .toList();
 
     if (availableCategories.isEmpty) return const SizedBox.shrink();
@@ -953,7 +974,7 @@ class OverviewCategoryBreakdown extends StatelessWidget {
             for (final category in availableCategories)
               CategorySummaryBadge(
                 category: category,
-                count: records.where((r) => r.category == category).length,
+                count: categoryCounts[category]!,
                 onTap: onSelectCategory == null
                     ? null
                     : () => onSelectCategory!(category),
