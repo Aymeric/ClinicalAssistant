@@ -111,11 +111,20 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                FilterChip(
-                  key: const ValueKey('trend-moving-average'),
-                  label: const Text('3-reading average'),
-                  selected: showMovingAverage,
-                  onSelected: points.length < 3 ? null : onMovingAverageChanged,
+                Tooltip(
+                  message: points.length < 3
+                      ? 'Requires at least 3 readings to compute moving average'
+                      : (showMovingAverage
+                            ? 'Hide 3-reading moving average'
+                            : 'Show 3-reading moving average'),
+                  child: FilterChip(
+                    key: const ValueKey('trend-moving-average'),
+                    label: const Text('3-reading average'),
+                    selected: showMovingAverage,
+                    onSelected: points.length < 3
+                        ? null
+                        : onMovingAverageChanged,
+                  ),
                 ),
               ],
             ),
