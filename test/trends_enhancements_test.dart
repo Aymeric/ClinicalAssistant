@@ -142,6 +142,10 @@ void main() {
 
         expect(find.text('Systolic'), findsOneWidget);
         expect(find.text('Diastolic'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('trend-chart-date-labels')),
+          findsOneWidget,
+        );
       },
     );
   });

@@ -198,12 +198,27 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
               ),
             ],
             const SizedBox(height: 4),
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              runSpacing: 2,
+            Row(
+              key: const ValueKey('trend-chart-date-labels'),
               children: [
-                Text(firstDate, style: Theme.of(context).textTheme.labelSmall),
-                Text(lastDate, style: Theme.of(context).textTheme.labelSmall),
+                Expanded(
+                  child: Text(
+                    firstDate,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    lastDate,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
