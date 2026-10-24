@@ -127,41 +127,59 @@ class HealthLabResultSummary {
   final HealthLabTrendDirection direction;
 }
 
-String healthTrendSeriesId(HealthRecord record) => [
-  record.category.name,
-  record.name.trim().toLowerCase(),
-  record.unit,
-].join('\u0000');
+String healthTrendSeriesId(HealthRecord record) =>
+    '${record.category.name}\u0000${record.name.trim().toLowerCase()}\u0000${record.unit}';
 
 List<HealthLabResultSummary> buildLatestLabResultSummaries(
   Iterable<HealthRecord> records, {
   Iterable<HealthRecord>? candidates,
 }) {
   final recordsBySeries = <String, List<HealthTrendPoint>>{};
+  final latestCandidateBySeries = <String, HealthRecord>{};
+  final candidateRecords = candidates ?? records;
+  final isDefaultCandidates =
+      candidates == null || identical(candidates, records);
+
+  // Single pass over records for grouping numeric lab points and tracking
+  // the latest candidate record per series ID without list allocations or sorting.
   for (final record in records) {
     if (record.category != RecordCategory.lab) continue;
+    final key = healthTrendSeriesId(record);
+
+    if (isDefaultCandidates) {
+      final existingCandidate = latestCandidateBySeries[key];
+      if (existingCandidate == null ||
+          _compareHealthRecords(record, existingCandidate) > 0) {
+        latestCandidateBySeries[key] = record;
+      }
+    }
+
     final value = parseHealthRecordValue(record.value);
     if (value == null) continue;
     recordsBySeries
-        .putIfAbsent(healthTrendSeriesId(record), () => [])
+        .putIfAbsent(key, () => [])
         .add(HealthTrendPoint(record: record, value: value));
   }
+
+  if (!isDefaultCandidates) {
+    for (final record in candidateRecords) {
+      if (record.category != RecordCategory.lab) continue;
+      final key = healthTrendSeriesId(record);
+      final existingCandidate = latestCandidateBySeries[key];
+      if (existingCandidate == null ||
+          _compareHealthRecords(record, existingCandidate) > 0) {
+        latestCandidateBySeries[key] = record;
+      }
+    }
+  }
+
   for (final series in recordsBySeries.values) {
     series.sort(_compareHealthTrendPoints);
   }
 
-  final candidatesBySeries = <String, List<HealthRecord>>{};
-  for (final record in candidates ?? records) {
-    if (record.category != RecordCategory.lab) continue;
-    candidatesBySeries
-        .putIfAbsent(healthTrendSeriesId(record), () => [])
-        .add(record);
-  }
-
   final summaries = <HealthLabResultSummary>[];
-  for (final entry in candidatesBySeries.entries) {
-    final candidates = entry.value..sort(_compareHealthRecords);
-    final latestRecord = candidates.last;
+  for (final entry in latestCandidateBySeries.entries) {
+    final latestRecord = entry.value;
     final latestValue = parseHealthRecordValue(latestRecord.value);
     if (latestValue == null) continue;
     final latest = HealthTrendPoint(record: latestRecord, value: latestValue);
