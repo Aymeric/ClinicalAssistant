@@ -232,5 +232,39 @@ void main() {
         throwsFormatException,
       );
     });
+
+    test('rejects backups with unsupported KDF or cipher algorithms', () async {
+      const password = 'valid-password-123';
+      final validBackup = await service.exportEncryptedBackup(
+        sampleRecords,
+        password,
+      );
+
+      // Test unsupported KDF algorithm
+      final unsupportedKdf = jsonDecode(validBackup) as Map<String, dynamic>;
+      unsupportedKdf['kdf'] = Map<String, dynamic>.from(
+        unsupportedKdf['kdf'] as Map,
+      )..['algorithm'] = 'PBKDF2-HMAC-SHA1';
+      expect(
+        () => service.restoreEncryptedBackup(
+          jsonEncode(unsupportedKdf),
+          password,
+        ),
+        throwsFormatException,
+      );
+
+      // Test unsupported cipher algorithm
+      final unsupportedCipher = jsonDecode(validBackup) as Map<String, dynamic>;
+      unsupportedCipher['cipher'] = Map<String, dynamic>.from(
+        unsupportedCipher['cipher'] as Map,
+      )..['algorithm'] = 'DES-CBC';
+      expect(
+        () => service.restoreEncryptedBackup(
+          jsonEncode(unsupportedCipher),
+          password,
+        ),
+        throwsFormatException,
+      );
+    });
   });
 }
