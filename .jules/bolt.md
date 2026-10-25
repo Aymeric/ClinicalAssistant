@@ -9,3 +9,7 @@
 ## 2026-10-24 - Cache clinical guideline matching and replace list scans with map lookups
 **Learning:** Health record list rows and detail widgets evaluate `ClinicalGuidelineCatalog.hasRelatedGuidelines` during rendering. Querying static guideline catalogs using `.where().firstOrNull` linear list iteration and per-call regex tokenization causes repeated string parsing and regex execution on every list render and widget update.
 **Action:** Use static ID-indexed maps for static catalog lookups, compile regexes statically, and cache pure relation query results in a bounded map.
+
+## 2026-10-24 - Single-pass candidate tracking for series summary calculations
+**Learning:** Grouping records into lists and sorting each list to find the latest record per series ID allocates candidate list objects and incurs O(N log N) sorting overhead during overview page builds.
+**Action:** Use a `Map<String, Record>` with streaming O(1) timestamp comparison to track the latest record per series ID in a single pass over records.
