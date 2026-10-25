@@ -100,7 +100,7 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
   - Preserve FHIR panel membership (`Observation.hasMember`, `DiagnosticReport.result`, or standard LOINC panel codes) and group same-source, same-timestamp panel analytes (such as CBC, CMP, BMP, Lipid, and Thyroid panels) in the records list and PDF summaries.
   - Provide collapsible panel headers showing panel name, date, source, analyte count, and out-of-range summary while expanding to individual analyte rows and source reference ranges.
   - Support multi-analyte panel entry in a single manual form while saving each analyte as a distinct record so individual analyte trend series continue to work unchanged.
-- [ ] **Source-Scoped Exports & Privacy Redaction Controls** ([#131](https://github.com/Aymeric/ClinicalAssistant/issues/131)):
+- [x] **Source-Scoped Exports & Privacy Redaction Controls** ([#131](https://github.com/Aymeric/ClinicalAssistant/issues/131)):
   - Expose source selection and measurement search filtering on the Export screen so patients can scope exports to chosen sources and measurements.
   - Provide explicit privacy toggles to include or omit personal record notes and raw `sourceData` JSON payloads in CSV, PDF, text, and FHIR exports without altering stored vault data.
   - Default-exclude or prominently warn when synthetic demonstration records are present so demo data is not inadvertently shared in clinical exports.

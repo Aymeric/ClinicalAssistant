@@ -973,6 +973,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
               includeConditions = true,
               includeAllergies = true,
               includeQuestions = true,
+              includeNotes = true,
             }) => _shareExport(
               () => _exporter.createDoctorVisitSummaryPdf(
                 records,

@@ -14,22 +14,49 @@ import '../trends/health_trend.dart';
 class HealthExportService {
   static final _idSanitizer = RegExp(r'[^A-Za-z0-9.-]');
 
-  Map<String, Object?> buildFhirBundle(List<HealthRecord> records) {
+  Map<String, Object?> buildFhirBundle(
+    List<HealthRecord> records, {
+    bool? includeSourceData,
+    bool? includeNotes,
+  }) {
+    final effectiveIncludeSourceData =
+        includeSourceData ?? records.any((r) => r.sourceData != null);
+    final effectiveIncludeNotes =
+        includeNotes ??
+        records.any((r) => r.notes != null && r.notes!.isNotEmpty);
     final bundle = {
       'resourceType': 'Bundle',
       'type': 'collection',
       'timestamp': DateTime.now().toUtc().toIso8601String(),
       'entry': records
-          .map((record) => {'resource': _resourceForRecord(record)})
+          .map(
+            (record) => {
+              'resource': _resourceForRecord(
+                record,
+                includeSourceData: effectiveIncludeSourceData,
+                includeNotes: effectiveIncludeNotes,
+              ),
+            },
+          )
           .toList(),
     };
     return bundle;
   }
 
-  Future<File> createFhirBundle(List<HealthRecord> records) async {
+  Future<File> createFhirBundle(
+    List<HealthRecord> records, {
+    bool? includeSourceData,
+    bool? includeNotes,
+  }) async {
     return _writeExport(
       'health-records.fhir.json',
-      const JsonEncoder.withIndent('  ').convert(buildFhirBundle(records)),
+      const JsonEncoder.withIndent('  ').convert(
+        buildFhirBundle(
+          records,
+          includeSourceData: includeSourceData,
+          includeNotes: includeNotes,
+        ),
+      ),
     );
   }
 
@@ -50,7 +77,16 @@ class HealthExportService {
     return value;
   }
 
-  String buildCsv(List<HealthRecord> records) {
+  String buildCsv(
+    List<HealthRecord> records, {
+    bool? includeSourceData,
+    bool? includeNotes,
+  }) {
+    final effectiveIncludeSourceData =
+        includeSourceData ?? records.any((r) => r.sourceData != null);
+    final effectiveIncludeNotes =
+        includeNotes ??
+        records.any((r) => r.notes != null && r.notes!.isNotEmpty);
     final rows = <List<Object?>>[
       [
         'Name',
@@ -63,7 +99,8 @@ class HealthExportService {
         'Code',
         'Reference range',
         'Status',
-        'Source data (JSON)',
+        if (effectiveIncludeNotes) 'Notes',
+        if (effectiveIncludeSourceData) 'Source data (JSON)',
       ],
       ...records.map(
         (record) => [
@@ -77,18 +114,37 @@ class HealthExportService {
           _sanitizeCsvCell(record.code ?? ''),
           _sanitizeCsvCell(record.referenceRange ?? ''),
           _sanitizeCsvCell(record.status ?? ''),
-          if (record.sourceData == null) '' else jsonEncode(record.sourceData),
+          if (effectiveIncludeNotes) _sanitizeCsvCell(record.notes ?? ''),
+          if (effectiveIncludeSourceData)
+            if (record.sourceData == null)
+              ''
+            else
+              jsonEncode(record.sourceData),
         ],
       ),
     ];
     return const CsvEncoder().convert(rows);
   }
 
-  Future<File> createCsv(List<HealthRecord> records) async {
-    return _writeExport('health-records.csv', buildCsv(records));
+  Future<File> createCsv(
+    List<HealthRecord> records, {
+    bool? includeSourceData,
+    bool? includeNotes,
+  }) async {
+    return _writeExport(
+      'health-records.csv',
+      buildCsv(
+        records,
+        includeSourceData: includeSourceData,
+        includeNotes: includeNotes,
+      ),
+    );
   }
 
-  String buildTextSummary(List<HealthRecord> records) {
+  String buildTextSummary(List<HealthRecord> records, {bool? includeNotes}) {
+    final effectiveIncludeNotes =
+        includeNotes ??
+        records.any((r) => r.notes != null && r.notes!.isNotEmpty);
     final buffer = StringBuffer();
     buffer.writeln('ClinicalAssistant Health Records Summary');
     buffer.writeln(
@@ -145,6 +201,9 @@ class HealthExportService {
         buffer.writeln(
           '• $date: ${r.name} = ${_medicationInstructions(r)}$ref (${r.source})',
         );
+        if (effectiveIncludeNotes && r.notes != null && r.notes!.isNotEmpty) {
+          buffer.writeln('  Note: ${r.notes}');
+        }
       }
       buffer.writeln();
     }
@@ -152,18 +211,30 @@ class HealthExportService {
     return buffer.toString();
   }
 
-  Future<File> createTextSummary(List<HealthRecord> records) async {
+  Future<File> createTextSummary(
+    List<HealthRecord> records, {
+    bool? includeNotes,
+  }) async {
     return _writeExport(
       'health-records-summary.txt',
-      buildTextSummary(records),
+      buildTextSummary(records, includeNotes: includeNotes),
     );
   }
 
-  Future<File> createPdf(List<HealthRecord> records) async {
+  Future<File> createPdf(
+    List<HealthRecord> records, {
+    bool? includeNotes,
+  }) async {
+    final effectiveIncludeNotes =
+        includeNotes ??
+        records.any((r) => r.notes != null && r.notes!.isNotEmpty);
     final pdf = pw.Document();
     final ordered = [...records]
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     final sources = ordered.map((r) => r.source).toSet().join(', ');
+    final hasNotes =
+        effectiveIncludeNotes &&
+        ordered.any((r) => r.notes != null && r.notes!.isNotEmpty);
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -216,12 +287,13 @@ class HealthExportService {
             pw.Text('No records were available to export.')
           else
             pw.TableHelper.fromTextArray(
-              headers: const [
+              headers: [
                 'Date',
                 'Record',
                 'Value',
                 'Reference range',
                 'Source',
+                if (hasNotes) 'Notes',
               ],
               data: ordered
                   .map(
@@ -231,6 +303,7 @@ class HealthExportService {
                       record.displayValue,
                       record.referenceRange ?? '-',
                       record.source,
+                      if (hasNotes) record.notes ?? '-',
                     ],
                   )
                   .toList(),
@@ -886,7 +959,11 @@ class HealthExportService {
     return file;
   }
 
-  Map<String, Object?> _observationFromRecord(HealthRecord record) {
+  Map<String, Object?> _observationFromRecord(
+    HealthRecord record, {
+    bool includeSourceData = true,
+    bool includeNotes = true,
+  }) {
     final numericValue = num.tryParse(record.value);
     final unitCode = _ucumCode(record.unit);
     final id = record.id.replaceAll(_idSanitizer, '-');
@@ -937,9 +1014,11 @@ class HealthExportService {
           {'text': referenceRange},
         ],
       'note': [
+        if (includeNotes && record.notes != null && record.notes!.isNotEmpty)
+          {'text': record.notes},
         {'text': 'Source: ${record.source}'},
       ],
-      if (record.sourceData != null)
+      if (includeSourceData && record.sourceData != null)
         'extension': [
           {
             'url': 'urn:clinical-assistant:source-data',
@@ -949,18 +1028,35 @@ class HealthExportService {
     };
   }
 
-  Map<String, Object?> _resourceForRecord(HealthRecord record) {
+  Map<String, Object?> _resourceForRecord(
+    HealthRecord record, {
+    bool includeSourceData = true,
+    bool includeNotes = true,
+  }) {
     if (record.isManual && record.category == RecordCategory.medication) {
-      return _manualMedicationStatement(record);
+      return _manualMedicationStatement(record, includeNotes: includeNotes);
     }
     final resourceType = record.sourceData?['resourceType'];
-    if (resourceType is String && resourceType.isNotEmpty) {
-      return record.sourceData!;
+    if (includeSourceData &&
+        resourceType is String &&
+        resourceType.isNotEmpty) {
+      final resource = Map<String, Object?>.from(record.sourceData!);
+      if (!includeNotes) {
+        resource.remove('note');
+      }
+      return resource;
     }
-    return _observationFromRecord(record);
+    return _observationFromRecord(
+      record,
+      includeSourceData: includeSourceData,
+      includeNotes: includeNotes,
+    );
   }
 
-  Map<String, Object?> _manualMedicationStatement(HealthRecord record) {
+  Map<String, Object?> _manualMedicationStatement(
+    HealthRecord record, {
+    bool includeNotes = true,
+  }) {
     final details = ManualMedicationDetails.fromRecord(record);
     final id = record.id.replaceAll(_idSanitizer, '-');
     return {
@@ -981,7 +1077,7 @@ class HealthExportService {
           if (details.route != null) 'route': {'text': details.route},
         },
       ],
-      if (record.notes != null && record.notes!.isNotEmpty)
+      if (includeNotes && record.notes != null && record.notes!.isNotEmpty)
         'note': [
           {'text': record.notes},
         ],
