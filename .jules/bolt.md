@@ -13,3 +13,7 @@
 ## 2026-10-24 - Single-pass candidate tracking for series summary calculations
 **Learning:** Grouping records into lists and sorting each list to find the latest record per series ID allocates candidate list objects and incurs O(N log N) sorting overhead during overview page builds.
 **Action:** Use a `Map<String, Record>` with streaming O(1) timestamp comparison to track the latest record per series ID in a single pass over records.
+
+## 2026-10-24 - Single-pass bounds calculation and allocation-free custom painter loops
+**Learning:** `CustomPainter.paint` runs on every animation frame and gesture interaction. Creating temporary lists via spread literals (`[...]`), `.map()`, and `List.generate()` in `paint()` causes heap allocations and garbage collection pressure during chart dragging and inspection.
+**Action:** Compute min/max chart bounds in a single pass over existing collections without intermediate list allocations, and perform direct inline index lookups instead of generating index arrays on every paint frame.
