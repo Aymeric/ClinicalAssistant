@@ -9,3 +9,7 @@
 ## 2026-10-26 - Accessible Custom Preset Chips with Tooltip and Semantics
 **Learning:** Custom chip controls built with Material/InkWell that display abbreviated text (such as "7D", "30D", "1Y") lack tooltip context on hover and button/selection semantics for screen readers.
 **Action:** Wrap custom chip controls in `Tooltip` and `Semantics(button: true, selected: selected, label: ...)` to expand abbreviations for assistive technologies and mouse hover.
+
+## 2026-10-27 - Exclude Child Semantics When Setting Custom Summary Label
+**Learning:** When wrapping a complex card or composite widget tree in `Semantics(label: ..., button: true)` to provide a consolidated summary for screen readers, omitting `excludeSemantics: true` causes screen readers to read both the custom summary label and the individual child `Text` widgets, leading to duplicate announcements.
+**Action:** Always set `excludeSemantics: true` on parent `Semantics` widgets that supply a complete custom summary label over composite UI elements.

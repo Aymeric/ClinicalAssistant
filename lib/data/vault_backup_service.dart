@@ -102,6 +102,20 @@ class VaultBackupService {
       );
     }
 
+    final kdfAlgo = kdfMap['algorithm'] as String?;
+    if (kdfAlgo != null && kdfAlgo != 'PBKDF2-HMAC-SHA256') {
+      throw FormatException(
+        'Unsupported KDF algorithm: $kdfAlgo. Expected PBKDF2-HMAC-SHA256.',
+      );
+    }
+
+    final cipherAlgo = cipherMap['algorithm'] as String?;
+    if (cipherAlgo != null && cipherAlgo != 'AES-256-GCM') {
+      throw FormatException(
+        'Unsupported cipher algorithm: $cipherAlgo. Expected AES-256-GCM.',
+      );
+    }
+
     final saltB64 = kdfMap['salt'] as String?;
     final iterations = (kdfMap['iterations'] as num?)?.toInt() ?? 100000;
     if (saltB64 == null) {
