@@ -47,19 +47,17 @@ class WorkoutActivityAggregator {
     HealthDataPoint sample,
     Iterable<HealthDataPoint> workouts,
   ) {
-    final workoutList = workouts
-        .where((w) => w.type == HealthDataType.WORKOUT)
-        .toList(growable: false);
-    if (workoutList.isEmpty) return null;
-
     // 1. Check explicit workout UUID metadata link first.
     final meta = sample.metadata;
     final linkedUuid =
         (meta?['workoutUuid'] ?? meta?['workout_uuid'] ?? meta?['workoutId'])
             as String?;
     if (linkedUuid != null && linkedUuid.isNotEmpty) {
-      for (final workout in workoutList) {
-        if (workout.uuid == linkedUuid) return workout;
+      for (final workout in workouts) {
+        if (workout.type == HealthDataType.WORKOUT &&
+            workout.uuid == linkedUuid) {
+          return workout;
+        }
       }
     }
 
@@ -82,7 +80,8 @@ class WorkoutActivityAggregator {
       Duration(milliseconds: sampleDurationMs ~/ 2),
     );
 
-    for (final workout in workoutList) {
+    for (final workout in workouts) {
+      if (workout.type != HealthDataType.WORKOUT) continue;
       final wStart = workout.dateFrom.toUtc();
       final wEnd = workout.dateTo.toUtc();
       final wDurationMs = wEnd.difference(wStart).inMilliseconds.abs();
@@ -92,6 +91,49 @@ class WorkoutActivityAggregator {
           !sampleMid.isBefore(wStart) &&
           !sampleMid.isAfter(wEnd)) {
         return workout;
+      }
+    }
+    return null;
+  }
+
+  /// Fast helper to match samples against pre-computed workout time windows and UUID map,
+  /// avoiding O(N * M) repeated DateTime conversions and list allocations.
+  static HealthDataPoint? _findAssociatedWorkoutFast(
+    HealthDataPoint sample,
+    Map<String, HealthDataPoint> workoutsByUuid,
+    List<_WorkoutWindow> workoutWindows,
+  ) {
+    if (workoutWindows.isEmpty) return null;
+
+    final meta = sample.metadata;
+    final linkedUuid =
+        (meta?['workoutUuid'] ?? meta?['workout_uuid'] ?? meta?['workoutId'])
+            as String?;
+    if (linkedUuid != null && linkedUuid.isNotEmpty) {
+      final linkedWorkout = workoutsByUuid[linkedUuid];
+      if (linkedWorkout != null) return linkedWorkout;
+    }
+
+    if (sample.type == HealthDataType.BASAL_ENERGY_BURNED) {
+      return null;
+    }
+
+    final sampleStart = sample.dateFrom.toUtc();
+    final sampleEnd = sample.dateTo.toUtc();
+    final sampleDurationMs = sampleEnd
+        .difference(sampleStart)
+        .inMilliseconds
+        .abs();
+    final sampleMid = sampleStart.add(
+      Duration(milliseconds: sampleDurationMs ~/ 2),
+    );
+
+    for (var i = 0; i < workoutWindows.length; i++) {
+      final window = workoutWindows[i];
+      if (sampleDurationMs <= window.maxAllowedSampleMs &&
+          !sampleMid.isBefore(window.start) &&
+          !sampleMid.isAfter(window.end)) {
+        return window.workout;
       }
     }
     return null;
@@ -107,12 +149,19 @@ class WorkoutActivityAggregator {
   }) {
     final workoutBuckets = <String, _WorkoutMetricBucket>{};
     final orderedWorkouts = <HealthDataPoint>[];
+    final workoutWindows = <_WorkoutWindow>[];
+    final workoutsByUuid = <String, HealthDataPoint>{};
+
     for (final workout in workouts) {
       if (workout.type != HealthDataType.WORKOUT) continue;
       final key = '${workout.sourceId}:${workout.uuid}';
       if (!workoutBuckets.containsKey(key)) {
         workoutBuckets[key] = _WorkoutMetricBucket(workout);
         orderedWorkouts.add(workout);
+        workoutWindows.add(_WorkoutWindow(workout));
+        if (workout.uuid.isNotEmpty) {
+          workoutsByUuid.putIfAbsent(workout.uuid, () => workout);
+        }
       }
     }
 
@@ -127,7 +176,11 @@ class WorkoutActivityAggregator {
       final numValue = _numericValue(point);
       if (numValue == null) continue;
 
-      final matchedWorkout = findAssociatedWorkout(point, orderedWorkouts);
+      final matchedWorkout = _findAssociatedWorkoutFast(
+        point,
+        workoutsByUuid,
+        workoutWindows,
+      );
       if (matchedWorkout != null) {
         final key = '${matchedWorkout.sourceId}:${matchedWorkout.uuid}';
         final bucket = workoutBuckets[key];
@@ -442,4 +495,24 @@ class _DailyFlightSample {
 
   final DateTime recordedAt;
   final num flights;
+}
+
+/// Pre-computed workout time window boundaries to avoid re-parsing dates and
+/// calculating max durations for every activity sample point during aggregation.
+class _WorkoutWindow {
+  _WorkoutWindow(this.workout)
+    : start = workout.dateFrom.toUtc(),
+      end = workout.dateTo.toUtc(),
+      maxAllowedSampleMs =
+          workout.dateTo
+              .toUtc()
+              .difference(workout.dateFrom.toUtc())
+              .inMilliseconds
+              .abs() +
+          const Duration(minutes: 15).inMilliseconds;
+
+  final HealthDataPoint workout;
+  final DateTime start;
+  final DateTime end;
+  final int maxAllowedSampleMs;
 }
