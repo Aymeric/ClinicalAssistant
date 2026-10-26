@@ -308,6 +308,11 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                       const SizedBox(height: 14),
                       TrendChartPanel(
                         points: orderedPoints,
+                        medicationRecords: widget.records
+                            .where(
+                              (r) => r.category == RecordCategory.medication,
+                            )
+                            .toList(),
                         showMovingAverage: _showMovingAverage,
                         onMovingAverageChanged: (value) =>
                             setState(() => _showMovingAverage = value),

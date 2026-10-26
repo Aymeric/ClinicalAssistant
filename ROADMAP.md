@@ -107,9 +107,9 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
 - [x] **Fasting & Measurement Context Filtering in Lab and Vital Trends** ([#132](https://github.com/Aymeric/ClinicalAssistant/issues/132)):
   - [x] Preserve structured measurement and meal-state context tags (such as `Fasting`, `Pre-meal`, `Post-meal (2 hr)`, `Bedtime`, `Random`, or `Unspecified`) from manual entry and supported source metadata without modifying original record values.
   - [x] Filter trend series by context in `HealthTrendsPage` so descriptive summary statistics (`average`, `minimum`, `maximum`, and `3-reading average`) and range-relative evaluations compare like-for-like readings.
-- [ ] **Medication Start/Stop Markers on Single-Series Trend Charts** ([#133](https://github.com/Aymeric/ClinicalAssistant/issues/133)):
-  - Add an opt-in `Medication dates` toggle on `TrendChartPanel` to overlay vertical date markers for recorded medication start and end dates within the active chart time window.
-  - Present chronological medication markers with accessible text summaries and strictly descriptive copy that does not imply treatment efficacy or clinical causation.
+- [x] **Medication Start/Stop Markers on Single-Series Trend Charts** ([#133](https://github.com/Aymeric/ClinicalAssistant/issues/133)):
+  - [x] Add an opt-in `Medication dates` toggle on `TrendChartPanel` to overlay vertical date markers for recorded medication start and end dates within the active chart time window.
+  - [x] Present chronological medication markers with accessible text summaries and strictly descriptive copy that does not imply treatment efficacy or clinical causation.
 - [ ] **On-Device OCR & Physical Document Ingestion** ([#75](https://github.com/Aymeric/ClinicalAssistant/issues/75)):
   - [ ] **Paper Lab Report Scanner (Apple Vision / Google ML Kit)**:
     - Capture or import photo/PDF scans of printed lab reports (Quest, Labcorp, regional hospital printouts) and extract structured tabular values strictly on-device.
