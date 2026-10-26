@@ -93,9 +93,9 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
 - [x] **Per-Source Import History and Coverage** ([#119](https://github.com/Aymeric/ClinicalAssistant/issues/119)):
   - Show local import and sync outcomes, last checked time, returned record counts, and observed date coverage for each source.
   - Distinguish successful empty results from failures, and make clear that observed date spans do not guarantee complete source history.
-- [ ] **FHIR Export Preflight** ([#120](https://github.com/Aymeric/ClinicalAssistant/issues/120)):
-  - Validate exported Bundles against a declared supported FHIR release/profile and summarize included resources and warnings before sharing.
-  - Keep validation local, preserve source records, and avoid implying universal provider acceptance.
+- [x] **FHIR Export Preflight** ([#120](https://github.com/Aymeric/ClinicalAssistant/issues/120)):
+  - [x] Validate exported Bundles against a declared supported FHIR release/profile and summarize included resources and warnings before sharing.
+  - [x] Keep validation local, preserve source records, and avoid implying universal provider acceptance.
 - [ ] **Grouped Clinical Lab Panels & Multi-Analyte Entry** ([#130](https://github.com/Aymeric/ClinicalAssistant/issues/130)):
   - Preserve FHIR panel membership (`Observation.hasMember`, `DiagnosticReport.result`, or standard LOINC panel codes) and group same-source, same-timestamp panel analytes (such as CBC, CMP, BMP, Lipid, and Thyroid panels) in the records list and PDF summaries.
   - Provide collapsible panel headers showing panel name, date, source, analyte count, and out-of-range summary while expanding to individual analyte rows and source reference ranges.

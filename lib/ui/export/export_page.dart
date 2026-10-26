@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../data/synthetic_demonstration_data.dart';
 import '../../exports/export_selection.dart';
+import '../../exports/fhir_export_validator.dart';
+import '../../exports/health_export_service.dart';
 import '../../models/health_record.dart';
 import '../shared/record_widgets.dart';
+import 'fhir_preflight_sheet.dart';
 
 typedef DoctorVisitPdfCallback =
     void Function(
@@ -135,6 +138,28 @@ class _ExportPageState extends State<ExportPage> {
       filtered,
       includeNotes: _includeNotes,
       includeSourceData: _includeSourceData,
+    );
+  }
+
+  Future<void> _showFhirPreflight(List<HealthRecord> selectedRecords) async {
+    final exporter = HealthExportService();
+    final bundle = exporter.buildFhirBundle(
+      selectedRecords,
+      includeSourceData: _includeSourceData,
+      includeNotes: _includeNotes,
+    );
+
+    const validator = FhirExportValidator();
+    final report = validator.validateBundle(bundle, records: selectedRecords);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => FhirPreflightSheet(
+        report: report,
+        onConfirmExport: () => widget.onFhir(selectedRecords),
+      ),
     );
   }
 
@@ -535,7 +560,7 @@ class _ExportPageState extends State<ExportPage> {
             buttonText: 'Export FHIR JSON',
             onPressed: widget.exporting || selectedRecords.isEmpty
                 ? null
-                : () => widget.onFhir(selectedRecords),
+                : () => _showFhirPreflight(selectedRecords),
           ),
           const SizedBox(height: 12),
           ExportAction(
