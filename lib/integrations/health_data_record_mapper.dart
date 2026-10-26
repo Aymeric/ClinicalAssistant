@@ -39,12 +39,15 @@ class HealthDataRecordMapper {
     HealthDataType.SLEEP_AWAKE ||
     HealthDataType.SLEEP_DEEP ||
     HealthDataType.SLEEP_LIGHT ||
-    HealthDataType.SLEEP_REM => RecordCategory.sleep,
+    HealthDataType.SLEEP_REM ||
+    HealthDataType.SLEEP_SESSION => RecordCategory.sleep,
     HealthDataType.NUTRITION ||
     HealthDataType.WATER => RecordCategory.nutrition,
     HealthDataType.MENSTRUATION_FLOW => RecordCategory.cycleTracking,
     HealthDataType.ACTIVE_ENERGY_BURNED ||
     HealthDataType.BASAL_ENERGY_BURNED ||
+    HealthDataType.DISTANCE_DELTA ||
+    HealthDataType.DISTANCE_WALKING_RUNNING ||
     HealthDataType.FLIGHTS_CLIMBED ||
     HealthDataType.STEPS ||
     HealthDataType.TOTAL_CALORIES_BURNED ||
@@ -134,6 +137,8 @@ class HealthDataRecordMapper {
     HealthDataType.BODY_FAT_PERCENTAGE => 'Body fat',
     HealthDataType.BODY_MASS_INDEX => 'Body mass index',
     HealthDataType.BODY_TEMPERATURE => 'Body temperature',
+    HealthDataType.DISTANCE_DELTA ||
+    HealthDataType.DISTANCE_WALKING_RUNNING => 'Distance',
     HealthDataType.FLIGHTS_CLIMBED => 'Flights climbed',
     HealthDataType.HEART_RATE => 'Heart rate',
     HealthDataType.HEIGHT => 'Height',
@@ -147,6 +152,7 @@ class HealthDataRecordMapper {
     HealthDataType.SLEEP_DEEP => 'Sleep (deep)',
     HealthDataType.SLEEP_LIGHT => 'Sleep (light)',
     HealthDataType.SLEEP_REM => 'Sleep (REM)',
+    HealthDataType.SLEEP_SESSION => 'Sleep session',
     HealthDataType.STEPS => 'Steps',
     HealthDataType.TOTAL_CALORIES_BURNED => 'Total calories burned',
     HealthDataType.WATER => 'Water',

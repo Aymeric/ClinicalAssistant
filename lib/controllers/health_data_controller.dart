@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -51,6 +52,7 @@ class HealthDataController extends ChangeNotifier {
   static const _fhirAutoSyncKey = 'fhir_auto_sync_v1';
   static const _lastHealthSyncKey = 'last_health_sync_v1';
   static const _lastFhirSyncKey = 'last_fhir_sync_v1';
+  static const _healthChangesTokenKey = 'health_sync_changes_token_v1';
   static const _fhirRefreshTokenKey = 'fhir_refresh_token_v1';
   static const _fhirPatientIdKey = 'fhir_patient_id_v1';
   static const _fhirAuthorizationEndpointKey = 'fhir_authorization_endpoint_v1';
@@ -131,6 +133,7 @@ class HealthDataController extends ChangeNotifier {
   Future<List<HealthRecord>> importHealth({
     required DateTime since,
     ImportProgressCallback? onProgress,
+    bool? isAndroid,
   }) async {
     return _withBusy(() async {
       final imported = await _healthImporter.importRecords(
@@ -152,6 +155,14 @@ class HealthDataController extends ChangeNotifier {
         ),
       );
       await _recordSuccessfulSync(_lastHealthSyncKey);
+      try {
+        final token = await _healthImporter.getChangesToken(
+          isAndroid: isAndroid,
+        );
+        if (token != null && token.isNotEmpty) {
+          await _syncValueStore.write(_healthChangesTokenKey, token);
+        }
+      } catch (_) {}
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'Import complete'),
       );
@@ -182,7 +193,10 @@ class HealthDataController extends ChangeNotifier {
       _syncValueStore.read(_fhirTokenEndpointKey),
       _syncValueStore.read(_lastHealthSyncKey),
       _syncValueStore.read(_lastFhirSyncKey),
+      _syncValueStore.read(_healthChangesTokenKey),
     ]);
+    final lastHealthDate = _readStoredDate(values[6], _lastHealthSyncKey);
+    final changesToken = values[8];
     return ForegroundSyncState(
       healthAutoSync: _readStoredBoolean(values[0], _healthAutoSyncKey),
       fhirAutoSync: _readStoredBoolean(values[1], _fhirAutoSyncKey),
@@ -191,9 +205,20 @@ class HealthDataController extends ChangeNotifier {
           values[3] != null &&
           values[4] != null &&
           values[5] != null,
-      lastHealthSyncAt: _readStoredDate(values[6], _lastHealthSyncKey),
+      hasHealthSyncAnchor:
+          lastHealthDate != null ||
+          (changesToken != null && changesToken.isNotEmpty),
+      lastHealthSyncAt: lastHealthDate,
       lastFhirSyncAt: _readStoredDate(values[7], _lastFhirSyncKey),
     );
+  }
+
+  Future<void> resetHealthSyncAnchor() async {
+    await Future.wait([
+      _syncValueStore.delete(_healthChangesTokenKey),
+      _syncValueStore.delete(_lastHealthSyncKey),
+    ]);
+    notifyListeners();
   }
 
   Future<List<HealthRecord>> importFhir({
@@ -275,8 +300,57 @@ class HealthDataController extends ChangeNotifier {
 
   Future<List<HealthRecord>> syncHealth({
     ImportProgressCallback? onProgress,
+    bool? isAndroid,
   }) async {
     return _withBusy(() async {
+      final onAndroid = isAndroid ?? Platform.isAndroid;
+      final changesToken = await _syncValueStore.read(_healthChangesTokenKey);
+      if (onAndroid && changesToken != null && changesToken.isNotEmpty) {
+        onProgress?.call(
+          const ImportProgress(
+            fraction: 0.1,
+            message: 'Checking for health data changes...',
+          ),
+        );
+        final changesResult = await _healthImporter.importChanges(
+          changesToken: changesToken,
+          onProgress: (progress) => onProgress?.call(progress.scale(0.85)),
+          isAndroid: isAndroid,
+        );
+        if (changesResult != null) {
+          await _syncValueStore.write(
+            _healthChangesTokenKey,
+            changesResult.nextChangesToken,
+          );
+          if (changesResult.deletedRecordIds.isNotEmpty) {
+            final toDeleteIds = changesResult.deletedRecordIds.toSet();
+            final remaining = records
+                .where((r) => !toDeleteIds.any((id) => r.id.contains(id)))
+                .toList();
+            if (remaining.length != records.length) {
+              await _store.save(remaining);
+              records = remaining;
+            }
+          }
+          final newlyImported = changesResult.records.isEmpty
+              ? const <HealthRecord>[]
+              : await _mergeAndSave(
+                  changesResult.records,
+                  onProgress: (progress) => onProgress?.call(
+                    ImportProgress(
+                      fraction: 0.85 + (progress.fraction * 0.14),
+                      message: progress.message,
+                    ),
+                  ),
+                );
+          await _recordSuccessfulSync(_lastHealthSyncKey);
+          onProgress?.call(
+            const ImportProgress(fraction: 1, message: 'Health sync complete'),
+          );
+          return newlyImported;
+        }
+      }
+
       final lastSync = _readStoredDate(
         await _syncValueStore.read(_lastHealthSyncKey),
         _lastHealthSyncKey,
@@ -299,6 +373,14 @@ class HealthDataController extends ChangeNotifier {
               ),
             );
       await _recordSuccessfulSync(_lastHealthSyncKey);
+      try {
+        final token = await _healthImporter.getChangesToken(
+          isAndroid: isAndroid,
+        );
+        if (token != null && token.isNotEmpty) {
+          await _syncValueStore.write(_healthChangesTokenKey, token);
+        }
+      } catch (_) {}
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'Health sync complete'),
       );
@@ -564,6 +646,7 @@ class HealthDataController extends ChangeNotifier {
     await Future.wait([
       _syncValueStore.delete(_lastHealthSyncKey),
       _syncValueStore.delete(_lastFhirSyncKey),
+      _syncValueStore.delete(_healthChangesTokenKey),
     ]);
     await _store.clear();
     records = const [];

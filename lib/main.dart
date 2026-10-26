@@ -874,6 +874,37 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _resetHealthSyncAnchor() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset sync anchor?'),
+        content: const Text(
+          'Resetting the sync anchor forces the next sync to re-check all historical records from the platform from scratch.\n\nExisting records saved in your encrypted vault will NOT be deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Reset anchor'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _controller.resetHealthSyncAnchor();
+      await _reloadSyncState();
+      if (mounted) {
+        _showMessage(
+          'Sync anchor reset. The next sync will check all records from scratch without deleting saved data.',
+        );
+      }
+    }
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -946,6 +977,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onFhirAutoSyncDisabled: _disableFhirAutoSync,
         onSyncNow: _syncNow,
         onDeleteRecords: _deleteAllRecords,
+        onResetHealthSyncAnchor: _resetHealthSyncAnchor,
         notificationManager: _notificationManager,
         syncValueStore: _controller.syncValueStore,
         onProgress: _reportProgress,

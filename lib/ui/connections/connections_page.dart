@@ -44,6 +44,7 @@ class ConnectionsPage extends StatelessWidget {
     this.vaultSecurityService,
     this.onLockVault,
     required this.onOpenGuidelines,
+    this.onResetHealthSyncAnchor,
   });
 
   final bool busy;
@@ -71,6 +72,7 @@ class ConnectionsPage extends StatelessWidget {
   final VaultSecurityService? vaultSecurityService;
   final VoidCallback? onLockVault;
   final VoidCallback onOpenGuidelines;
+  final VoidCallback? onResetHealthSyncAnchor;
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +109,7 @@ class ConnectionsPage extends StatelessWidget {
           status: syncStatus,
           onHealthAutoSyncChanged: onHealthAutoSyncChanged,
           onSyncNow: onSyncNow,
+          onResetHealthSyncAnchor: onResetHealthSyncAnchor,
         ),
         const SizedBox(height: 14),
         ResultNotificationSettings(manager: notificationManager),
@@ -123,6 +126,8 @@ class ConnectionsPage extends StatelessWidget {
                 (syncState?.healthAutoSync == true &&
                     syncState?.lastHealthSyncAt != null),
             busy: busy,
+            hasAnchor: syncState?.hasHealthSyncAnchor ?? false,
+            onResetAnchor: onResetHealthSyncAnchor,
             buttonLabel: 'Connect Apple Health',
             onPressed: busy ? null : onHealthImport,
           ),
@@ -138,6 +143,8 @@ class ConnectionsPage extends StatelessWidget {
                 (syncState?.healthAutoSync == true &&
                     syncState?.lastHealthSyncAt != null),
             busy: busy,
+            hasAnchor: syncState?.hasHealthSyncAnchor ?? false,
+            onResetAnchor: onResetHealthSyncAnchor,
             buttonLabel: 'Connect Health Connect',
             onPressed: busy ? null : onHealthImport,
           ),
@@ -841,6 +848,7 @@ class ForegroundSyncPanel extends StatelessWidget {
     required this.status,
     required this.onHealthAutoSyncChanged,
     required this.onSyncNow,
+    this.onResetHealthSyncAnchor,
   });
 
   final ForegroundSyncState? state;
@@ -850,6 +858,7 @@ class ForegroundSyncPanel extends StatelessWidget {
   final String? status;
   final ValueChanged<bool> onHealthAutoSyncChanged;
   final VoidCallback onSyncNow;
+  final VoidCallback? onResetHealthSyncAnchor;
 
   @override
   Widget build(BuildContext context) {
@@ -934,10 +943,30 @@ class ForegroundSyncPanel extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 6),
-            OutlinedButton.icon(
-              onPressed: loading || syncing || !hasAutoSync ? null : onSyncNow,
-              icon: const Icon(Icons.sync),
-              label: Text(syncing ? 'Syncing...' : 'Sync enabled sources now'),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: loading || syncing || !hasAutoSync
+                      ? null
+                      : onSyncNow,
+                  icon: const Icon(Icons.sync),
+                  label: Text(
+                    syncing ? 'Syncing...' : 'Sync enabled sources now',
+                  ),
+                ),
+                if (state?.hasHealthSyncAnchor == true &&
+                    onResetHealthSyncAnchor != null)
+                  TextButton.icon(
+                    key: const ValueKey('reset-sync-anchor-foreground-button'),
+                    onPressed: loading || syncing
+                        ? null
+                        : onResetHealthSyncAnchor,
+                    icon: const Icon(Icons.restart_alt, size: 18),
+                    label: const Text('Reset health anchor'),
+                  ),
+              ],
             ),
           ],
         ),

@@ -115,6 +115,8 @@ class SourcePanel extends StatelessWidget {
     required this.busy,
     required this.buttonLabel,
     required this.onPressed,
+    this.onResetAnchor,
+    this.hasAnchor = false,
   });
 
   final IconData icon;
@@ -125,6 +127,8 @@ class SourcePanel extends StatelessWidget {
   final bool busy;
   final String buttonLabel;
   final VoidCallback? onPressed;
+  final VoidCallback? onResetAnchor;
+  final bool hasAnchor;
 
   @override
   Widget build(BuildContext context) {
@@ -167,16 +171,30 @@ class SourcePanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: onPressed,
-              icon: busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync),
-              label: Text(busy ? 'Importing...' : buttonLabel),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: onPressed,
+                  icon: busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync),
+                  label: Text(busy ? 'Importing...' : buttonLabel),
+                ),
+                if (hasAnchor && onResetAnchor != null)
+                  OutlinedButton.icon(
+                    key: const ValueKey('reset-health-sync-anchor-button'),
+                    onPressed: busy ? null : onResetAnchor,
+                    icon: const Icon(Icons.restart_alt, size: 18),
+                    label: const Text('Reset sync anchor'),
+                  ),
+              ],
             ),
           ],
         ),
