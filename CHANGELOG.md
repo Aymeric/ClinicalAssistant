@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0 - 2026-10-26
+
+### Added
+
+- Direct local FHIR JSON and multi-file selection import with atomic validation, resource type tallies, live previews, and provenance preservation ([#118](https://github.com/Aymeric/ClinicalAssistant/issues/118)).
+- Preflight conformance validation and review sheet for FHIR exports declaring HL7 FHIR Release 4 (R4 v4.0.1) compliance, including resource breakdowns and provider acceptance disclaimers ([#120](https://github.com/Aymeric/ClinicalAssistant/issues/120)).
+- Fasting and measurement context filtering (`Fasting`, `Pre-meal`, `Post-meal (2 hr)`, `Bedtime`, `Random`) for like-for-like trend evaluations and descriptive statistics ([#132](https://github.com/Aymeric/ClinicalAssistant/issues/132)).
+- Opt-in medication start and stop milestone timeline markers overlaid on single-series trend charts with accessible chronological summaries and non-causal disclosures ([#133](https://github.com/Aymeric/ClinicalAssistant/issues/133)).
+- Per-source import activity history, date-span coverage visualization, and workout/distance aggregation for health platform imports ([#119](https://github.com/Aymeric/ClinicalAssistant/issues/119)).
+- Source-scoped exports and privacy redaction controls to toggle notes and raw `sourceData` payloads in PDF, CSV, and FHIR outputs ([#131](https://github.com/Aymeric/ClinicalAssistant/issues/131)).
+- Incremental health-platform synchronization using change tokens and anchor reset controls.
+
+### Security and reliability
+
+- Restrict downloaded clinical guidelines, saved favorites, and consultation notes file permissions to user-only (chmod 0600) on POSIX platforms ([#125](https://github.com/Aymeric/ClinicalAssistant/issues/125)).
+- Strictly enforce supported cryptographic algorithms (`PBKDF2-HMAC-SHA256`, `AES-256-GCM`) during encrypted vault backup restoration ([#128](https://github.com/Aymeric/ClinicalAssistant/issues/128)).
+- Enforce HTTPS transport security for all external documentation and guideline citations in GuidelineViewerPage ([#121](https://github.com/Aymeric/ClinicalAssistant/issues/121)).
+- Optimize overview page performance with streaming single-pass candidate tracking and cached metric aggregations ([#122](https://github.com/Aymeric/ClinicalAssistant/issues/122), [#127](https://github.com/Aymeric/ClinicalAssistant/issues/127)).
+
+### Usability and accessibility
+
+- Add accessible tooltips and semantics to the moving average filter chip ([#126](https://github.com/Aymeric/ClinicalAssistant/issues/126)), measurement selector ([#129](https://github.com/Aymeric/ClinicalAssistant/issues/129)), and raw FHIR data toggle ([#123](https://github.com/Aymeric/ClinicalAssistant/issues/123)).
+- Add store listing assets, screenshots, and active medication synthetic demonstration records.
+
 ## 0.2.0 - 2026-10-22
 
 ### Added
