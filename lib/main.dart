@@ -12,6 +12,7 @@ import 'exports/health_export_service.dart';
 import 'guidelines/clinical_guideline.dart';
 import 'guidelines/guideline_viewer_page.dart';
 import 'guidelines/guidelines_library_page.dart';
+import 'integrations/fhir_file_import.dart';
 import 'models/health_record.dart';
 import 'notifications/result_notification_manager.dart';
 import 'records/manual_record_edit_sheet.dart';
@@ -457,6 +458,19 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
       (onProgress) => _controller.importFhirJson(
         jsonString,
         source: source,
+        onProgress: onProgress,
+      ),
+    );
+  }
+
+  Future<void> _importFhirFiles(
+    List<FhirFilePayload> files, {
+    String? source,
+  }) async {
+    await _runAction(
+      (onProgress) => _controller.importFhirFiles(
+        files,
+        customSourceLabel: source,
         onProgress: onProgress,
       ),
     );
@@ -976,6 +990,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onLoadSyntheticDemo: _loadSyntheticDemo,
         onClearSyntheticDemo: _clearSyntheticDemo,
         onImportFhirJson: _importFhirJson,
+        onImportFhirFiles: _importFhirFiles,
         onHealthAutoSyncChanged: _onHealthAutoSyncChanged,
         onFhirAutoSyncDisabled: _disableFhirAutoSync,
         onSyncNow: _syncNow,

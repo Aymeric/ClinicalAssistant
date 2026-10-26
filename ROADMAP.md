@@ -87,9 +87,9 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - Historical clinical procedures, surgical interventions, performed dates, and body sites.
   - [ ] **Diagnostic Reports & Clinical Documents (`DiagnosticReport`, `DocumentReference`)**:
     - Ingest diagnostic report summaries and embedded text notes (pathology summaries, radiology narrative impressions).
-- [ ] **Direct FHIR JSON File Import** ([#118](https://github.com/Aymeric/ClinicalAssistant/issues/118)):
-  - Select a local FHIR JSON file and preview the supported resource count before importing, reusing the existing parser and record-merge path.
-  - Preserve original resource data and provenance; process files locally, validate before saving, and report malformed or unsupported input without a partial import.
+- [x] **Direct FHIR JSON File Import** ([#118](https://github.com/Aymeric/ClinicalAssistant/issues/118)):
+  - [x] Select a local FHIR JSON file and preview the supported resource count before importing, reusing the existing parser and record-merge path.
+  - [x] Preserve original resource data and provenance; process files locally, validate before saving, and report malformed or unsupported input without a partial import.
 - [x] **Per-Source Import History and Coverage** ([#119](https://github.com/Aymeric/ClinicalAssistant/issues/119)):
   - Show local import and sync outcomes, last checked time, returned record counts, and observed date coverage for each source.
   - Distinguish successful empty results from failures, and make clear that observed date spans do not guarantee complete source history.

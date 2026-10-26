@@ -8,7 +8,7 @@ import '../data/encrypted_record_store.dart';
 import '../data/pinned_metrics_preferences.dart';
 import '../data/synthetic_demonstration_data.dart';
 import '../data/vault_backup_service.dart';
-import '../integrations/fhir_observation_parser.dart';
+import '../integrations/fhir_file_import.dart';
 import '../integrations/fhir_portal_importer.dart';
 import '../integrations/health_platform_importer.dart';
 import '../models/health_record.dart';
@@ -817,61 +817,119 @@ class HealthDataController extends ChangeNotifier {
     });
   }
 
-  Future<List<HealthRecord>> importFhirJson(
-    String jsonString, {
-    String source = 'FHIR File',
+  Future<List<HealthRecord>> importFhirFiles(
+    List<FhirFilePayload> files, {
+    String? customSourceLabel,
     ImportProgressCallback? onProgress,
   }) async {
     return _withBusy(() async {
+      if (files.isEmpty) {
+        throw StateError('No FHIR files were provided for import.');
+      }
       onProgress?.call(
-        const ImportProgress(fraction: 0.2, message: 'Parsing FHIR data'),
+        const ImportProgress(fraction: 0.15, message: 'Validating FHIR files'),
       );
-      const parser = FhirObservationParser();
-      final List<HealthRecord> imported;
-      try {
-        imported = parser.parseJson(jsonString, source: source);
-      } catch (error) {
+
+      final summary = FhirFilesImportSummary.fromPayloads(files);
+
+      // Enforce atomic validation: if any file is invalid, report error without partial import.
+      if (summary.hasErrors) {
+        final invalidPreview = summary.previews.firstWhere((p) => !p.isValid);
+        final errorMessage = invalidPreview.error ?? 'File is invalid.';
+        final sourceLabel = customSourceLabel ?? invalidPreview.fileName;
+        final error = FormatException(
+          'Failed validating "${invalidPreview.fileName}": $errorMessage',
+        );
         await _recordImportFailure(
           sourceKind: SourceImportSourceKind.fhirJson,
-          sourceLabel: source,
+          sourceLabel: sourceLabel,
           isAutoSync: false,
           error: error,
         );
-        rethrow;
+        throw error;
       }
-      if (imported.isEmpty) {
+
+      final allRecords = <HealthRecord>[];
+      for (final preview in summary.previews) {
+        final fileSource = customSourceLabel ?? preview.fileName;
+        for (final record in preview.records) {
+          allRecords.add(
+            HealthRecord(
+              id: record.id,
+              name: record.name,
+              value: record.value,
+              unit: record.unit,
+              recordedAt: record.recordedAt,
+              category: record.category,
+              source: fileSource,
+              sourceId: preview.fileName,
+              code: record.code,
+              referenceRange: record.referenceRange,
+              status: record.status,
+              sourceData: record.sourceData,
+              notes: record.notes,
+            ),
+          );
+        }
+      }
+
+      if (allRecords.isEmpty) {
+        final sourceLabel =
+            customSourceLabel ??
+            (files.length == 1 ? files.first.name : 'FHIR Files');
         await _recordImportOutcome(
           sourceKind: SourceImportSourceKind.fhirJson,
-          sourceLabel: source,
+          sourceLabel: sourceLabel,
           isAutoSync: false,
           fetchedRecords: const [],
           newlyAddedRecords: const [],
         );
         throw StateError(
-          'No supported laboratory Observations were found in the provided FHIR data.',
+          'No supported clinical records were found in the provided FHIR files.',
         );
       }
+
       final newlyImported = await _mergeAndSave(
-        imported,
+        allRecords,
         onProgress: (progress) => onProgress?.call(
           ImportProgress(
-            fraction: 0.6 + (progress.fraction * 0.38),
+            fraction: 0.5 + (progress.fraction * 0.48),
             message: progress.message,
           ),
         ),
       );
+
+      final outcomeLabel =
+          customSourceLabel ??
+          (files.length == 1
+              ? files.first.name
+              : 'FHIR Import (${files.length} files)');
+
       await _recordImportOutcome(
         sourceKind: SourceImportSourceKind.fhirJson,
-        sourceLabel: source,
+        sourceLabel: outcomeLabel,
         isAutoSync: false,
-        fetchedRecords: imported,
+        fetchedRecords: allRecords,
         newlyAddedRecords: newlyImported,
       );
+
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'FHIR import complete'),
       );
       return newlyImported;
     });
+  }
+
+  Future<List<HealthRecord>> importFhirJson(
+    String jsonString, {
+    String source = 'FHIR File',
+    ImportProgressCallback? onProgress,
+  }) async {
+    return importFhirFiles(
+      [FhirFilePayload(name: source, content: jsonString)],
+      customSourceLabel: source,
+      onProgress: onProgress,
+    );
   }
 
   Future<void> _recordImportOutcome({

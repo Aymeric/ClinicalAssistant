@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../controllers/health_data_controller.dart';
 import '../../data/vault_security_service.dart';
+import '../../integrations/fhir_file_import.dart';
 import '../../integrations/fhir_provider_presets.dart';
 import '../../models/health_record.dart';
 import '../../notifications/result_notification_manager.dart';
@@ -44,6 +45,8 @@ class ConnectionsPage extends StatelessWidget {
     this.onLoadSyntheticDemo,
     this.onClearSyntheticDemo,
     this.onImportFhirJson,
+    this.onImportFhirFiles,
+    this.fhirFilePickerService,
     this.onRestoreVaultBackup,
     this.onExportVaultBackup,
     this.vaultSecurityService,
@@ -75,6 +78,9 @@ class ConnectionsPage extends StatelessWidget {
   final VoidCallback? onLoadSyntheticDemo;
   final VoidCallback? onClearSyntheticDemo;
   final Future<void> Function(String json, {String source})? onImportFhirJson;
+  final Future<void> Function(List<FhirFilePayload> files, {String? source})?
+  onImportFhirFiles;
+  final FhirFilePickerService? fhirFilePickerService;
   final VoidCallback? onRestoreVaultBackup;
   final VoidCallback? onExportVaultBackup;
   final VaultSecurityService? vaultSecurityService;
@@ -176,7 +182,12 @@ class ConnectionsPage extends StatelessWidget {
           onDisableAutoSync: onFhirAutoSyncDisabled,
         ),
         const SizedBox(height: 14),
-        FhirJsonImportCard(busy: busy, onImport: onImportFhirJson),
+        FhirJsonImportCard(
+          busy: busy,
+          onImport: onImportFhirJson,
+          onImportFiles: onImportFhirFiles,
+          filePickerService: fhirFilePickerService,
+        ),
         const SizedBox(height: 14),
         SourceCoverageAndHistoryCard(
           records: records,
@@ -515,21 +526,70 @@ class _VaultRestoreSheetState extends State<VaultRestoreSheet> {
 }
 
 class FhirJsonImportCard extends StatelessWidget {
-  const FhirJsonImportCard({super.key, required this.busy, this.onImport});
+  const FhirJsonImportCard({
+    super.key,
+    required this.busy,
+    this.onImport,
+    this.onImportFiles,
+    this.filePickerService,
+  });
 
   final bool busy;
   final Future<void> Function(String json, {String source})? onImport;
+  final Future<void> Function(List<FhirFilePayload> files, {String? source})?
+  onImportFiles;
+  final FhirFilePickerService? filePickerService;
 
-  void _openImportSheet(BuildContext context) {
-    if (onImport == null) return;
+  Future<void> _pickAndOpenFiles(BuildContext context) async {
+    final picker = filePickerService ?? const FhirFilePickerService();
+    try {
+      final files = await picker.pickFiles();
+      if (files == null || files.isEmpty || !context.mounted) return;
+      _openImportSheet(context, initialFiles: files);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to pick FHIR files: ${e.toString().replaceFirst('Exception: ', '')}',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _openImportSheet(
+    BuildContext context, {
+    List<FhirFilePayload>? initialFiles,
+  }) {
+    if (onImport == null && onImportFiles == null) return;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (sheetContext) => FhirJsonImportSheet(
-        onImport: (json, source) async {
+        initialFiles: initialFiles,
+        filePickerService: filePickerService,
+        onImportFiles: (files, source) async {
           Navigator.pop(sheetContext);
-          await onImport!(json, source: source);
+          if (onImportFiles != null) {
+            await onImportFiles!(files, source: source);
+          } else if (onImport != null) {
+            for (final f in files) {
+              await onImport!(f.content, source: source ?? f.name);
+            }
+          }
+        },
+        onImportJson: (json, source) async {
+          Navigator.pop(sheetContext);
+          if (onImport != null) {
+            await onImport!(json, source: source);
+          } else if (onImportFiles != null) {
+            await onImportFiles!([
+              FhirFilePayload(name: source, content: json),
+            ], source: source);
+          }
         },
       ),
     );
@@ -538,6 +598,8 @@ class FhirJsonImportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEnabled = !busy && (onImport != null || onImportFiles != null);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -557,13 +619,13 @@ class FhirJsonImportCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Direct FHIR JSON import',
+                        'Direct FHIR JSON & file import',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
-                        'Paste Observations or Bundles directly',
+                        'Choose file(s) or paste Observations & Bundles',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -575,19 +637,31 @@ class FhirJsonImportCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Import clinical records from a file or sandbox by pasting raw FHIR Observation or Bundle JSON into your local vault.',
+              'Import clinical records from local FHIR JSON files or sandbox exports into your local encrypted vault.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 14),
-            FilledButton.tonalIcon(
-              key: const ValueKey('connection-import-fhir-json-button'),
-              onPressed: busy || onImport == null
-                  ? null
-                  : () => _openImportSheet(context),
-              icon: const Icon(Icons.paste_outlined, size: 18),
-              label: const Text('Paste FHIR JSON'),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                FilledButton.tonalIcon(
+                  key: const ValueKey('connection-pick-fhir-file-button'),
+                  onPressed: isEnabled
+                      ? () => _pickAndOpenFiles(context)
+                      : null,
+                  icon: const Icon(Icons.upload_file_outlined, size: 18),
+                  label: const Text('Choose FHIR File(s)'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('connection-import-fhir-json-button'),
+                  onPressed: isEnabled ? () => _openImportSheet(context) : null,
+                  icon: const Icon(Icons.paste_outlined, size: 18),
+                  label: const Text('Paste FHIR JSON'),
+                ),
+              ],
             ),
           ],
         ),
@@ -597,47 +671,180 @@ class FhirJsonImportCard extends StatelessWidget {
 }
 
 class FhirJsonImportSheet extends StatefulWidget {
-  const FhirJsonImportSheet({super.key, required this.onImport});
+  const FhirJsonImportSheet({
+    super.key,
+    this.initialFiles,
+    this.onImportFiles,
+    this.onImportJson,
+    this.onImport,
+    this.filePickerService,
+  });
 
-  final Future<void> Function(String json, String source) onImport;
+  final List<FhirFilePayload>? initialFiles;
+  final Future<void> Function(List<FhirFilePayload> files, String? source)?
+  onImportFiles;
+  final Future<void> Function(String json, String source)? onImportJson;
+  final Future<void> Function(String json, String source)? onImport;
+  final FhirFilePickerService? filePickerService;
 
   @override
   State<FhirJsonImportSheet> createState() => _FhirJsonImportSheetState();
 }
 
 class _FhirJsonImportSheetState extends State<FhirJsonImportSheet> {
+  late final List<FhirFilePayload> _files;
   final _jsonController = TextEditingController();
-  final _sourceController = TextEditingController(text: 'FHIR Import');
+  late final TextEditingController _sourceController;
   bool _importing = false;
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    _files = widget.initialFiles != null
+        ? List<FhirFilePayload>.from(widget.initialFiles!)
+        : <FhirFilePayload>[];
+
+    final defaultSource = _files.length == 1
+        ? _files.first.name
+        : (_files.length > 1
+              ? 'FHIR Import (${_files.length} files)'
+              : 'FHIR Import');
+    _sourceController = TextEditingController(text: defaultSource);
+    _jsonController.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    setState(() {});
+  }
+
+  @override
   void dispose() {
+    _jsonController.removeListener(_onTextChanged);
     _jsonController.dispose();
     _sourceController.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _pickMoreFiles() async {
+    final picker = widget.filePickerService ?? const FhirFilePickerService();
+    try {
+      final picked = await picker.pickFiles();
+      if (picked != null && picked.isNotEmpty && mounted) {
+        setState(() {
+          _files.addAll(picked);
+          if (_files.length > 1 &&
+              _sourceController.text.startsWith('FHIR Import')) {
+            _sourceController.text = 'FHIR Import (${_files.length} files)';
+          } else if (_files.length == 1) {
+            _sourceController.text = _files.first.name;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error =
+              'Failed picking files: ${e.toString().replaceFirst('Exception: ', '')}';
+        });
+      }
+    }
+  }
+
+  void _removeFile(int index) {
+    setState(() {
+      _files.removeAt(index);
+      if (_files.length == 1) {
+        _sourceController.text = _files.first.name;
+      } else if (_files.isEmpty) {
+        _sourceController.text = 'FHIR Import';
+      } else {
+        _sourceController.text = 'FHIR Import (${_files.length} files)';
+      }
+    });
+  }
+
+  FhirFilesImportSummary _computeSummary() {
+    if (_files.isNotEmpty) {
+      return FhirFilesImportSummary.fromPayloads(_files);
+    }
     final text = _jsonController.text.trim();
-    if (text.isEmpty) {
-      setState(() => _error = 'Please paste FHIR JSON content.');
+    if (text.isNotEmpty) {
+      final payload = FhirFilePayload(
+        name: _sourceController.text.trim().isEmpty
+            ? 'Pasted FHIR'
+            : _sourceController.text.trim(),
+        content: text,
+      );
+      return FhirFilesImportSummary.fromPayloads([payload]);
+    }
+    return const FhirFilesImportSummary(previews: []);
+  }
+
+  Future<void> _submit() async {
+    final summary = _computeSummary();
+    if (summary.hasErrors) {
+      setState(() {
+        _error =
+            'Cannot import: Please resolve or remove invalid files before proceeding.';
+      });
       return;
     }
+
+    if (summary.totalRecords == 0) {
+      setState(() {
+        _error = 'No supported clinical resources were found to import.';
+      });
+      return;
+    }
+
     final source = _sourceController.text.trim().isEmpty
         ? 'FHIR Import'
         : _sourceController.text.trim();
+
     setState(() {
       _importing = true;
       _error = null;
     });
+
     try {
-      await widget.onImport(text, source);
+      if (_files.isNotEmpty) {
+        if (widget.onImportFiles != null) {
+          await widget.onImportFiles!(_files, source);
+        } else if (widget.onImportJson != null) {
+          for (final f in _files) {
+            await widget.onImportJson!(f.content, source);
+          }
+        } else if (widget.onImport != null) {
+          for (final f in _files) {
+            await widget.onImport!(f.content, source);
+          }
+        }
+      } else {
+        final text = _jsonController.text.trim();
+        if (widget.onImportJson != null) {
+          await widget.onImportJson!(text, source);
+        } else if (widget.onImport != null) {
+          await widget.onImport!(text, source);
+        } else if (widget.onImportFiles != null) {
+          await widget.onImportFiles!([
+            FhirFilePayload(name: source, content: text),
+          ], source);
+        }
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
+          _error = e
+              .toString()
+              .replaceFirst('FormatException: ', '')
+              .replaceFirst('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
           _importing = false;
-          _error = e.toString().replaceFirst('Exception: ', '');
         });
       }
     }
@@ -645,6 +852,9 @@ class _FhirJsonImportSheetState extends State<FhirJsonImportSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final summary = _computeSummary();
+
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
@@ -657,19 +867,216 @@ class _FhirJsonImportSheetState extends State<FhirJsonImportSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Paste FHIR JSON',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _files.isNotEmpty
+                            ? 'FHIR File Import'
+                            : 'Import FHIR JSON',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Review supported clinical resources before importing into your local vault.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Paste an Observation resource or a Bundle containing Observations.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            const SizedBox(height: 16),
+            if (_files.isNotEmpty) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Selected Files (${_files.length})',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('fhir-sheet-add-more-files-button'),
+                    onPressed: _importing ? null : _pickMoreFiles,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add files'),
+                  ),
+                ],
               ),
-            ),
+              const SizedBox(height: 6),
+              ..._files.asMap().entries.map((entry) {
+                final index = entry.key;
+                final file = entry.value;
+                final preview = FhirFilePreview.fromPayload(file);
+                final isValid = preview.isValid;
+
+                return Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  color: isValid
+                      ? theme.colorScheme.surfaceContainer
+                      : theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: isValid
+                          ? theme.colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
+                            )
+                          : theme.colorScheme.error.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isValid
+                                  ? Icons.insert_drive_file_outlined
+                                  : Icons.error_outline,
+                              color: isValid
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.error,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                preview.fileName,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (preview.formattedSize.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                preview.formattedSize,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                            IconButton(
+                              key: ValueKey(
+                                'fhir-file-remove-${preview.fileName}',
+                              ),
+                              icon: const Icon(Icons.close, size: 18),
+                              tooltip: 'Remove file',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: _importing
+                                  ? null
+                                  : () => _removeFile(index),
+                            ),
+                          ],
+                        ),
+                        if (isValid) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: preview.resourceCounts.entries.map((c) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${c.key}: ${c.value}',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            preview.error ?? 'Invalid FHIR file',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.error,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ] else ...[
+              Center(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('fhir-sheet-choose-files-button'),
+                  onPressed: _importing ? null : _pickMoreFiles,
+                  icon: const Icon(Icons.upload_file_outlined, size: 18),
+                  label: const Text('Choose FHIR File(s)'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      'OR PASTE FHIR JSON',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('fhir-json-input-field'),
+                controller: _jsonController,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  labelText: 'JSON payload',
+                  hintText: '{\n  "resourceType": "Observation",\n  ...\n}',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    tooltip: 'Paste from clipboard',
+                    icon: const Icon(Icons.content_paste),
+                    onPressed: () async {
+                      final data = await Clipboard.getData('text/plain');
+                      if (data?.text != null) {
+                        _jsonController.text = data!.text!;
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             TextField(
               key: const ValueKey('fhir-json-source-field'),
@@ -680,35 +1087,90 @@ class _FhirJsonImportSheetState extends State<FhirJsonImportSheet> {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const ValueKey('fhir-json-input-field'),
-              controller: _jsonController,
-              maxLines: 8,
-              decoration: InputDecoration(
-                labelText: 'JSON payload',
-                hintText: '{\n  "resourceType": "Observation",\n  ...\n}',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  tooltip: 'Paste from clipboard',
-                  icon: const Icon(Icons.content_paste),
-                  onPressed: () async {
-                    final data = await Clipboard.getData('text/plain');
-                    if (data?.text != null) {
-                      _jsonController.text = data!.text!;
-                    }
-                  },
+            if (summary.totalRecords > 0 || summary.hasErrors) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: summary.hasErrors
+                      ? theme.colorScheme.errorContainer.withValues(alpha: 0.4)
+                      : theme.colorScheme.secondaryContainer.withValues(
+                          alpha: 0.4,
+                        ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: summary.hasErrors
+                        ? theme.colorScheme.error.withValues(alpha: 0.5)
+                        : theme.colorScheme.secondary.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          summary.hasErrors
+                              ? Icons.warning_amber_rounded
+                              : Icons.check_circle_outline,
+                          size: 18,
+                          color: summary.hasErrors
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.secondary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            summary.hasErrors
+                                ? 'One or more files have errors and cannot be imported.'
+                                : 'Ready to import ${summary.totalRecords} record${summary.totalRecords == 1 ? '' : 's'}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: summary.hasErrors
+                                  ? theme.colorScheme.error
+                                  : theme.colorScheme.onSecondaryContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (!summary.hasErrors &&
+                        summary.aggregatedResourceCounts.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: summary.aggregatedResourceCounts.entries.map((
+                          c,
+                        ) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${c.key}: ${c.value}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 10),
               Text(
                 _error!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
               ),
             ],
             const SizedBox(height: 16),
@@ -722,14 +1184,23 @@ class _FhirJsonImportSheetState extends State<FhirJsonImportSheet> {
                 const SizedBox(width: 8),
                 FilledButton(
                   key: const ValueKey('fhir-json-submit-button'),
-                  onPressed: _importing ? null : _submit,
+                  onPressed:
+                      _importing ||
+                          summary.hasErrors ||
+                          summary.totalRecords == 0
+                      ? null
+                      : _submit,
                   child: _importing
                       ? const SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Import records'),
+                      : Text(
+                          summary.totalRecords > 0
+                              ? 'Import ${summary.totalRecords} records'
+                              : 'Import records',
+                        ),
                 ),
               ],
             ),
