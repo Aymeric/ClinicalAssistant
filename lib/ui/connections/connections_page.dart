@@ -7,10 +7,12 @@ import 'package:flutter/services.dart';
 import '../../controllers/health_data_controller.dart';
 import '../../data/vault_security_service.dart';
 import '../../integrations/fhir_provider_presets.dart';
+import '../../models/health_record.dart';
 import '../../notifications/result_notification_manager.dart';
 import '../../notifications/result_notification_settings.dart';
 import '../../sync/foreground_sync_state.dart';
 import '../../sync/import_progress.dart';
+import '../../sync/source_import_history.dart';
 import '../overview/overview_page.dart';
 import '../security/privacy_policy_page.dart';
 import '../security/vault_security_card.dart';
@@ -22,6 +24,7 @@ class ConnectionsPage extends StatelessWidget {
     required this.busy,
     required this.healthRecordCount,
     required this.fhirRecordCount,
+    this.healthRawSampleCount,
     required this.syncState,
     required this.syncSettingsLoading,
     required this.syncing,
@@ -35,6 +38,8 @@ class ConnectionsPage extends StatelessWidget {
     required this.notificationManager,
     required this.syncValueStore,
     required this.onProgress,
+    this.records = const <HealthRecord>[],
+    this.importHistory = const <SourceImportEvent>[],
     this.syntheticRecordCount = 0,
     this.onLoadSyntheticDemo,
     this.onClearSyntheticDemo,
@@ -49,8 +54,11 @@ class ConnectionsPage extends StatelessWidget {
 
   final bool busy;
   final int healthRecordCount;
+  final int? healthRawSampleCount;
   final int fhirRecordCount;
   final int syntheticRecordCount;
+  final List<HealthRecord> records;
+  final List<SourceImportEvent> importHistory;
   final ForegroundSyncState? syncState;
   final bool syncSettingsLoading;
   final bool syncing;
@@ -76,6 +84,9 @@ class ConnectionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveHealthRawCount =
+        healthRawSampleCount ??
+        countRawSamples(records.where(isHealthPlatformRecord));
     return PageContent(
       children: [
         Text(
@@ -121,6 +132,7 @@ class ConnectionsPage extends StatelessWidget {
             description:
                 'Read supported measurements and stored lab results. Steps are summarized by day.',
             count: healthRecordCount,
+            rawCount: effectiveHealthRawCount,
             connected:
                 healthRecordCount > 0 ||
                 (syncState?.healthAutoSync == true &&
@@ -138,6 +150,7 @@ class ConnectionsPage extends StatelessWidget {
             description:
                 'Read supported health and available lab records from Health Connect. Steps are summarized by day.',
             count: healthRecordCount,
+            rawCount: effectiveHealthRawCount,
             connected:
                 healthRecordCount > 0 ||
                 (syncState?.healthAutoSync == true &&
@@ -164,6 +177,11 @@ class ConnectionsPage extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         FhirJsonImportCard(busy: busy, onImport: onImportFhirJson),
+        const SizedBox(height: 14),
+        SourceCoverageAndHistoryCard(
+          records: records,
+          importHistory: importHistory,
+        ),
         const SizedBox(height: 14),
         SyntheticDemoCard(
           busy: busy,
@@ -1391,6 +1409,390 @@ class _FhirConnectionFormState extends State<FhirConnectionForm> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class SourceCoverageAndHistoryCard extends StatefulWidget {
+  const SourceCoverageAndHistoryCard({
+    super.key,
+    required this.records,
+    required this.importHistory,
+  });
+
+  final List<HealthRecord> records;
+  final List<SourceImportEvent> importHistory;
+
+  @override
+  State<SourceCoverageAndHistoryCard> createState() =>
+      _SourceCoverageAndHistoryCardState();
+}
+
+class _SourceCoverageAndHistoryCardState
+    extends State<SourceCoverageAndHistoryCard> {
+  static const _initialVisibleEvents = 5;
+  bool _showAllEvents = false;
+
+  String _formatDateSpan(DateTime? oldest, DateTime? newest) {
+    if (oldest == null || newest == null) {
+      return 'No records stored yet';
+    }
+    final start = formatRecordDate(oldest);
+    final end = formatRecordDate(newest);
+    if (start == end) {
+      return 'Observed date: $start';
+    }
+    return 'Observed span: $start – $end';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final summaries = buildSourceCoverageSummaries(
+      widget.records,
+      widget.importHistory,
+    );
+    final visibleHistory = _showAllEvents
+        ? widget.importHistory
+        : widget.importHistory.take(_initialVisibleEvents).toList();
+
+    return Card(
+      key: const ValueKey('source-coverage-history-card'),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                IconStamp(
+                  icon: Icons.history_edu_outlined,
+                  background: theme.colorScheme.secondaryContainer,
+                  foreground: theme.colorScheme.onSecondaryContainer,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Import coverage & activity history',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        'Observed record date spans and recent sync outcomes per source',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              key: const ValueKey('source-coverage-disclaimer'),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.45,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Observed date spans reflect only the earliest and latest records returned by each source. Platform permissions and clinical portal availability limit what is shared and do not guarantee a complete medical history.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Per-source coverage',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (var i = 0; i < summaries.length; i++) ...[
+              if (i > 0) const Divider(height: 18),
+              _SourceCoverageSummaryRow(
+                summary: summaries[i],
+                dateSpanLabel: _formatDateSpan(
+                  summaries[i].oldestRecordedAt,
+                  summaries[i].newestRecordedAt,
+                ),
+              ),
+            ],
+            const SizedBox(height: 18),
+            Text(
+              'Recent import & sync activity',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (widget.importHistory.isEmpty)
+              Text(
+                'No import or sync checks recorded on this device yet.',
+                key: const ValueKey('source-import-history-empty'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              )
+            else
+              Column(
+                key: const ValueKey('source-import-history-list'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < visibleHistory.length; i++) ...[
+                    if (i > 0) const Divider(height: 16),
+                    _SourceImportEventRow(event: visibleHistory[i]),
+                  ],
+                  if (widget.importHistory.length > _initialVisibleEvents) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      key: const ValueKey('source-import-history-toggle'),
+                      onPressed: () =>
+                          setState(() => _showAllEvents = !_showAllEvents),
+                      icon: Icon(
+                        _showAllEvents ? Icons.expand_less : Icons.expand_more,
+                        size: 18,
+                      ),
+                      label: Text(
+                        _showAllEvents
+                            ? 'Show fewer'
+                            : 'Show all (${widget.importHistory.length})',
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SourceCoverageSummaryRow extends StatelessWidget {
+  const _SourceCoverageSummaryRow({
+    required this.summary,
+    required this.dateSpanLabel,
+  });
+
+  final SourceCoverageSummary summary;
+  final String dateSpanLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final lastEvent = summary.lastEvent;
+    final baseCountLabel = summary.recordCount == 1
+        ? '1 record stored'
+        : '${summary.recordCount} records stored';
+    final countLabel = summary.rawSampleCount > summary.recordCount
+        ? '$baseCountLabel (${summary.rawSampleCount} raw samples)'
+        : baseCountLabel;
+
+    return Column(
+      key: ValueKey('source-coverage-row-${summary.sourceKind.storageKey}'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              summary.sourceLabel,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                countLabel,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (lastEvent != null)
+              _SourceOutcomeStatusBadge(status: lastEvent.status),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          dateSpanLabel,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        if (summary.distinctSourceNames.length > 1 ||
+            (summary.distinctSourceNames.length == 1 &&
+                summary.distinctSourceNames.first != summary.sourceLabel)) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Sources: ${summary.distinctSourceNames.join(', ')}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+        if (lastEvent != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            'Last check: ${formatSyncTimestamp(lastEvent.timestamp)} (${lastEvent.isAutoSync ? 'Auto sync' : 'Manual import'})',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _SourceImportEventRow extends StatelessWidget {
+  const _SourceImportEventRow({required this.event});
+
+  final SourceImportEvent event;
+
+  String _buildOutcomeDescription() {
+    final mode = event.isAutoSync ? 'Auto sync' : 'Manual import';
+    switch (event.status) {
+      case SourceImportOutcomeStatus.succeeded:
+        final details = event.fetchedRawSampleCount > event.fetchedCount
+            ? '${event.fetchedRawSampleCount} raw samples, ${event.addedCount} new'
+            : '${event.addedCount} new';
+        final base = '$mode · ${event.fetchedCount} returned ($details)';
+        if (event.oldestRecordAt != null && event.newestRecordAt != null) {
+          final start = formatRecordDate(event.oldestRecordAt!);
+          final end = formatRecordDate(event.newestRecordAt!);
+          final span = start == end ? start : '$start – $end';
+          return '$base · Span: $span';
+        }
+        return base;
+      case SourceImportOutcomeStatus.empty:
+        return '$mode · Checked source, 0 records returned';
+      case SourceImportOutcomeStatus.failed:
+        final reason =
+            event.errorSummary ?? 'Source check could not be completed.';
+        return '$mode · Failed: $reason';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isFailed = event.status == SourceImportOutcomeStatus.failed;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              event.sourceLabel,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            _SourceOutcomeStatusBadge(status: event.status),
+            Text(
+              formatSyncTimestamp(event.timestamp),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _buildOutcomeDescription(),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: isFailed
+                ? theme.colorScheme.error
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SourceOutcomeStatusBadge extends StatelessWidget {
+  const _SourceOutcomeStatusBadge({required this.status});
+
+  final SourceImportOutcomeStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final (Color bg, Color fg, IconData icon) = switch (status) {
+      SourceImportOutcomeStatus.succeeded => (
+        colors.primaryContainer,
+        colors.onPrimaryContainer,
+        Icons.check_circle_outline,
+      ),
+      SourceImportOutcomeStatus.empty => (
+        colors.secondaryContainer,
+        colors.onSecondaryContainer,
+        Icons.remove_circle_outline,
+      ),
+      SourceImportOutcomeStatus.failed => (
+        colors.errorContainer,
+        colors.onErrorContainer,
+        Icons.error_outline,
+      ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            status.badgeLabel,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: fg,
+            ),
+          ),
+        ],
       ),
     );
   }

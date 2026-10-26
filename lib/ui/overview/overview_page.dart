@@ -84,6 +84,10 @@ class OverviewPage extends StatelessWidget {
     final labCount = records
         .where((record) => record.category == RecordCategory.lab)
         .length;
+    final rawSamplesCount = countRawSamples(records);
+    final rawSamplesSuffix = rawSamplesCount > records.length
+        ? ' ($rawSamplesCount raw samples)'
+        : '';
     final latest = [...records]
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     final trendSeries = buildHealthTrendSeries(records)
@@ -216,7 +220,7 @@ class OverviewPage extends StatelessWidget {
                   Text(
                     loading
                         ? 'Opening your encrypted record vault...'
-                        : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved  ·  $labCount lab ${labCount == 1 ? 'result' : 'results'}',
+                        : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved$rawSamplesSuffix  ·  $labCount lab ${labCount == 1 ? 'result' : 'results'}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -673,6 +677,10 @@ class OverviewMetricStrip extends StatelessWidget {
         .map((record) => record.category)
         .toSet()
         .length;
+    final rawSamplesCount = countRawSamples(records);
+    final recordsValue = rawSamplesCount > records.length
+        ? '${records.length} ($rawSamplesCount raw)'
+        : records.length.toString();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -685,7 +693,7 @@ class OverviewMetricStrip extends StatelessWidget {
           Expanded(
             child: MetricItem(
               label: 'Records',
-              value: records.length.toString(),
+              value: recordsValue,
               icon: Icons.receipt_long_outlined,
             ),
           ),

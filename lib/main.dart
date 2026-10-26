@@ -962,8 +962,11 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
       ConnectionsPage(
         busy: _controller.busy,
         healthRecordCount: _controller.healthRecordCount,
+        healthRawSampleCount: _controller.healthRawSampleCount,
         fhirRecordCount: _controller.fhirRecordCount,
         syntheticRecordCount: _controller.syntheticRecordCount,
+        records: _controller.records,
+        importHistory: _controller.importHistory,
         syncState: _syncState,
         syncSettingsLoading: _syncSettingsLoading,
         syncing: _syncing,

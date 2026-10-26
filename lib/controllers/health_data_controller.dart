@@ -17,6 +17,7 @@ import '../models/medication_adherence_log.dart';
 import '../records/manual_record_edit_sheet.dart';
 import '../sync/foreground_sync_state.dart';
 import '../sync/import_progress.dart';
+import '../sync/source_import_history.dart';
 
 class HealthDataController extends ChangeNotifier {
   HealthDataController({
@@ -63,13 +64,21 @@ class HealthDataController extends ChangeNotifier {
   final SyncValueStore _syncValueStore;
   final PinnedMetricsPreferences _pinnedPreferences;
   final VaultBackupService _vaultBackupService;
+  late final SourceImportHistoryStore _historyStore = SourceImportHistoryStore(
+    storage: _syncValueStore,
+  );
   List<HealthRecord> records = const [];
+  List<SourceImportEvent> _importHistory = const [];
   bool loading = true;
   bool busy = false;
   Object? error;
   SyncValueStore get syncValueStore => _syncValueStore;
   PinnedMetricsPreferences get pinnedPreferences => _pinnedPreferences;
   VaultBackupService get vaultBackupService => _vaultBackupService;
+  List<SourceImportEvent> get importHistory =>
+      List<SourceImportEvent>.unmodifiable(_importHistory);
+  List<SourceCoverageSummary> get sourceCoverageSummaries =>
+      buildSourceCoverageSummaries(records, _importHistory);
 
   @override
   void dispose() {
@@ -84,8 +93,16 @@ class HealthDataController extends ChangeNotifier {
             record.id.startsWith('health-clinical:'),
       )
       .length;
+  int get healthRawSampleCount => countRawSamples(
+    records.where(
+      (record) =>
+          record.id.startsWith('health:') ||
+          record.id.startsWith('health-clinical:'),
+    ),
+  );
   int get fhirRecordCount =>
       records.where((record) => record.id.startsWith('fhir:')).length;
+  int get totalRawSampleCount => countRawSamples(records);
   int get syntheticRecordCount => records.where(isSyntheticRecord).length;
 
   List<HealthRecord> get activeMedications => records
@@ -128,6 +145,15 @@ class HealthDataController extends ChangeNotifier {
       loading = false;
       notifyListeners();
     }
+    unawaited(_loadImportHistory());
+  }
+
+  Future<void> _loadImportHistory() async {
+    final loaded = await _historyStore.load();
+    if (loaded.isNotEmpty || _importHistory.isNotEmpty) {
+      _importHistory = loaded;
+      notifyListeners();
+    }
   }
 
   Future<List<HealthRecord>> importHealth({
@@ -136,11 +162,27 @@ class HealthDataController extends ChangeNotifier {
     bool? isAndroid,
   }) async {
     return _withBusy(() async {
-      final imported = await _healthImporter.importRecords(
-        since: since,
-        onProgress: (progress) => onProgress?.call(progress.scale(0.85)),
-      );
+      final List<HealthRecord> imported;
+      try {
+        imported = await _healthImporter.importRecords(
+          since: since,
+          onProgress: (progress) => onProgress?.call(progress.scale(0.85)),
+        );
+      } catch (error) {
+        await _recordImportFailure(
+          sourceKind: SourceImportSourceKind.healthPlatform,
+          isAutoSync: false,
+          error: error,
+        );
+        rethrow;
+      }
       if (imported.isEmpty) {
+        await _recordImportOutcome(
+          sourceKind: SourceImportSourceKind.healthPlatform,
+          isAutoSync: false,
+          fetchedRecords: const [],
+          newlyAddedRecords: const [],
+        );
         throw StateError(
           'No supported health records or clinical lab results were returned. Check the date range and review the requested permissions.',
         );
@@ -155,6 +197,12 @@ class HealthDataController extends ChangeNotifier {
         ),
       );
       await _recordSuccessfulSync(_lastHealthSyncKey);
+      await _recordImportOutcome(
+        sourceKind: SourceImportSourceKind.healthPlatform,
+        isAutoSync: false,
+        fetchedRecords: imported,
+        newlyAddedRecords: newlyImported,
+      );
       try {
         final token = await _healthImporter.getChangesToken(
           isAndroid: isAndroid,
@@ -195,6 +243,7 @@ class HealthDataController extends ChangeNotifier {
       _syncValueStore.read(_lastFhirSyncKey),
       _syncValueStore.read(_healthChangesTokenKey),
     ]);
+    _importHistory = await _historyStore.load();
     final lastHealthDate = _readStoredDate(values[6], _lastHealthSyncKey);
     final changesToken = values[8];
     return ForegroundSyncState(
@@ -246,13 +295,24 @@ class HealthDataController extends ChangeNotifier {
     ImportProgressCallback? onProgress,
   }) async {
     return _withBusy(() async {
-      final result = await _fhirImporter.authorizeAndImportLabResults(
-        fhirBaseUrl: baseUrl,
-        clientId: clientId,
-        requestRefreshToken: rememberPortalForAutoSync,
-        resourceTypes: FhirPortalImporter.clinicalResourceTypes,
-        onProgress: (progress) => onProgress?.call(progress.scale(0.9)),
-      );
+      final FhirPortalImportResult result;
+      try {
+        result = await _fhirImporter.authorizeAndImportLabResults(
+          fhirBaseUrl: baseUrl,
+          clientId: clientId,
+          requestRefreshToken: rememberPortalForAutoSync,
+          resourceTypes: FhirPortalImporter.clinicalResourceTypes,
+          onProgress: (progress) => onProgress?.call(progress.scale(0.9)),
+        );
+      } catch (error) {
+        await _recordImportFailure(
+          sourceKind: SourceImportSourceKind.fhirPortal,
+          sourceLabel: _formatPortalLabel(baseUrl),
+          isAutoSync: false,
+          error: error,
+        );
+        rethrow;
+      }
       await Future.wait([
         _syncValueStore.write(_fhirBaseKey, baseUrl.trim()),
         _syncValueStore.write(_fhirClientKey, clientId.trim()),
@@ -285,6 +345,13 @@ class HealthDataController extends ChangeNotifier {
               ),
             );
       await _recordSuccessfulSync(_lastFhirSyncKey);
+      await _recordImportOutcome(
+        sourceKind: SourceImportSourceKind.fhirPortal,
+        sourceLabel: _formatPortalLabel(baseUrl),
+        isAutoSync: false,
+        fetchedRecords: result.records,
+        newlyAddedRecords: newlyImported,
+      );
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'Import complete'),
       );
@@ -303,88 +370,112 @@ class HealthDataController extends ChangeNotifier {
     bool? isAndroid,
   }) async {
     return _withBusy(() async {
-      final onAndroid = isAndroid ?? Platform.isAndroid;
-      final changesToken = await _syncValueStore.read(_healthChangesTokenKey);
-      if (onAndroid && changesToken != null && changesToken.isNotEmpty) {
-        onProgress?.call(
-          const ImportProgress(
-            fraction: 0.1,
-            message: 'Checking for health data changes...',
-          ),
-        );
-        final changesResult = await _healthImporter.importChanges(
-          changesToken: changesToken,
-          onProgress: (progress) => onProgress?.call(progress.scale(0.85)),
-          isAndroid: isAndroid,
-        );
-        if (changesResult != null) {
-          await _syncValueStore.write(
-            _healthChangesTokenKey,
-            changesResult.nextChangesToken,
-          );
-          if (changesResult.deletedRecordIds.isNotEmpty) {
-            final toDeleteIds = changesResult.deletedRecordIds.toSet();
-            final remaining = records
-                .where((r) => !toDeleteIds.any((id) => r.id.contains(id)))
-                .toList();
-            if (remaining.length != records.length) {
-              await _store.save(remaining);
-              records = remaining;
-            }
-          }
-          final newlyImported = changesResult.records.isEmpty
-              ? const <HealthRecord>[]
-              : await _mergeAndSave(
-                  changesResult.records,
-                  onProgress: (progress) => onProgress?.call(
-                    ImportProgress(
-                      fraction: 0.85 + (progress.fraction * 0.14),
-                      message: progress.message,
-                    ),
-                  ),
-                );
-          await _recordSuccessfulSync(_lastHealthSyncKey);
+      try {
+        final onAndroid = isAndroid ?? Platform.isAndroid;
+        final changesToken = await _syncValueStore.read(_healthChangesTokenKey);
+        if (onAndroid && changesToken != null && changesToken.isNotEmpty) {
           onProgress?.call(
-            const ImportProgress(fraction: 1, message: 'Health sync complete'),
+            const ImportProgress(
+              fraction: 0.1,
+              message: 'Checking for health data changes...',
+            ),
           );
-          return newlyImported;
-        }
-      }
-
-      final lastSync = _readStoredDate(
-        await _syncValueStore.read(_lastHealthSyncKey),
-        _lastHealthSyncKey,
-      );
-      final since =
-          lastSync?.subtract(const Duration(days: 3)) ?? DateTime(1900);
-      final imported = await _healthImporter.importRecords(
-        since: since,
-        onProgress: (progress) => onProgress?.call(progress.scale(0.9)),
-      );
-      final newlyImported = imported.isEmpty
-          ? const <HealthRecord>[]
-          : await _mergeAndSave(
-              imported,
-              onProgress: (progress) => onProgress?.call(
-                ImportProgress(
-                  fraction: 0.9 + (progress.fraction * 0.09),
-                  message: progress.message,
-                ),
+          final changesResult = await _healthImporter.importChanges(
+            changesToken: changesToken,
+            onProgress: (progress) => onProgress?.call(progress.scale(0.85)),
+            isAndroid: isAndroid,
+          );
+          if (changesResult != null) {
+            await _syncValueStore.write(
+              _healthChangesTokenKey,
+              changesResult.nextChangesToken,
+            );
+            if (changesResult.deletedRecordIds.isNotEmpty) {
+              final toDeleteIds = changesResult.deletedRecordIds.toSet();
+              final remaining = records
+                  .where((r) => !toDeleteIds.any((id) => r.id.contains(id)))
+                  .toList();
+              if (remaining.length != records.length) {
+                await _store.save(remaining);
+                records = remaining;
+              }
+            }
+            final newlyImported = changesResult.records.isEmpty
+                ? const <HealthRecord>[]
+                : await _mergeAndSave(
+                    changesResult.records,
+                    onProgress: (progress) => onProgress?.call(
+                      ImportProgress(
+                        fraction: 0.85 + (progress.fraction * 0.14),
+                        message: progress.message,
+                      ),
+                    ),
+                  );
+            await _recordSuccessfulSync(_lastHealthSyncKey);
+            await _recordImportOutcome(
+              sourceKind: SourceImportSourceKind.healthPlatform,
+              isAutoSync: true,
+              fetchedRecords: changesResult.records,
+              newlyAddedRecords: newlyImported,
+            );
+            onProgress?.call(
+              const ImportProgress(
+                fraction: 1,
+                message: 'Health sync complete',
               ),
             );
-      await _recordSuccessfulSync(_lastHealthSyncKey);
-      try {
-        final token = await _healthImporter.getChangesToken(
-          isAndroid: isAndroid,
-        );
-        if (token != null && token.isNotEmpty) {
-          await _syncValueStore.write(_healthChangesTokenKey, token);
+            return newlyImported;
+          }
         }
-      } catch (_) {}
-      onProgress?.call(
-        const ImportProgress(fraction: 1, message: 'Health sync complete'),
-      );
-      return newlyImported;
+
+        final lastSync = _readStoredDate(
+          await _syncValueStore.read(_lastHealthSyncKey),
+          _lastHealthSyncKey,
+        );
+        final since =
+            lastSync?.subtract(const Duration(days: 3)) ?? DateTime(1900);
+        final imported = await _healthImporter.importRecords(
+          since: since,
+          onProgress: (progress) => onProgress?.call(progress.scale(0.9)),
+        );
+        final newlyImported = imported.isEmpty
+            ? const <HealthRecord>[]
+            : await _mergeAndSave(
+                imported,
+                onProgress: (progress) => onProgress?.call(
+                  ImportProgress(
+                    fraction: 0.9 + (progress.fraction * 0.09),
+                    message: progress.message,
+                  ),
+                ),
+              );
+        await _recordSuccessfulSync(_lastHealthSyncKey);
+        await _recordImportOutcome(
+          sourceKind: SourceImportSourceKind.healthPlatform,
+          isAutoSync: true,
+          fetchedRecords: imported,
+          newlyAddedRecords: newlyImported,
+        );
+        try {
+          final token = await _healthImporter.getChangesToken(
+            isAndroid: isAndroid,
+          );
+          if (token != null && token.isNotEmpty) {
+            await _syncValueStore.write(_healthChangesTokenKey, token);
+          }
+        } catch (_) {}
+        onProgress?.call(
+          const ImportProgress(fraction: 1, message: 'Health sync complete'),
+        );
+        return newlyImported;
+      } catch (error) {
+        await _recordImportFailure(
+          sourceKind: SourceImportSourceKind.healthPlatform,
+          isAutoSync: true,
+          error: error,
+        );
+        rethrow;
+      }
     });
   }
 
@@ -392,62 +483,83 @@ class HealthDataController extends ChangeNotifier {
     ImportProgressCallback? onProgress,
   }) async {
     return _withBusy(() async {
-      final values = await Future.wait([
-        _syncValueStore.read(_fhirBaseKey),
-        _syncValueStore.read(_fhirClientKey),
-        _syncValueStore.read(_fhirRefreshTokenKey),
-        _syncValueStore.read(_fhirPatientIdKey),
-        _syncValueStore.read(_fhirAuthorizationEndpointKey),
-        _syncValueStore.read(_fhirTokenEndpointKey),
-        _syncValueStore.read(_lastFhirSyncKey),
-      ]);
-      final baseUrl = values[0];
-      final clientId = values[1];
-      final refreshToken = values[2];
-      final patientId = values[3];
-      final authorizationEndpoint = values[4];
-      final tokenEndpoint = values[5];
-      if (baseUrl == null ||
-          clientId == null ||
-          refreshToken == null ||
-          patientId == null ||
-          authorizationEndpoint == null ||
-          tokenEndpoint == null) {
-        throw StateError(
-          'The saved FHIR portal authorization is incomplete. Reauthorize the portal to resume automatic sync.',
+      String? portalLabel;
+      try {
+        final values = await Future.wait([
+          _syncValueStore.read(_fhirBaseKey),
+          _syncValueStore.read(_fhirClientKey),
+          _syncValueStore.read(_fhirRefreshTokenKey),
+          _syncValueStore.read(_fhirPatientIdKey),
+          _syncValueStore.read(_fhirAuthorizationEndpointKey),
+          _syncValueStore.read(_fhirTokenEndpointKey),
+          _syncValueStore.read(_lastFhirSyncKey),
+        ]);
+        final baseUrl = values[0];
+        if (baseUrl != null && baseUrl.trim().isNotEmpty) {
+          portalLabel = _formatPortalLabel(baseUrl);
+        }
+        final clientId = values[1];
+        final refreshToken = values[2];
+        final patientId = values[3];
+        final authorizationEndpoint = values[4];
+        final tokenEndpoint = values[5];
+        if (baseUrl == null ||
+            clientId == null ||
+            refreshToken == null ||
+            patientId == null ||
+            authorizationEndpoint == null ||
+            tokenEndpoint == null) {
+          throw StateError(
+            'The saved FHIR portal authorization is incomplete. Reauthorize the portal to resume automatic sync.',
+          );
+        }
+        final lastSync = _readStoredDate(values[6], _lastFhirSyncKey);
+        final since = lastSync?.subtract(const Duration(days: 3));
+        final result = await _fhirImporter.refreshAndImportLabResults(
+          fhirBaseUrl: baseUrl,
+          clientId: clientId,
+          patientId: patientId,
+          refreshToken: refreshToken,
+          authorizationEndpoint: authorizationEndpoint,
+          tokenEndpoint: tokenEndpoint,
+          since: since,
+          resourceTypes: FhirPortalImporter.clinicalResourceTypes,
+          onRefreshTokenUpdated: (token) =>
+              _syncValueStore.write(_fhirRefreshTokenKey, token),
+          onProgress: (progress) => onProgress?.call(progress.scale(0.9)),
         );
-      }
-      final lastSync = _readStoredDate(values[6], _lastFhirSyncKey);
-      final since = lastSync?.subtract(const Duration(days: 3));
-      final result = await _fhirImporter.refreshAndImportLabResults(
-        fhirBaseUrl: baseUrl,
-        clientId: clientId,
-        patientId: patientId,
-        refreshToken: refreshToken,
-        authorizationEndpoint: authorizationEndpoint,
-        tokenEndpoint: tokenEndpoint,
-        since: since,
-        resourceTypes: FhirPortalImporter.clinicalResourceTypes,
-        onRefreshTokenUpdated: (token) =>
-            _syncValueStore.write(_fhirRefreshTokenKey, token),
-        onProgress: (progress) => onProgress?.call(progress.scale(0.9)),
-      );
-      final newlyImported = result.records.isEmpty
-          ? const <HealthRecord>[]
-          : await _mergeAndSave(
-              result.records,
-              onProgress: (progress) => onProgress?.call(
-                ImportProgress(
-                  fraction: 0.9 + (progress.fraction * 0.09),
-                  message: progress.message,
+        final newlyImported = result.records.isEmpty
+            ? const <HealthRecord>[]
+            : await _mergeAndSave(
+                result.records,
+                onProgress: (progress) => onProgress?.call(
+                  ImportProgress(
+                    fraction: 0.9 + (progress.fraction * 0.09),
+                    message: progress.message,
+                  ),
                 ),
-              ),
-            );
-      await _recordSuccessfulSync(_lastFhirSyncKey);
-      onProgress?.call(
-        const ImportProgress(fraction: 1, message: 'Portal sync complete'),
-      );
-      return newlyImported;
+              );
+        await _recordSuccessfulSync(_lastFhirSyncKey);
+        await _recordImportOutcome(
+          sourceKind: SourceImportSourceKind.fhirPortal,
+          sourceLabel: portalLabel,
+          isAutoSync: true,
+          fetchedRecords: result.records,
+          newlyAddedRecords: newlyImported,
+        );
+        onProgress?.call(
+          const ImportProgress(fraction: 1, message: 'Portal sync complete'),
+        );
+        return newlyImported;
+      } catch (error) {
+        await _recordImportFailure(
+          sourceKind: SourceImportSourceKind.fhirPortal,
+          sourceLabel: portalLabel,
+          isAutoSync: true,
+          error: error,
+        );
+        rethrow;
+      }
     });
   }
 
@@ -647,9 +759,11 @@ class HealthDataController extends ChangeNotifier {
       _syncValueStore.delete(_lastHealthSyncKey),
       _syncValueStore.delete(_lastFhirSyncKey),
       _syncValueStore.delete(_healthChangesTokenKey),
+      _historyStore.clear(),
     ]);
     await _store.clear();
     records = const [];
+    _importHistory = const [];
     notifyListeners();
   }
 
@@ -713,8 +827,26 @@ class HealthDataController extends ChangeNotifier {
         const ImportProgress(fraction: 0.2, message: 'Parsing FHIR data'),
       );
       const parser = FhirObservationParser();
-      final imported = parser.parseJson(jsonString, source: source);
+      final List<HealthRecord> imported;
+      try {
+        imported = parser.parseJson(jsonString, source: source);
+      } catch (error) {
+        await _recordImportFailure(
+          sourceKind: SourceImportSourceKind.fhirJson,
+          sourceLabel: source,
+          isAutoSync: false,
+          error: error,
+        );
+        rethrow;
+      }
       if (imported.isEmpty) {
+        await _recordImportOutcome(
+          sourceKind: SourceImportSourceKind.fhirJson,
+          sourceLabel: source,
+          isAutoSync: false,
+          fetchedRecords: const [],
+          newlyAddedRecords: const [],
+        );
         throw StateError(
           'No supported laboratory Observations were found in the provided FHIR data.',
         );
@@ -728,11 +860,65 @@ class HealthDataController extends ChangeNotifier {
           ),
         ),
       );
+      await _recordImportOutcome(
+        sourceKind: SourceImportSourceKind.fhirJson,
+        sourceLabel: source,
+        isAutoSync: false,
+        fetchedRecords: imported,
+        newlyAddedRecords: newlyImported,
+      );
       onProgress?.call(
         const ImportProgress(fraction: 1, message: 'FHIR import complete'),
       );
       return newlyImported;
     });
+  }
+
+  Future<void> _recordImportOutcome({
+    required SourceImportSourceKind sourceKind,
+    String? sourceLabel,
+    required bool isAutoSync,
+    required List<HealthRecord> fetchedRecords,
+    required List<HealthRecord> newlyAddedRecords,
+  }) async {
+    try {
+      final event = SourceImportEvent.fromRecords(
+        sourceKind: sourceKind,
+        sourceLabel: sourceLabel,
+        timestamp: DateTime.now().toUtc(),
+        isAutoSync: isAutoSync,
+        fetchedRecords: fetchedRecords,
+        newlyAddedRecords: newlyAddedRecords,
+      );
+      _importHistory = await _historyStore.recordEvent(event);
+    } catch (_) {}
+  }
+
+  Future<void> _recordImportFailure({
+    required SourceImportSourceKind sourceKind,
+    String? sourceLabel,
+    required bool isAutoSync,
+    required Object error,
+  }) async {
+    try {
+      final event = SourceImportEvent(
+        sourceKind: sourceKind,
+        sourceLabel: sourceLabel ?? sourceKind.defaultLabel,
+        timestamp: DateTime.now().toUtc(),
+        isAutoSync: isAutoSync,
+        status: SourceImportOutcomeStatus.failed,
+        errorSummary: sanitizeImportErrorSummary(error),
+      );
+      _importHistory = await _historyStore.recordEvent(event);
+    } catch (_) {}
+  }
+
+  String _formatPortalLabel(String baseUrl) {
+    final uri = Uri.tryParse(baseUrl.trim());
+    if (uri != null && uri.host.isNotEmpty) {
+      return 'SMART on FHIR (${uri.host})';
+    }
+    return SourceImportSourceKind.fhirPortal.defaultLabel;
   }
 
   Future<void> _recordSuccessfulSync(String key) =>

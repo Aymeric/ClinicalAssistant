@@ -125,6 +125,36 @@ class HealthRecord {
     return unit.isEmpty ? formatted : '$formatted $unit';
   }
 
+  /// Returns the number of underlying raw health samples represented by this record.
+  ///
+  /// - Daily aggregated records store their sample count in `sourceData['sampleCount']`.
+  /// - Workout-aggregated records count the workout itself (`1`) plus any child
+  ///   samples folded into `sourceData['aggregatedWorkoutMetrics']`.
+  /// - Non-aggregated records represent `1` raw sample.
+  int get rawSampleCount {
+    final directCount = sourceData?['sampleCount'];
+    if (directCount is num && directCount > 0) {
+      return directCount.toInt();
+    }
+    final workoutMetrics = sourceData?['aggregatedWorkoutMetrics'];
+    if (workoutMetrics is Map) {
+      var total = 1;
+      for (final key in const [
+        'distanceSampleCount',
+        'calorieSampleCount',
+        'stepSampleCount',
+        'flightsSampleCount',
+      ]) {
+        final v = workoutMetrics[key];
+        if (v is num && v > 0) {
+          total += v.toInt();
+        }
+      }
+      return total;
+    }
+    return 1;
+  }
+
   HealthRecord copyWith({
     String? id,
     String? name,
@@ -190,4 +220,13 @@ class HealthRecord {
       notes: json['notes'] as String?,
     );
   }
+}
+
+/// Sums [HealthRecord.rawSampleCount] across all [records].
+int countRawSamples(Iterable<HealthRecord> records) {
+  var total = 0;
+  for (final record in records) {
+    total += record.rawSampleCount;
+  }
+  return total;
 }

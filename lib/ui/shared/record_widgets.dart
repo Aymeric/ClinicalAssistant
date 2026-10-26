@@ -111,6 +111,7 @@ class SourcePanel extends StatelessWidget {
     required this.title,
     required this.description,
     required this.count,
+    this.rawCount,
     required this.connected,
     required this.busy,
     required this.buttonLabel,
@@ -123,6 +124,7 @@ class SourcePanel extends StatelessWidget {
   final String title;
   final String description;
   final int count;
+  final int? rawCount;
   final bool connected;
   final bool busy;
   final String buttonLabel;
@@ -154,7 +156,7 @@ class SourcePanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (count > 0) CountPill(count: count),
+                if (count > 0) CountPill(count: count, rawCount: rawCount),
               ],
             ),
             if (connected) ...[
@@ -619,19 +621,23 @@ class IconStamp extends StatelessWidget {
 }
 
 class CountPill extends StatelessWidget {
-  const CountPill({super.key, required this.count});
+  const CountPill({super.key, required this.count, this.rawCount});
 
   final int count;
+  final int? rawCount;
 
   @override
   Widget build(BuildContext context) {
+    final label = (rawCount != null && rawCount! > count)
+        ? '$count imported ($rawCount raw)'
+        : '$count imported';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text('$count imported'),
+      child: Text(label),
     );
   }
 }

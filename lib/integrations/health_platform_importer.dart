@@ -5,11 +5,10 @@ import 'package:flutter/foundation.dart';
 
 import '../models/health_record.dart';
 import 'apple_clinical_records_importer.dart';
-import 'daily_calorie_aggregator.dart';
-import 'daily_step_aggregator.dart';
 import 'health_data_record_mapper.dart';
 import 'health_connect_medical_records_importer.dart';
 import 'health_import_windows.dart';
+import 'workout_activity_aggregator.dart';
 import '../sync/import_progress.dart';
 
 class HealthPlatformImporter {
@@ -27,8 +26,7 @@ class HealthPlatformImporter {
   final Health _health;
   final AppleClinicalRecordsImporter _appleClinicalRecords;
   final HealthConnectMedicalRecordsImporter _healthConnectMedicalRecords;
-  final _stepAggregator = DailyStepAggregator();
-  final _calorieAggregator = DailyCalorieAggregator();
+  final _workoutActivityAggregator = const WorkoutActivityAggregator();
   static const _recordMapper = HealthDataRecordMapper();
 
   static const sharedDataTypes = <HealthDataType>[
@@ -166,12 +164,22 @@ class HealthPlatformImporter {
 
     final records = <HealthRecord>[];
 
-    // Process steps
-    final stepPoints = allUpsertedPoints
-        .where((point) => point.type == HealthDataType.STEPS)
+    // Process workouts and aggregatable activity metrics (steps, distance,
+    // calories, flights climbed) so metrics belonging to a workout aggregate
+    // onto the workout and remaining metrics aggregate daily.
+    final upsertedWorkouts = allUpsertedPoints
+        .where((point) => point.type == HealthDataType.WORKOUT)
         .toList();
-    if (stepPoints.isNotEmpty) {
-      final affectedDays = stepPoints
+    final upsertedActivityPoints = allUpsertedPoints
+        .where(
+          (point) =>
+              WorkoutActivityAggregator.isAggregatableActivityType(point.type),
+        )
+        .toList();
+
+    final processedWorkoutUuids = <String>{};
+    if (upsertedActivityPoints.isNotEmpty) {
+      final affectedDays = upsertedActivityPoints
           .map(
             (p) => DateTime(p.dateFrom.year, p.dateFrom.month, p.dateFrom.day),
           )
@@ -179,105 +187,90 @@ class HealthPlatformImporter {
       for (final day in affectedDays) {
         final start = DateTime(day.year, day.month, day.day);
         final end = DateTime(day.year, day.month, day.day, 23, 59, 59, 999);
+        final dayActivityTypes = upsertedActivityPoints
+            .where(
+              (p) =>
+                  p.dateFrom.year == day.year &&
+                  p.dateFrom.month == day.month &&
+                  p.dateFrom.day == day.day,
+            )
+            .map((p) => p.type)
+            .toSet()
+            .toList();
+
+        var dayWorkouts = upsertedWorkouts
+            .where((w) => !w.dateTo.isBefore(start) && !w.dateFrom.isAfter(end))
+            .toList();
         try {
-          final dayPoints = await _health.getHealthDataFromTypes(
-            types: [HealthDataType.STEPS],
+          dayWorkouts = await _health.getHealthDataFromTypes(
+            types: const [HealthDataType.WORKOUT],
             startTime: start,
             endTime: end,
           );
-          records.addAll(
-            _stepAggregator.aggregate(
-              dayPoints.map(_dailyStepSampleFromPoint),
-              source: 'Health Connect',
-            ),
-          );
-        } catch (_) {
-          records.addAll(
-            _stepAggregator.aggregate(
-              stepPoints
-                  .where(
-                    (p) =>
-                        p.dateFrom.year == day.year &&
-                        p.dateFrom.month == day.month &&
-                        p.dateFrom.day == day.day,
-                  )
-                  .map(_dailyStepSampleFromPoint),
-              source: 'Health Connect',
-            ),
-          );
-        }
-      }
-    }
+        } catch (_) {}
 
-    // Process calories
-    final caloriePoints = allUpsertedPoints
-        .where((point) => isCalorieType(point.type))
-        .toList();
-    if (caloriePoints.isNotEmpty) {
-      for (final type in [
-        HealthDataType.TOTAL_CALORIES_BURNED,
-        HealthDataType.ACTIVE_ENERGY_BURNED,
-        HealthDataType.BASAL_ENERGY_BURNED,
-      ]) {
-        final typePoints = caloriePoints.where((p) => p.type == type).toList();
-        if (typePoints.isEmpty) continue;
-        final affectedDays = typePoints
-            .map(
+        var dayActivityPoints = upsertedActivityPoints
+            .where(
               (p) =>
-                  DateTime(p.dateFrom.year, p.dateFrom.month, p.dateFrom.day),
+                  p.dateFrom.year == day.year &&
+                  p.dateFrom.month == day.month &&
+                  p.dateFrom.day == day.day,
             )
-            .toSet();
-        for (final day in affectedDays) {
-          final start = DateTime(day.year, day.month, day.day);
-          final end = DateTime(day.year, day.month, day.day, 23, 59, 59, 999);
-          try {
-            final dayPoints = await _health.getHealthDataFromTypes(
-              types: [type],
-              startTime: start,
-              endTime: end,
-            );
-            final samples = dayPoints
-                .where((p) => p.type == type)
-                .map((p) => _dailyCalorieSampleFromPoint(p, type))
-                .whereType<DailyCalorieSample>();
-            if (samples.isNotEmpty) {
-              records.addAll(
-                _calorieAggregator.aggregate(
-                  samples,
-                  type: type,
-                  source: 'Health Connect',
-                ),
-              );
-            }
-          } catch (_) {
-            final samples = typePoints
-                .where(
-                  (p) =>
-                      p.dateFrom.year == day.year &&
-                      p.dateFrom.month == day.month &&
-                      p.dateFrom.day == day.day,
-                )
-                .map((p) => _dailyCalorieSampleFromPoint(p, type))
-                .whereType<DailyCalorieSample>();
-            if (samples.isNotEmpty) {
-              records.addAll(
-                _calorieAggregator.aggregate(
-                  samples,
-                  type: type,
-                  source: 'Health Connect',
-                ),
-              );
-            }
-          }
+            .toList();
+        try {
+          dayActivityPoints = await _health.getHealthDataFromTypes(
+            types: dayActivityTypes,
+            startTime: start,
+            endTime: end,
+          );
+        } catch (_) {}
+
+        for (final w in dayWorkouts) {
+          processedWorkoutUuids.add(w.uuid);
         }
+        final aggregation = _workoutActivityAggregator.aggregate(
+          workouts: dayWorkouts,
+          activityPoints: dayActivityPoints,
+          fallbackSource: 'Health Connect',
+        );
+        records.addAll(aggregation.workoutRecords);
+        records.addAll(aggregation.dailyRecords);
       }
     }
 
-    // Process other points (discrete vitals, workouts, sleep, downsampled heart rate)
+    final remainingWorkouts = upsertedWorkouts
+        .where((w) => !processedWorkoutUuids.contains(w.uuid))
+        .toList();
+    for (final workout in remainingWorkouts) {
+      var workoutActivityPoints = <HealthDataPoint>[];
+      try {
+        workoutActivityPoints = await _health.getHealthDataFromTypes(
+          types: const [
+            HealthDataType.DISTANCE_DELTA,
+            HealthDataType.DISTANCE_WALKING_RUNNING,
+            HealthDataType.ACTIVE_ENERGY_BURNED,
+            HealthDataType.TOTAL_CALORIES_BURNED,
+            HealthDataType.STEPS,
+            HealthDataType.FLIGHTS_CLIMBED,
+          ],
+          startTime: workout.dateFrom,
+          endTime: workout.dateTo,
+        );
+      } catch (_) {}
+      final aggregation = _workoutActivityAggregator.aggregate(
+        workouts: [workout],
+        activityPoints: workoutActivityPoints,
+        fallbackSource: 'Health Connect',
+      );
+      records.addAll(aggregation.workoutRecords);
+    }
+
+    // Process other points (discrete vitals, sleep, downsampled heart rate)
     final otherPoints = allUpsertedPoints
         .where(
           (point) =>
-              point.type != HealthDataType.STEPS && !isCalorieType(point.type),
+              point.type != HealthDataType.WORKOUT &&
+              !WorkoutActivityAggregator.isAggregatableActivityType(point.type),
         )
         .toList();
     if (otherPoints.isNotEmpty) {
@@ -383,17 +376,31 @@ class HealthPlatformImporter {
           .where((type) => type == HealthDataType.STEPS)
           .toList();
       final calorieTypes = availableTypes.where(isCalorieType).toList();
-      final pagedTypes = availableTypes.where(isPagedDetailedType).toList();
+      final distanceTypes = availableTypes.where(isDistanceType).toList();
+      final flightsTypes = availableTypes
+          .where((type) => type == HealthDataType.FLIGHTS_CLIMBED)
+          .toList();
+      final pagedTypes = availableTypes
+          .where((type) => isPagedDetailedType(type) && !isDistanceType(type))
+          .toList();
       final discreteTypes = availableTypes
           .where(
             (type) =>
                 type != HealthDataType.STEPS &&
+                type != HealthDataType.FLIGHTS_CLIMBED &&
                 !isCalorieType(type) &&
+                !isDistanceType(type) &&
                 !isPagedDetailedType(type),
           )
           .toList();
 
-      final trackerTypes = [...pagedTypes, ...calorieTypes, ...stepTypes];
+      final trackerTypes = [
+        ...pagedTypes,
+        ...distanceTypes,
+        ...calorieTypes,
+        ...stepTypes,
+        ...flightsTypes,
+      ];
       final windows = _buildWindows(effectiveSince, endTime);
       totalSteps =
           discreteTypes.length +
@@ -423,27 +430,56 @@ class HealthPlatformImporter {
       }
 
       // 2. Fetch high-volume continuous tracker data (heart rate, workouts,
-      // calories, steps) window-by-window with safe sub-window slicing.
+      // distance, calories, steps, flights climbed) window-by-window with safe
+      // sub-window slicing, aggregating workout-associated metrics onto workouts
+      // and remaining metrics daily.
       for (var index = 0; index < windows.length; index++) {
         final window = windows[index];
         final windowRange = sliceLabel(window.start, window.end);
+        final source = Platform.isIOS ? 'Apple Health' : 'Health Connect';
+        final windowWorkoutPoints = <HealthDataPoint>[];
+        final windowActivityPoints = <HealthDataPoint>[];
 
         for (final type in pagedTypes) {
           final typeName = HealthDataRecordMapper.labelFor(type);
           report('Reading $typeName ($windowRange)');
           try {
-            final typeRecords = await _readPagedDetailedRecords(
-              type,
-              window,
-              onSlice: (sliceIndex, totalSlices, slice) {
+            if (type == HealthDataType.WORKOUT) {
+              final slices = sliceWindow(window, maxDays: maxDaysForType(type));
+              for (
+                var sliceIndex = 0;
+                sliceIndex < slices.length;
+                sliceIndex++
+              ) {
+                final slice = slices[sliceIndex];
                 final sliceName = sliceLabel(slice.start, slice.end);
                 report(
                   'Reading $typeName ($sliceName)',
-                  stepFraction: sliceIndex / totalSlices,
+                  stepFraction: sliceIndex / slices.length,
                 );
-              },
-            );
-            records.addAll(typeRecords);
+                try {
+                  final points = await _health.getHealthDataFromTypes(
+                    types: [type],
+                    startTime: slice.start,
+                    endTime: slice.end,
+                  );
+                  windowWorkoutPoints.addAll(points);
+                } catch (_) {}
+              }
+            } else {
+              final typeRecords = await _readPagedDetailedRecords(
+                type,
+                window,
+                onSlice: (sliceIndex, totalSlices, slice) {
+                  final sliceName = sliceLabel(slice.start, slice.end);
+                  report(
+                    'Reading $typeName ($sliceName)',
+                    stepFraction: sliceIndex / totalSlices,
+                  );
+                },
+              );
+              records.addAll(typeRecords);
+            }
           } catch (_) {
             // If a specific data type fails, proceed with the others.
           }
@@ -451,15 +487,37 @@ class HealthPlatformImporter {
           report('Read $typeName (${records.length} records)');
         }
 
+        for (final type in distanceTypes) {
+          final typeName = HealthDataRecordMapper.labelFor(type);
+          report('Reading $typeName ($windowRange)');
+          try {
+            final slices = sliceWindow(window, maxDays: maxDaysForType(type));
+            for (var sliceIndex = 0; sliceIndex < slices.length; sliceIndex++) {
+              final slice = slices[sliceIndex];
+              final sliceName = sliceLabel(slice.start, slice.end);
+              report(
+                'Reading $typeName ($sliceName)',
+                stepFraction: sliceIndex / slices.length,
+              );
+              try {
+                final points = await _health.getHealthDataFromTypes(
+                  types: [type],
+                  startTime: slice.start,
+                  endTime: slice.end,
+                );
+                windowActivityPoints.addAll(points);
+              } catch (_) {}
+            }
+          } catch (_) {}
+          completedSteps++;
+          report('Read $typeName (${records.length} records)');
+        }
+
         if (calorieTypes.isNotEmpty) {
           report('Reading Calories ($windowRange)');
           try {
-            final source = Platform.isIOS ? 'Apple Health' : 'Health Connect';
             final maxDays = maxDaysForType(calorieTypes.first);
             final slices = sliceWindow(window, maxDays: maxDays);
-            final aggregatedByType = <HealthDataType, List<HealthRecord>>{
-              for (final type in calorieTypes) type: <HealthRecord>[],
-            };
             for (var sliceIndex = 0; sliceIndex < slices.length; sliceIndex++) {
               final slice = slices[sliceIndex];
               final sliceName = sliceLabel(slice.start, slice.end);
@@ -467,34 +525,14 @@ class HealthPlatformImporter {
                 'Reading Calories ($sliceName)',
                 stepFraction: sliceIndex / slices.length,
               );
-              final points = await _health.getHealthDataFromTypes(
-                types: calorieTypes,
-                startTime: slice.start,
-                endTime: slice.end,
-              );
-              for (final type in calorieTypes) {
-                final samples = points
-                    .where((p) => p.type == type)
-                    .map((p) => _dailyCalorieSampleFromPoint(p, type))
-                    .whereType<DailyCalorieSample>();
-                if (samples.isNotEmpty) {
-                  aggregatedByType[type]!.addAll(
-                    _calorieAggregator.aggregate(
-                      samples,
-                      type: type,
-                      source: source,
-                    ),
-                  );
-                }
-              }
-            }
-            for (final type in calorieTypes) {
-              final aggregatedSlices = aggregatedByType[type] ?? const [];
-              if (aggregatedSlices.isNotEmpty) {
-                records.addAll(
-                  DailyCalorieAggregator.combineDailyRecords(aggregatedSlices),
+              try {
+                final points = await _health.getHealthDataFromTypes(
+                  types: calorieTypes,
+                  startTime: slice.start,
+                  endTime: slice.end,
                 );
-              }
+                windowActivityPoints.addAll(points);
+              } catch (_) {}
             }
           } catch (_) {}
           completedSteps += calorieTypes.length;
@@ -504,9 +542,7 @@ class HealthPlatformImporter {
         for (final type in stepTypes) {
           report('Reading Steps ($windowRange)');
           try {
-            final source = Platform.isIOS ? 'Apple Health' : 'Health Connect';
             final slices = sliceWindow(window, maxDays: maxDaysForType(type));
-            final aggregatedSlices = <HealthRecord>[];
             for (var sliceIndex = 0; sliceIndex < slices.length; sliceIndex++) {
               final slice = slices[sliceIndex];
               final sliceName = sliceLabel(slice.start, slice.end);
@@ -514,24 +550,58 @@ class HealthPlatformImporter {
                 'Reading Steps ($sliceName)',
                 stepFraction: sliceIndex / slices.length,
               );
-              final points = await _health.getHealthDataFromTypes(
-                types: [type],
-                startTime: slice.start,
-                endTime: slice.end,
-              );
-              aggregatedSlices.addAll(
-                _stepAggregator.aggregate(
-                  points.map(_dailyStepSampleFromPoint),
-                  source: source,
-                ),
-              );
+              try {
+                final points = await _health.getHealthDataFromTypes(
+                  types: [type],
+                  startTime: slice.start,
+                  endTime: slice.end,
+                );
+                windowActivityPoints.addAll(points);
+              } catch (_) {}
             }
-            records.addAll(
-              DailyStepAggregator.combineDailyRecords(aggregatedSlices),
-            );
           } catch (_) {}
           completedSteps++;
           report('Read Steps (${records.length} records)');
+        }
+
+        for (final type in flightsTypes) {
+          final typeName = HealthDataRecordMapper.labelFor(type);
+          report('Reading $typeName ($windowRange)');
+          try {
+            final slices = sliceWindow(window, maxDays: maxDaysForType(type));
+            for (var sliceIndex = 0; sliceIndex < slices.length; sliceIndex++) {
+              final slice = slices[sliceIndex];
+              final sliceName = sliceLabel(slice.start, slice.end);
+              report(
+                'Reading $typeName ($sliceName)',
+                stepFraction: sliceIndex / slices.length,
+              );
+              try {
+                final points = await _health.getHealthDataFromTypes(
+                  types: [type],
+                  startTime: slice.start,
+                  endTime: slice.end,
+                );
+                windowActivityPoints.addAll(points);
+              } catch (_) {}
+            }
+          } catch (_) {}
+          completedSteps++;
+          report('Read $typeName (${records.length} records)');
+        }
+
+        if (windowWorkoutPoints.isNotEmpty || windowActivityPoints.isNotEmpty) {
+          final aggregation = _workoutActivityAggregator.aggregate(
+            workouts: windowWorkoutPoints,
+            activityPoints: windowActivityPoints,
+            fallbackSource: source,
+          );
+          records.addAll(aggregation.workoutRecords);
+          records.addAll(
+            WorkoutActivityAggregator.combineDailyRecords(
+              aggregation.dailyRecords,
+            ),
+          );
         }
       }
     }
@@ -621,6 +691,10 @@ class HealthPlatformImporter {
   }
 
   @visibleForTesting
+  static bool isDistanceType(HealthDataType type) =>
+      WorkoutActivityAggregator.isDistanceType(type);
+
+  @visibleForTesting
   static bool isPagedDetailedType(HealthDataType type) =>
       type == HealthDataType.HEART_RATE ||
       type == HealthDataType.WORKOUT ||
@@ -641,6 +715,7 @@ class HealthPlatformImporter {
       case HealthDataType.ACTIVE_ENERGY_BURNED:
       case HealthDataType.BASAL_ENERGY_BURNED:
       case HealthDataType.STEPS:
+      case HealthDataType.FLIGHTS_CLIMBED:
       case HealthDataType.DISTANCE_DELTA:
       case HealthDataType.DISTANCE_WALKING_RUNNING:
         // Continuous fitness tracking produces minute-by-minute energy, distance,
@@ -899,29 +974,6 @@ class HealthPlatformImporter {
       }
     }
     return ([...otherPoints, ...sampled], lastTime);
-  }
-
-  DailyStepSample _dailyStepSampleFromPoint(HealthDataPoint point) {
-    final value = point.value.toJson()['numericValue'];
-    if (value is! num) {
-      throw const FormatException(
-        'Health Connect returned a step record without a numeric value.',
-      );
-    }
-    return DailyStepSample(recordedAt: point.dateFrom, steps: value);
-  }
-
-  DailyCalorieSample? _dailyCalorieSampleFromPoint(
-    HealthDataPoint point,
-    HealthDataType type,
-  ) {
-    final value = point.value.toJson()['numericValue'];
-    if (value is! num) return null;
-    return DailyCalorieSample(
-      recordedAt: point.dateFrom,
-      calories: value,
-      type: type,
-    );
   }
 }
 
