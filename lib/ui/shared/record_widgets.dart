@@ -310,151 +310,169 @@ class RecordRow extends StatelessWidget {
         trimmedValue.contains(' · ') ||
         trimmedValue.contains('\n');
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 40,
-              child: Column(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    margin: const EdgeInsets.only(top: 5),
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  if (!isLast)
+    final semanticParts = <String>[
+      record.name,
+      if (trimmedValue.isNotEmpty) trimmedValue,
+      if (isOutOfRange)
+        status == HealthReferenceStatus.above
+            ? "Out of range: High"
+            : "Out of range: Low",
+      categoryLabel(record.category),
+      "Recorded ${formatRecordDate(record.recordedAt)}",
+      "Source ${record.source}",
+      if (hasGuideline) "Clinical guideline available",
+    ];
+
+    return Semantics(
+      button: onTap != null,
+      label: semanticParts.join(", "),
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 40,
+                child: Column(
+                  children: [
                     Container(
-                      width: 1,
-                      height: 50,
+                      width: 10,
+                      height: 10,
                       margin: const EdgeInsets.only(top: 5),
-                      color: colors.outlineVariant,
-                    ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          record.name,
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      if (isOutOfRange) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.errorContainer,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            status == HealthReferenceStatus.above
-                                ? 'High'
-                                : 'Low',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: colors.onErrorContainer,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 10,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (isLongValue && trimmedValue.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      trimmedValue,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.onSurface,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 3),
-                  Text(
-                    '${formatRecordDate(record.recordedAt)}  ·  ${record.source}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                  if (hasGuideline) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 1.5,
-                      ),
                       decoration: BoxDecoration(
-                        color: colors.primaryContainer.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(6),
+                        color: color,
+                        shape: BoxShape.circle,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.menu_book_outlined,
-                            size: 10,
-                            color: colors.onPrimaryContainer,
+                    ),
+                    if (!isLast)
+                      Container(
+                        width: 1,
+                        height: 50,
+                        margin: const EdgeInsets.only(top: 5),
+                        color: colors.outlineVariant,
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            record.name,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
-                          const SizedBox(width: 3),
-                          Flexible(
+                        ),
+                        if (isOutOfRange) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.errorContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
                             child: Text(
-                              'Guideline',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              status == HealthReferenceStatus.above
+                                  ? 'High'
+                                  : 'Low',
                               style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
-                                    color: colors.onPrimaryContainer,
-                                    fontWeight: FontWeight.w600,
+                                    color: colors.onErrorContainer,
+                                    fontWeight: FontWeight.w700,
                                     fontSize: 10,
                                   ),
                             ),
                           ),
                         ],
+                      ],
+                    ),
+                    if (isLongValue && trimmedValue.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        trimmedValue,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 3),
+                    Text(
+                      '${formatRecordDate(record.recordedAt)}  ·  ${record.source}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
                       ),
                     ),
+                    if (hasGuideline) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.primaryContainer.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.menu_book_outlined,
+                              size: 10,
+                              color: colors.onPrimaryContainer,
+                            ),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                'Guideline',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: colors.onPrimaryContainer,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ),
-            if (!isLongValue && trimmedValue.isNotEmpty) ...[
-              const SizedBox(width: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 130),
-                child: Text(
-                  trimmedValue,
-                  textAlign: TextAlign.end,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
+              if (!isLongValue && trimmedValue.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 130),
+                  child: Text(
+                    trimmedValue,
+                    textAlign: TextAlign.end,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

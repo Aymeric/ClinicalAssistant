@@ -13,3 +13,7 @@
 ## 2026-10-27 - Exclude Child Semantics When Setting Custom Summary Label
 **Learning:** When wrapping a complex card or composite widget tree in `Semantics(label: ..., button: true)` to provide a consolidated summary for screen readers, omitting `excludeSemantics: true` causes screen readers to read both the custom summary label and the individual child `Text` widgets, leading to duplicate announcements.
 **Action:** Always set `excludeSemantics: true` on parent `Semantics` widgets that supply a complete custom summary label over composite UI elements.
+
+## 2026-10-28 - Structured Semantics Label for Complex Health Record Rows
+**Learning:** List items representing health records contain multiple pieces of context (title, value, out-of-range status, category, date, source, guidelines). Constructing a single, comma-separated structured string for `Semantics(label: ..., button: onTap != null, excludeSemantics: true)` provides screen readers with a cohesive sentence-like summary instead of disjointed fragments when navigating record lists.
+**Action:** Aggregate complex list row metadata into a structured, comma-separated `Semantics` label when wrapping interactive list items.
