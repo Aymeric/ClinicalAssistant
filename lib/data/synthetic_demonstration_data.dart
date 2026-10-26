@@ -133,6 +133,7 @@ List<HealthRecord> generateSyntheticDemonstrationRecords({
       code: '1558-6',
       referenceRange: '70 – 99 mg/dL',
       status: 'final',
+      sourceData: const {'measurementContext': 'Fasting'},
     ),
     HealthRecord(
       id: 'synthetic:lab:glucose:2',
@@ -146,6 +147,7 @@ List<HealthRecord> generateSyntheticDemonstrationRecords({
       code: '1558-6',
       referenceRange: '70 – 99 mg/dL',
       status: 'final',
+      sourceData: const {'measurementContext': 'Fasting'},
     ),
     HealthRecord(
       id: 'synthetic:lab:glucose:3',
@@ -159,6 +161,7 @@ List<HealthRecord> generateSyntheticDemonstrationRecords({
       code: '1558-6',
       referenceRange: '70 – 99 mg/dL',
       status: 'final',
+      sourceData: const {'measurementContext': 'Fasting'},
     ),
     HealthRecord(
       id: 'synthetic:lab:glucose:4',
@@ -172,6 +175,7 @@ List<HealthRecord> generateSyntheticDemonstrationRecords({
       code: '1558-6',
       referenceRange: '70 – 99 mg/dL',
       status: 'final',
+      sourceData: const {'measurementContext': 'Fasting'},
     ),
     HealthRecord(
       id: 'synthetic:lab:glucose:5',
@@ -185,6 +189,7 @@ List<HealthRecord> generateSyntheticDemonstrationRecords({
       code: '1558-6',
       referenceRange: '70 – 99 mg/dL',
       status: 'final',
+      sourceData: const {'measurementContext': 'Fasting'},
     ),
   ]);
 

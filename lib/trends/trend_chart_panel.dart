@@ -418,7 +418,7 @@ class ChartInspectionBanner extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Source: ${record.source}${record.referenceRange != null ? ' · Ref: ${record.referenceRange}' : ''}${onViewDetails != null ? ' · Tap for details' : ''}',
+                        'Source: ${record.source}${record.hasExplicitMeasurementContext ? ' · Context: ${record.measurementContext}' : ''}${record.referenceRange != null ? ' · Ref: ${record.referenceRange}' : ''}${onViewDetails != null ? ' · Tap for details' : ''}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),

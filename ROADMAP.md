@@ -104,9 +104,9 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
   - Expose source selection and measurement search filtering on the Export screen so patients can scope exports to chosen sources and measurements.
   - Provide explicit privacy toggles to include or omit personal record notes and raw `sourceData` JSON payloads in CSV, PDF, text, and FHIR exports without altering stored vault data.
   - Default-exclude or prominently warn when synthetic demonstration records are present so demo data is not inadvertently shared in clinical exports.
-- [ ] **Fasting & Measurement Context Filtering in Lab and Vital Trends** ([#132](https://github.com/Aymeric/ClinicalAssistant/issues/132)):
-  - Preserve structured measurement and meal-state context tags (such as `Fasting`, `Pre-meal`, `Post-meal (2 hr)`, `Bedtime`, `Random`, or `Unspecified`) from manual entry and supported source metadata without modifying original record values.
-  - Filter trend series by context in `HealthTrendsPage` so descriptive summary statistics (`average`, `minimum`, `maximum`, and `3-reading average`) and range-relative evaluations compare like-for-like readings.
+- [x] **Fasting & Measurement Context Filtering in Lab and Vital Trends** ([#132](https://github.com/Aymeric/ClinicalAssistant/issues/132)):
+  - [x] Preserve structured measurement and meal-state context tags (such as `Fasting`, `Pre-meal`, `Post-meal (2 hr)`, `Bedtime`, `Random`, or `Unspecified`) from manual entry and supported source metadata without modifying original record values.
+  - [x] Filter trend series by context in `HealthTrendsPage` so descriptive summary statistics (`average`, `minimum`, `maximum`, and `3-reading average`) and range-relative evaluations compare like-for-like readings.
 - [ ] **Medication Start/Stop Markers on Single-Series Trend Charts** ([#133](https://github.com/Aymeric/ClinicalAssistant/issues/133)):
   - Add an opt-in `Medication dates` toggle on `TrendChartPanel` to overlay vertical date markers for recorded medication start and end dates within the active chart time window.
   - Present chronological medication markers with accessible text summaries and strictly descriptive copy that does not imply treatment efficacy or clinical causation.

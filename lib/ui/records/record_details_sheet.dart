@@ -78,6 +78,8 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
       'Recorded: ${r.recordedAt.toLocal().toString().split('.').first}',
       'Source: ${r.source}',
       'Category: ${categoryLabel(r.category)}',
+      if (r.hasExplicitMeasurementContext)
+        'Measurement context: ${r.measurementContext}',
       if (r.referenceRange != null) 'Reference range: ${r.referenceRange}',
       if (r.status != null) 'Status: ${r.status}',
       if (r.code != null) 'Code: ${r.code}',
@@ -451,6 +453,11 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
               label: 'Category',
               value: categoryLabel(record.category),
             ),
+            if (record.hasExplicitMeasurementContext)
+              DetailLine(
+                label: 'Measurement context',
+                value: record.measurementContext,
+              ),
             if (record.referenceRange != null)
               DetailLine(
                 label: 'Reference range',

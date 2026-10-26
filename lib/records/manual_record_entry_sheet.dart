@@ -252,6 +252,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
             recordedAt: timestamp,
             category: RecordCategory.lab,
             source: 'Manual Entry',
+            sourceData: {'measurementContext': _glucoseContext},
             referenceRange: _refRangeController.text.trim().isEmpty
                 ? '70 – 99 mg/dL'
                 : _refRangeController.text.trim(),
@@ -859,20 +860,31 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                 ),
                 if (_selectedType == ManualEntryType.glucose) ...[
                   const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Text('Context:'),
-                      for (final ctx in ['Fasting', 'Random', 'Postprandial'])
-                        ChoiceChip(
-                          label: Text(ctx),
-                          selected: _glucoseContext == ctx,
-                          onSelected: (_) =>
-                              setState(() => _glucoseContext = ctx),
-                        ),
-                    ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        const Text('Context:'),
+                        const SizedBox(width: 8),
+                        for (final ctx in const [
+                          'Fasting',
+                          'Pre-meal',
+                          'Post-meal (2 hr)',
+                          'Bedtime',
+                          'Random',
+                        ])
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              key: ValueKey('glucose-context-chip-$ctx'),
+                              label: Text(ctx),
+                              selected: _glucoseContext == ctx,
+                              onSelected: (_) =>
+                                  setState(() => _glucoseContext = ctx),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 12),
