@@ -139,12 +139,12 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - Groups equivalent readings into a unified longitudinal timeline while retaining all original source document links and provenance.
   - [ ] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
   - [ ] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
-- [ ] **Clinical Safety & Critical Value Red-Flag Alerts** ([#79](https://github.com/Aymeric/ClinicalAssistant/issues/79)):
-  - [ ] High-visibility emergency caution banners when newly entered or imported vitals cross consensus critical red-flag thresholds:
+- [x] **Clinical Safety & Critical Value Red-Flag Alerts** ([#79](https://github.com/Aymeric/ClinicalAssistant/issues/79)):
+  - [x] High-visibility emergency caution banners when newly entered or imported vitals cross consensus critical red-flag thresholds:
     - *Hypertensive Crisis*: Systolic $\ge 180$ mmHg and/or Diastolic $\ge 120$ mmHg.
     - *Severe Hypoglycemia*: Blood glucose $< 54$ mg/dL ($< 3.0$ mmol/L).
     - *Severe Hypoxemia*: $SpO_2 < 88\%$.
-  - [ ] Prompts immediate emergency care or physician contact without automated clinical triage assertions.
+  - [x] Prompts immediate emergency care or physician contact without automated clinical triage assertions.
 - [ ] **Multi-Modal Hands-Free Input** ([#80](https://github.com/Aymeric/ClinicalAssistant/issues/80)):
   - [ ] **Offline Voice Logging**:
     - On-device speech recognition (Apple Speech framework / Android On-Device Speech Recognizer) for voice logging vitals: *"Blood pressure 128 over 82, pulse 70"* parsed into structured paired records.

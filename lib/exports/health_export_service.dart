@@ -10,6 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
+import '../safety/critical_safety_evaluator.dart';
 import '../trends/health_trend.dart';
 
 class HealthExportService {
@@ -545,9 +546,12 @@ class HealthExportService {
                 final testName = panelInfo != null
                     ? '${record.name} (${panelInfo.name})'
                     : record.name;
-                final flag = summary.latestStatus == HealthReferenceStatus.above
-                    ? 'HIGH'
-                    : 'LOW';
+                final criticalAlert = CriticalSafetyEvaluator.evaluate(record);
+                final flag = criticalAlert != null
+                    ? 'CRITICAL'
+                    : (summary.latestStatus == HealthReferenceStatus.above
+                          ? 'HIGH'
+                          : 'LOW');
                 final previousContext = previous == null
                     ? 'No earlier comparable result'
                     : [
@@ -629,9 +633,16 @@ class HealthExportService {
                           .trim();
                 }
 
+                final criticalAlert = CriticalSafetyEvaluator.evaluate(
+                  latestRec,
+                );
+                final latestDisplay = criticalAlert != null
+                    ? '${latestRec.displayValue} (CRITICAL)'
+                    : latestRec.displayValue;
+
                 return [
                   name,
-                  latestRec.displayValue,
+                  latestDisplay,
                   _formatDate(latestRec.recordedAt),
                   list.length.toString(),
                   avgStr,
@@ -685,10 +696,14 @@ class HealthExportService {
                 final testName = panelInfo != null
                     ? '${record.name} (${panelInfo.name})'
                     : record.name;
+                final criticalAlert = CriticalSafetyEvaluator.evaluate(record);
+                final displayVal = criticalAlert != null
+                    ? '${record.displayValue} (CRITICAL)'
+                    : record.displayValue;
                 return [
                   _formatDate(record.recordedAt),
                   testName,
-                  record.displayValue,
+                  displayVal,
                   (record.referenceRange ?? '-').replaceAll('–', '-'),
                   record.source,
                 ];

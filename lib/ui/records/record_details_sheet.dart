@@ -8,6 +8,7 @@ import '../../guidelines/clinical_guideline.dart';
 import '../../guidelines/related_guidelines_widget.dart';
 import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
+import '../../safety/critical_safety_evaluator.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
 
@@ -421,6 +422,71 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
                           style: TextStyle(
                             fontSize: 11,
                             color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            Builder(
+              builder: (context) {
+                final criticalAlert = CriticalSafetyEvaluator.evaluate(record);
+                if (criticalAlert == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Container(
+                    key: const ValueKey('record-critical-safety-banner'),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: colors.errorContainer,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: colors.error.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: colors.onErrorContainer,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Critical Alert: ${criticalAlert.title}',
+                                style: TextStyle(
+                                  color: colors.onErrorContainer,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          criticalAlert.emergencyGuidance,
+                          style: TextStyle(
+                            color: colors.onErrorContainer,
+                            fontSize: 13,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          CriticalSafetyAlert.clinicalDisclaimer,
+                          style: TextStyle(
+                            color: colors.onErrorContainer.withValues(
+                              alpha: 0.8,
+                            ),
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
                       ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../guidelines/clinical_guideline_catalog.dart';
 import '../../models/clinical_panel.dart';
 import '../../models/health_record.dart';
+import '../../safety/critical_safety_evaluator.dart';
 import '../../sync/import_progress.dart';
 import '../../trends/health_trend.dart';
 
@@ -299,6 +300,8 @@ class RecordRow extends StatelessWidget {
         status == HealthReferenceStatus.above ||
         status == HealthReferenceStatus.below;
 
+    final criticalAlert = CriticalSafetyEvaluator.evaluate(record);
+
     final hasGuideline = ClinicalGuidelineCatalog.hasRelatedGuidelines(
       measurementName: record.name,
       category: categoryLabel(record.category),
@@ -314,7 +317,9 @@ class RecordRow extends StatelessWidget {
     final semanticParts = <String>[
       record.name,
       if (trimmedValue.isNotEmpty) trimmedValue,
-      if (isOutOfRange)
+      if (criticalAlert != null)
+        "Critical safety alert: ${criticalAlert.title}",
+      if (criticalAlert == null && isOutOfRange)
         status == HealthReferenceStatus.above
             ? "Out of range: High"
             : "Out of range: Low",
@@ -372,7 +377,39 @@ class RecordRow extends StatelessWidget {
                                 ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                         ),
-                        if (isOutOfRange) ...[
+                        if (criticalAlert != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.error,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 11,
+                                  color: colors.onError,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  'CRITICAL',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: colors.onError,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 9.5,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else if (isOutOfRange) ...[
                           const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -685,6 +722,8 @@ class _ClinicalPanelCardState extends State<ClinicalPanelCard> {
         status == HealthReferenceStatus.above ||
         status == HealthReferenceStatus.below;
 
+    final criticalAlert = CriticalSafetyEvaluator.evaluate(record);
+
     return InkWell(
       key: ValueKey('clinical-panel-analyte-${record.name}'),
       onTap: widget.onTapRecord != null
@@ -717,7 +756,27 @@ class _ClinicalPanelCardState extends State<ClinicalPanelCard> {
                 ],
               ),
             ),
-            if (isOutOfRange) ...[
+            if (criticalAlert != null) ...[
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.error,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'CRITICAL',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onError,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 9.5,
+                  ),
+                ),
+              ),
+            ] else if (isOutOfRange) ...[
               Container(
                 margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(

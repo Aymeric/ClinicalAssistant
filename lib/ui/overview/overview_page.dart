@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/health_record.dart';
+import '../../safety/critical_safety_evaluator.dart';
 import '../../sync/foreground_sync_state.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
@@ -117,6 +118,8 @@ class OverviewPage extends StatelessWidget {
                   r.referenceRange == 'active'),
         )
         .toList();
+
+    final criticalAlerts = CriticalSafetyEvaluator.evaluateAll(records);
 
     // Pinned metrics: map series ID to latest record using computed trendSeries
     // or by fallback map lookup to avoid O(pinned * records) filtering & sorting.
@@ -272,6 +275,104 @@ class OverviewPage extends StatelessWidget {
               ),
             ),
           ),
+
+          // Critical Safety Alerts Section
+          if (criticalAlerts.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            SectionHeading(
+              title: 'Critical safety alerts',
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 14,
+                      color: Colors.red.shade900,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${criticalAlerts.length} acute ${criticalAlerts.length == 1 ? 'alert' : 'alerts'}',
+                      style: TextStyle(
+                        color: Colors.red.shade900,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              key: const ValueKey('overview-critical-safety-card'),
+              color: Colors.red.withValues(alpha: 0.08),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Colors.red.withValues(alpha: 0.5),
+                  width: 1.5,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final alert in criticalAlerts.take(3)) ...[
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.red.shade100,
+                          foregroundColor: Colors.red.shade900,
+                          child: const Icon(Icons.emergency_outlined, size: 20),
+                        ),
+                        title: Text(
+                          '${alert.title}: ${alert.readingSummary}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red.shade900,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 2),
+                            Text(
+                              '${MaterialLocalizations.of(context).formatShortDate(alert.record.recordedAt.toLocal())} · ${alert.record.source}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              alert.emergencyGuidance,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          _showCriticalSafetyModal(context, alert);
+                        },
+                      ),
+                      if (alert != criticalAlerts.take(3).last)
+                        const Divider(height: 12),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
 
           // Pinned Metrics Section
           if (pinnedRecords.isNotEmpty) ...[
@@ -672,6 +773,130 @@ class OverviewPage extends StatelessWidget {
           ],
           const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+
+  void _showCriticalSafetyModal(
+    BuildContext context,
+    CriticalSafetyAlert alert,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.red.shade100,
+                  foregroundColor: Colors.red.shade900,
+                  child: const Icon(Icons.emergency_outlined),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    alert.title,
+                    style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade900,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'Recorded Value:',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    alert.readingSummary,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.red.shade900,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    MaterialLocalizations.of(
+                      ctx,
+                    ).formatShortDate(alert.record.recordedAt.toLocal()),
+                    style: Theme.of(ctx).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Recommended Immediate Action:',
+              style: Theme.of(
+                ctx,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              alert.emergencyGuidance,
+              style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              CriticalSafetyAlert.clinicalDisclaimer,
+              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                color: Theme.of(ctx).colorScheme.outline,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                if (onRecordTap != null)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.description_outlined),
+                      label: const Text('View Record Details'),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        onRecordTap!(alert.record);
+                      },
+                    ),
+                  ),
+                if (onRecordTap != null) const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red.shade900,
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Dismiss'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

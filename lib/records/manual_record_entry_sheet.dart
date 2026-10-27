@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
+import '../safety/critical_safety_evaluator.dart';
 
 enum ManualEntryType {
   bloodPressure('Blood Pressure', Icons.favorite_border),
@@ -504,8 +505,109 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         break;
     }
 
+    _checkCriticalSafetyAndSave(records);
+  }
+
+  Future<void> _checkCriticalSafetyAndSave(List<HealthRecord> records) async {
+    final alerts = CriticalSafetyEvaluator.evaluateAll(records);
+    if (alerts.isNotEmpty) {
+      final alert = alerts.first;
+      final shouldProceed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          key: const ValueKey('critical-safety-alert-dialog'),
+          icon: Icon(
+            Icons.emergency_outlined,
+            color: Theme.of(ctx).colorScheme.error,
+            size: 40,
+          ),
+          title: Text(
+            'Critical Safety Alert',
+            style: TextStyle(
+              color: Theme.of(ctx).colorScheme.error,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Theme.of(ctx).colorScheme.onErrorContainer,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${alert.title}: ${alert.readingSummary}',
+                          style: TextStyle(
+                            color: Theme.of(ctx).colorScheme.onErrorContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  alert.emergencyGuidance,
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  CriticalSafetyAlert.clinicalDisclaimer,
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(ctx).colorScheme.outline,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('critical-alert-emergency-contact-button'),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Please seek immediate emergency medical care or call 911 / your local emergency number.',
+                    ),
+                    duration: Duration(seconds: 6),
+                  ),
+                );
+              },
+              child: const Text('Emergency Guidance'),
+            ),
+            FilledButton(
+              key: const ValueKey('critical-alert-acknowledge-save-button'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('I Understand — Save to Vault'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldProceed != true || !mounted) return;
+    }
+
     widget.onSave(records);
-    Navigator.of(context).pop();
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
