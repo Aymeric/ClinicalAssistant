@@ -60,6 +60,12 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
   @override
   Widget build(BuildContext context) {
     final allSeries = buildHealthTrendSeries(widget.records);
+    // Single-pass category aggregation to avoid O(categories * series) linear scans during chip rendering.
+    final seriesCountByCategory = <RecordCategory, int>{};
+    for (final series in allSeries) {
+      seriesCountByCategory[series.category] =
+          (seriesCountByCategory[series.category] ?? 0) + 1;
+    }
     final visibleSeries = _category == null
         ? allSeries
         : allSeries.where((series) => series.category == _category).toList();
@@ -167,18 +173,12 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                       children: [
                         _categoryChip('All', null, allSeries.length),
                         for (final category in RecordCategory.values)
-                          if (allSeries.any(
-                                (series) => series.category == category,
-                              ) ||
+                          if (seriesCountByCategory.containsKey(category) ||
                               _category == category)
                             _categoryChip(
                               categoryLabel(category),
                               category,
-                              allSeries
-                                  .where(
-                                    (series) => series.category == category,
-                                  )
-                                  .length,
+                              seriesCountByCategory[category] ?? 0,
                             ),
                       ],
                     ),

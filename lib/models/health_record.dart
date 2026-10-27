@@ -22,6 +22,10 @@ final _trailingDotPattern = RegExp(r'\.$');
 final _groupedNumberPattern = RegExp(
   r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
 );
+final _contextNotePattern = RegExp(
+  r'(?:^|·|\n)\s*Context:\s*([^·\n\r]+)',
+  caseSensitive: false,
+);
 
 /// - Floating-point noise like `98.60000000000001` or `72.00000000001` is eliminated.
 String formatSensibleNumber(num value, {int maxDecimals = 2}) {
@@ -150,13 +154,14 @@ class HealthRecord {
       }
     }
     if (notes != null && notes!.isNotEmpty) {
-      final match = RegExp(
-        r'(?:^|·|\n)\s*Context:\s*([^·\n\r]+)',
-        caseSensitive: false,
-      ).firstMatch(notes!);
-      if (match != null) {
-        final val = match.group(1)?.trim();
-        if (val != null && val.isNotEmpty) return val;
+      final notesStr = notes!;
+      // Fast-path: check for 'context' substring before executing RegExp to avoid regex overhead on unrelated notes.
+      if (notesStr.toLowerCase().contains('context')) {
+        final match = _contextNotePattern.firstMatch(notesStr);
+        if (match != null) {
+          final val = match.group(1)?.trim();
+          if (val != null && val.isNotEmpty) return val;
+        }
       }
     }
     return 'Unspecified';
