@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/clinical_panel.dart';
+import '../../models/doctor_visit_preparation.dart';
 import '../../models/health_record.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
@@ -22,6 +23,7 @@ class RecordsPage extends StatefulWidget {
     super.key,
     required this.records,
     this.initialCategory,
+    this.initialSpecialty,
     this.initialOutOfRangeOnly = false,
     this.onViewInTrends,
     this.onRecordTap,
@@ -31,6 +33,7 @@ class RecordsPage extends StatefulWidget {
 
   final List<HealthRecord> records;
   final RecordCategory? initialCategory;
+  final DoctorVisitSpecialty? initialSpecialty;
   final bool initialOutOfRangeOnly;
   final ValueChanged<HealthRecord>? onViewInTrends;
   final ValueChanged<HealthRecord>? onRecordTap;
@@ -44,6 +47,7 @@ class RecordsPage extends StatefulWidget {
 class RecordsPageState extends State<RecordsPage> {
   final _searchController = TextEditingController();
   RecordCategory? _filter;
+  DoctorVisitSpecialty? _specialtyFilter;
   bool _filterOutOfRange = false;
   String? _sourceFilter;
   DateTimeRange? _selectedDateRange;
@@ -59,6 +63,7 @@ class RecordsPageState extends State<RecordsPage> {
   void initState() {
     super.initState();
     _filter = widget.initialCategory;
+    _specialtyFilter = widget.initialSpecialty;
     _filterOutOfRange = widget.initialOutOfRangeOnly;
     _updateAvailableMetadata();
   }
@@ -81,6 +86,10 @@ class RecordsPageState extends State<RecordsPage> {
     if (widget.initialCategory != oldWidget.initialCategory &&
         widget.initialCategory != null) {
       _filter = widget.initialCategory;
+    }
+    if (widget.initialSpecialty != oldWidget.initialSpecialty &&
+        widget.initialSpecialty != null) {
+      _specialtyFilter = widget.initialSpecialty;
     }
     if (widget.initialOutOfRangeOnly != oldWidget.initialOutOfRangeOnly) {
       _filterOutOfRange = widget.initialOutOfRangeOnly;
@@ -108,6 +117,10 @@ class RecordsPageState extends State<RecordsPage> {
     setState(() => _filterOutOfRange = active);
   }
 
+  void setSpecialtyFilter(DoctorVisitSpecialty? specialty) {
+    setState(() => _specialtyFilter = specialty);
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = _searchQuery.trim().toLowerCase();
@@ -115,6 +128,10 @@ class RecordsPageState extends State<RecordsPage> {
     final availableSources = _availableSources;
 
     final filtered = widget.records.where((record) {
+      if (_specialtyFilter != null &&
+          !_specialtyFilter!.matchesRecord(record)) {
+        return false;
+      }
       if (_filter != null && record.category != _filter) return false;
       if (_sourceFilter != null && record.source != _sourceFilter) return false;
       if (_filterOutOfRange) {
@@ -171,6 +188,7 @@ class RecordsPageState extends State<RecordsPage> {
 
     final hasActiveFilter =
         _filter != null ||
+        _specialtyFilter != null ||
         _filterOutOfRange ||
         _sourceFilter != null ||
         _selectedDateRange != null ||
@@ -338,7 +356,48 @@ class RecordsPageState extends State<RecordsPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Text(
+                          'Specialty:',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ),
+                      ChoiceChip(
+                        key: const ValueKey('records-specialty-all'),
+                        label: const Text('All specialties'),
+                        selected: _specialtyFilter == null,
+                        onSelected: (_) =>
+                            setState(() => _specialtyFilter = null),
+                      ),
+                      const SizedBox(width: 6),
+                      for (final specialty in DoctorVisitSpecialty.values) ...[
+                        ChoiceChip(
+                          key: ValueKey('records-specialty-${specialty.id}'),
+                          avatar: Icon(specialty.icon, size: 16),
+                          label: Text(specialty.shortLabel),
+                          selected: _specialtyFilter == specialty,
+                          onSelected: (selected) => setState(() {
+                            _specialtyFilter = selected ? specialty : null;
+                          }),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -347,10 +406,12 @@ class RecordsPageState extends State<RecordsPage> {
                         label: const Text('All'),
                         selected:
                             _filter == null &&
+                            _specialtyFilter == null &&
                             !_filterOutOfRange &&
                             _sourceFilter == null,
                         onSelected: (_) => setState(() {
                           _filter = null;
+                          _specialtyFilter = null;
                           _filterOutOfRange = false;
                           _sourceFilter = null;
                         }),
@@ -419,6 +480,7 @@ class RecordsPageState extends State<RecordsPage> {
                           setState(() {
                             _searchQuery = '';
                             _filter = null;
+                            _specialtyFilter = null;
                             _filterOutOfRange = false;
                             _sourceFilter = null;
                             _selectedDateRange = null;

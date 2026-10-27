@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../trends/health_trend.dart';
+import 'clinical_panel.dart';
 import 'health_record.dart';
 
 /// Available specialty templates for clinical consultation preparation.
@@ -38,6 +39,320 @@ enum DoctorVisitSpecialty {
   final String title;
   final String subtitle;
   final IconData icon;
+
+  String get shortLabel => switch (this) {
+    DoctorVisitSpecialty.annualWellness => 'Annual Wellness',
+    DoctorVisitSpecialty.cardiology => 'Cardiology',
+    DoctorVisitSpecialty.endocrinology => 'Endocrinology',
+  };
+
+  /// Returns whether a health observation belongs to this clinical specialty domain.
+  bool matchesRecord(HealthRecord record) {
+    switch (this) {
+      case DoctorVisitSpecialty.cardiology:
+        return _matchesCardiology(record);
+      case DoctorVisitSpecialty.endocrinology:
+        return _matchesEndocrinology(record);
+      case DoctorVisitSpecialty.annualWellness:
+        return _matchesAnnualWellness(record);
+    }
+  }
+
+  /// Returns whether a numeric trend series matches this clinical specialty domain.
+  bool matchesTrendSeries(HealthTrendSeries series) {
+    if (series.points.isEmpty) return false;
+    return matchesRecord(series.points.first.record);
+  }
+}
+
+bool _matchesCardiology(HealthRecord record) {
+  final name = record.name.toLowerCase();
+  final code = record.code?.toLowerCase().trim() ?? '';
+  final panel = extractRecordPanelInfo(record)?.name.toLowerCase() ?? '';
+
+  // Vitals
+  if (record.category == RecordCategory.vital) {
+    return name.contains('blood pressure') ||
+        name.contains('systolic') ||
+        name.contains('diastolic') ||
+        name.contains('bp') ||
+        name.contains('heart rate') ||
+        name.contains('pulse') ||
+        name.contains('oxygen') ||
+        name.contains('spo2') ||
+        name.contains('weight') ||
+        name.contains('bmi') ||
+        const {
+          '85354-9',
+          '8480-6',
+          '8462-4',
+          '55284-4',
+          '8867-4',
+          '59408-5',
+          '2708-6',
+          '29463-7',
+          '39156-5',
+        }.contains(code);
+  }
+
+  // Labs
+  if (record.category == RecordCategory.lab) {
+    if (panel.contains('lipid') || code == '24331-1') return true;
+    return name.contains('cholesterol') ||
+        name.contains('ldl') ||
+        name.contains('hdl') ||
+        name.contains('triglyceride') ||
+        name.contains('lipid') ||
+        name.contains('vldl') ||
+        name.contains('apob') ||
+        name.contains('apolipoprotein') ||
+        name.contains('troponin') ||
+        name.contains('bnp') ||
+        name.contains('crp') ||
+        name.contains('ck-mb') ||
+        name.contains('potassium') ||
+        name.contains('magnesium') ||
+        name.contains('sodium');
+  }
+
+  // Medications
+  if (record.category == RecordCategory.medication) {
+    const cardiacMeds = [
+      'lisinopril',
+      'losartan',
+      'amlodipine',
+      'metoprolol',
+      'carvedilol',
+      'atenolol',
+      'propranolol',
+      'hydrochlorothiazide',
+      'hctz',
+      'furosemide',
+      'lasix',
+      'spironolactone',
+      'valsartan',
+      'olmesartan',
+      'diltiazem',
+      'verapamil',
+      'clonidine',
+      'hydralazine',
+      'atorvastatin',
+      'rosuvastatin',
+      'simvastatin',
+      'pravastatin',
+      'ezetimibe',
+      'fenofibrate',
+      'aspirin',
+      'clopidogrel',
+      'plavix',
+      'warfarin',
+      'coumadin',
+      'eliquis',
+      'apixaban',
+      'xarelto',
+      'rivaroxaban',
+      'brilinta',
+      'ticagrelor',
+      'nitroglycerin',
+      'amiodarone',
+      'digoxin',
+      'isosorbide',
+    ];
+    return cardiacMeds.any((med) => name.contains(med));
+  }
+
+  // Conditions
+  if (record.category == RecordCategory.condition) {
+    const cardiacConditions = [
+      'hypertension',
+      'blood pressure',
+      'htn',
+      'hyperlipidemia',
+      'cholesterol',
+      'dyslipidemia',
+      'coronary',
+      'cad',
+      'heart failure',
+      'chf',
+      'atrial fib',
+      'afib',
+      'a-fib',
+      'arrhythmia',
+      'myocardial',
+      'angina',
+      'atherosclerosis',
+      'tachycardia',
+      'bradycardia',
+      'cardiomyopathy',
+    ];
+    return cardiacConditions.any((cond) => name.contains(cond));
+  }
+
+  return false;
+}
+
+bool _matchesEndocrinology(HealthRecord record) {
+  final name = record.name.toLowerCase();
+  final code = record.code?.toLowerCase().trim() ?? '';
+  final panel = extractRecordPanelInfo(record)?.name.toLowerCase() ?? '';
+
+  // Vitals
+  if (record.category == RecordCategory.vital) {
+    return name.contains('glucose') ||
+        name.contains('blood sugar') ||
+        name.contains('weight') ||
+        name.contains('bmi') ||
+        name.contains('blood pressure') ||
+        name.contains('systolic') ||
+        name.contains('diastolic') ||
+        const {
+          '2339-0',
+          '2345-7',
+          '15074-8',
+          '29463-7',
+          '39156-5',
+        }.contains(code);
+  }
+
+  // Labs
+  if (record.category == RecordCategory.lab) {
+    if (panel.contains('metabolic') ||
+        panel.contains('bmp') ||
+        panel.contains('cmp') ||
+        panel.contains('thyroid') ||
+        code == '24321-2' ||
+        code == '24323-8') {
+      return true;
+    }
+    return name.contains('glucose') ||
+        name.contains('sugar') ||
+        name.contains('hba1c') ||
+        name.contains('a1c') ||
+        name.contains('insulin') ||
+        name.contains('c-peptide') ||
+        name.contains('fructosamine') ||
+        name.contains('ketone') ||
+        name.contains('tsh') ||
+        name.contains('thyroid') ||
+        name.contains('free t4') ||
+        name.contains('free t3') ||
+        name.contains('tpo') ||
+        name.contains('creatinine') ||
+        name.contains('egfr') ||
+        name.contains('bun') ||
+        name.contains('urea') ||
+        name.contains('albumin') ||
+        name.contains('uacr') ||
+        name.contains('calcium') ||
+        name.contains('vitamin d') ||
+        name.contains('cortisol') ||
+        name.contains('acth') ||
+        name.contains('testosterone') ||
+        name.contains('estrogen') ||
+        name.contains('prolactin');
+  }
+
+  // Medications
+  if (record.category == RecordCategory.medication) {
+    const endoMeds = [
+      'insulin',
+      'metformin',
+      'glipizide',
+      'glimepiride',
+      'glyburide',
+      'januvia',
+      'sitagliptin',
+      'jardiance',
+      'empagliflozin',
+      'farxiga',
+      'dapagliflozin',
+      'ozempic',
+      'semaglutide',
+      'mounjaro',
+      'tirzepatide',
+      'victoza',
+      'liraglutide',
+      'trulicity',
+      'dulaglutide',
+      'pioglitazone',
+      'levothyroxine',
+      'synthroid',
+      'armour',
+      'liothyronine',
+      'methimazole',
+      'hydrocortisone',
+      'prednisone',
+      'fludrocortisone',
+      'testosterone',
+      'estrogen',
+      'estradiol',
+      'progesterone',
+    ];
+    return endoMeds.any((med) => name.contains(med));
+  }
+
+  // Conditions
+  if (record.category == RecordCategory.condition) {
+    const endoConditions = [
+      'diabetes',
+      't1d',
+      't2d',
+      'prediabetes',
+      'hyperglycemia',
+      'hypoglycemia',
+      'hypothyroid',
+      'hyperthyroid',
+      'hashimoto',
+      'graves',
+      'goiter',
+      'thyroid',
+      'metabolic syndrome',
+      'pcos',
+      'polycystic',
+      'osteoporosis',
+      'osteopenia',
+      'cushing',
+      'addison',
+      'adrenal',
+      'pituitary',
+      'vitamin d',
+    ];
+    return endoConditions.any((cond) => name.contains(cond));
+  }
+
+  return false;
+}
+
+bool _matchesAnnualWellness(HealthRecord record) {
+  if (record.category == RecordCategory.vital) return true;
+  if (record.category == RecordCategory.immunization) return true;
+  if (record.category == RecordCategory.condition) return true;
+  if (record.category == RecordCategory.allergy) return true;
+
+  if (record.category == RecordCategory.lab) {
+    final name = record.name.toLowerCase();
+    final panel = extractRecordPanelInfo(record)?.name.toLowerCase() ?? '';
+    return panel.isNotEmpty ||
+        name.contains('cbc') ||
+        name.contains('blood count') ||
+        name.contains('metabolic') ||
+        name.contains('lipid') ||
+        name.contains('cholesterol') ||
+        name.contains('glucose') ||
+        name.contains('creatinine') ||
+        name.contains('tsh') ||
+        name.contains('vitamin d') ||
+        name.contains('urinalysis') ||
+        name.contains('hemoglobin') ||
+        name.contains('hematocrit') ||
+        name.contains('white blood') ||
+        name.contains('platelet') ||
+        name.contains('psa');
+  }
+
+  if (record.category == RecordCategory.medication) return true;
+
+  return true;
 }
 
 /// Holds all patient-configured selections and notes for an upcoming doctor visit.

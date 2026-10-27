@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/doctor_visit_preparation.dart';
 import '../../models/health_record.dart';
 import '../../safety/critical_safety_evaluator.dart';
 import '../../sync/foreground_sync_state.dart';
@@ -46,6 +47,7 @@ class OverviewPage extends StatelessWidget {
     this.syncing = false,
     this.pinnedSeries = const {},
     this.onSelectCategory,
+    this.onSelectSpecialty,
     this.onRecordTap,
     this.onSyncNow,
     this.onOpenTrends,
@@ -69,6 +71,7 @@ class OverviewPage extends StatelessWidget {
   final bool syncing;
   final Set<String> pinnedSeries;
   final ValueChanged<RecordCategory>? onSelectCategory;
+  final ValueChanged<DoctorVisitSpecialty>? onSelectSpecialty;
   final ValueChanged<HealthRecord>? onRecordTap;
   final VoidCallback? onSyncNow;
   final VoidCallback? onOpenTrends;
@@ -723,6 +726,11 @@ class OverviewPage extends StatelessWidget {
               records: records,
               onSelectCategory: onSelectCategory,
             ),
+            const SizedBox(height: 16),
+            OverviewSpecialtyBreakdown(
+              records: records,
+              onSelectSpecialty: onSelectSpecialty,
+            ),
             const SizedBox(height: 24),
             const SectionHeading(title: 'Quick actions'),
             const SizedBox(height: 12),
@@ -1359,6 +1367,131 @@ class CategorySummaryBadge extends StatelessWidget {
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: catColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class OverviewSpecialtyBreakdown extends StatelessWidget {
+  const OverviewSpecialtyBreakdown({
+    super.key,
+    required this.records,
+    this.onSelectSpecialty,
+  });
+
+  final List<HealthRecord> records;
+  final ValueChanged<DoctorVisitSpecialty>? onSelectSpecialty;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    final specialtyCounts = <DoctorVisitSpecialty, int>{};
+    for (final specialty in DoctorVisitSpecialty.values) {
+      final count = records.where(specialty.matchesRecord).length;
+      if (count > 0) {
+        specialtyCounts[specialty] = count;
+      }
+    }
+
+    if (specialtyCounts.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Clinical Specialties',
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final entry in specialtyCounts.entries)
+              SpecialtySummaryBadge(
+                key: ValueKey('overview-specialty-${entry.key.id}'),
+                specialty: entry.key,
+                count: entry.value,
+                onTap: onSelectSpecialty == null
+                    ? null
+                    : () => onSelectSpecialty!(entry.key),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class SpecialtySummaryBadge extends StatelessWidget {
+  const SpecialtySummaryBadge({
+    super.key,
+    required this.specialty,
+    required this.count,
+    this.onTap,
+  });
+
+  final DoctorVisitSpecialty specialty;
+  final int count;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Tooltip(
+      message:
+          'Filter records by ${specialty.shortLabel} ($count ${count == 1 ? 'entry' : 'entries'})',
+      child: Material(
+        color: colors.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(specialty.icon, size: 16, color: colors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  specialty.shortLabel,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colors.primary,
                     ),
                   ),
                 ),

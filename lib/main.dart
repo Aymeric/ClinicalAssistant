@@ -13,6 +13,7 @@ import 'guidelines/clinical_guideline.dart';
 import 'guidelines/guideline_viewer_page.dart';
 import 'guidelines/guidelines_library_page.dart';
 import 'integrations/fhir_file_import.dart';
+import 'models/doctor_visit_preparation.dart';
 import 'models/health_record.dart';
 import 'notifications/result_notification_manager.dart';
 import 'records/manual_record_edit_sheet.dart';
@@ -145,6 +146,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
   var _initialLoadFinished = false;
   var _isVaultLocked = false;
   RecordCategory? _preselectedCategoryFilter;
+  DoctorVisitSpecialty? _preselectedSpecialtyFilter;
   bool _recordsPageInitialOutOfRange = false;
   String? _trendInitialSeriesId;
   ForegroundSyncState? _syncState;
@@ -248,6 +250,18 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         _preselectedCategoryFilter = category;
+        _preselectedSpecialtyFilter = null;
+        _recordsPageInitialOutOfRange = false;
+        _selectedIndex = 2;
+      });
+    }
+  }
+
+  void _openRecordsWithSpecialty(DoctorVisitSpecialty specialty) {
+    if (mounted) {
+      setState(() {
+        _preselectedCategoryFilter = null;
+        _preselectedSpecialtyFilter = specialty;
         _recordsPageInitialOutOfRange = false;
         _selectedIndex = 2;
       });
@@ -258,6 +272,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         _preselectedCategoryFilter = null;
+        _preselectedSpecialtyFilter = null;
         _recordsPageInitialOutOfRange = true;
         _selectedIndex = 2;
       });
@@ -963,6 +978,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onConnect: () => setState(() => _selectedIndex = 3),
         onSeeAll: () => setState(() => _selectedIndex = 2),
         onSelectCategory: _openRecordsWithCategory,
+        onSelectSpecialty: _openRecordsWithSpecialty,
         onViewOutOfRangeLabs: _openRecordsWithOutOfRange,
         onRecordTap: _showRecordDetails,
         onSyncNow: _syncNow,
@@ -986,6 +1002,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
       RecordsPage(
         records: _controller.records,
         initialCategory: _preselectedCategoryFilter,
+        initialSpecialty: _preselectedSpecialtyFilter,
         initialOutOfRangeOnly: _recordsPageInitialOutOfRange,
         onViewInTrends: _onViewInTrends,
         onRecordTap: _showRecordDetails,
