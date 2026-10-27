@@ -148,9 +148,9 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
 - [ ] **Multi-Modal Hands-Free Input** ([#80](https://github.com/Aymeric/ClinicalAssistant/issues/80)):
   - [ ] **Offline Voice Logging**:
     - On-device speech recognition (Apple Speech framework / Android On-Device Speech Recognizer) for voice logging vitals: *"Blood pressure 128 over 82, pulse 70"* parsed into structured paired records.
-- [ ] **Doctor Visit Preparation Wizard** ([#81](https://github.com/Aymeric/ClinicalAssistant/issues/81)):
-  - [ ] Step-by-step visit preparation flow: select recent out-of-range lab results, recent blood pressure/glucose trends, active medication questions, and personal agenda items.
-  - [ ] Specialty-tailored PDF export templates (e.g., Cardiology, Endocrinology, Annual Wellness Examination).
+- [x] **Doctor Visit Preparation Wizard** ([#81](https://github.com/Aymeric/ClinicalAssistant/issues/81)):
+  - [x] Step-by-step visit preparation flow: select recent out-of-range lab results, recent blood pressure/glucose trends, active medication questions, and personal agenda items.
+  - [x] Specialty-tailored PDF export templates (e.g., Cardiology, Endocrinology, Annual Wellness Examination).
 
 ---
 

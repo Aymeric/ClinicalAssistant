@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../trends/health_trend.dart';
 import 'health_record.dart';
 
 /// Available specialty templates for clinical consultation preparation.
@@ -55,10 +56,10 @@ class DoctorVisitPreparationConfig {
     this.includeMedications = true,
     this.includeConditions = true,
     this.includeAllergies = true,
-  })  : visitDate = visitDate ?? DateTime.now(),
-        selectedRecordIds = selectedRecordIds ?? <String>{},
-        medicationNotes = medicationNotes ?? <String, String>{},
-        agendaItems = agendaItems ?? <String>[];
+  }) : visitDate = visitDate ?? DateTime.now(),
+       selectedRecordIds = selectedRecordIds ?? <String>{},
+       medicationNotes = medicationNotes ?? <String, String>{},
+       agendaItems = agendaItems ?? <String>[];
 
   final DoctorVisitSpecialty specialty;
   final DateTime visitDate;
@@ -183,7 +184,8 @@ class DoctorVisitPreparationConfig {
 
       // Check for elevated blood pressure vitals
       final nameLower = r.name.toLowerCase();
-      if ((nameLower.contains('systolic') || nameLower.contains('blood pressure')) &&
+      if ((nameLower.contains('systolic') ||
+              nameLower.contains('blood pressure')) &&
           r.category == RecordCategory.vital) {
         final val = parseHealthRecordValue(r.value);
         if (val != null && val >= 140) {
@@ -196,7 +198,8 @@ class DoctorVisitPreparationConfig {
 
       // Check for elevated blood glucose
       if (nameLower.contains('glucose') &&
-          (r.category == RecordCategory.vital || r.category == RecordCategory.lab)) {
+          (r.category == RecordCategory.vital ||
+              r.category == RecordCategory.lab)) {
         final val = parseHealthRecordValue(r.value);
         if (val != null && val >= 180) {
           addSuggestion(
@@ -208,7 +211,9 @@ class DoctorVisitPreparationConfig {
     }
 
     // 3. General medication discussion suggestion if medications exist
-    final hasMedications = records.any((r) => r.category == RecordCategory.medication);
+    final hasMedications = records.any(
+      (r) => r.category == RecordCategory.medication,
+    );
     if (hasMedications) {
       addSuggestion(
         'medication_review',

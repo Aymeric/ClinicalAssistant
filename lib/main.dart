@@ -22,6 +22,7 @@ import 'sync/import_progress.dart';
 import 'trends/health_trend.dart';
 import 'trends/health_trends_page.dart';
 import 'ui/connections/connections_page.dart';
+import 'ui/export/doctor_visit_wizard_sheet.dart';
 import 'ui/export/export_page.dart';
 import 'ui/medications/medications_page.dart';
 import 'ui/overview/overview_page.dart';
@@ -925,6 +926,23 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _launchDoctorVisitWizard() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => DoctorVisitWizardSheet(
+        records: _controller.records,
+        onGenerate: (config) => _shareExport(
+          () => _exporter.createDoctorVisitSummaryPdf(
+            _controller.records,
+            config: config,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isVaultLocked) {
@@ -956,6 +974,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onOpenGuidelines: _openGuidelines,
         onLogMeasurement: _openManualRecordEntry,
         onOpenMedications: _openMedications,
+        onPrepareDoctorVisit: _launchDoctorVisitWizard,
       ),
       HealthTrendsPage(
         records: _controller.records,
@@ -1012,6 +1031,12 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         records: _controller.records,
         exporting: _exporting,
         onPdf: (records) => _shareExport(() => _exporter.createPdf(records)),
+        onDoctorVisitWizard: (config) => _shareExport(
+          () => _exporter.createDoctorVisitSummaryPdf(
+            _controller.records,
+            config: config,
+          ),
+        ),
         onDoctorVisitPdf:
             (
               records,
@@ -1024,6 +1049,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
               includeAllergies = true,
               includeQuestions = true,
               includeNotes = true,
+              config,
             }) => _shareExport(
               () => _exporter.createDoctorVisitSummaryPdf(
                 records,
@@ -1035,6 +1061,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
                 includeConditions: includeConditions,
                 includeAllergies: includeAllergies,
                 includeQuestions: includeQuestions,
+                config: config,
               ),
             ),
         onFhir: (records) =>

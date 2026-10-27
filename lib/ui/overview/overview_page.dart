@@ -56,6 +56,7 @@ class OverviewPage extends StatelessWidget {
     this.onLogMeasurement,
     this.onViewOutOfRangeLabs,
     this.onOpenMedications,
+    this.onPrepareDoctorVisit,
   });
 
   final List<HealthRecord> records;
@@ -78,9 +79,13 @@ class OverviewPage extends StatelessWidget {
   final VoidCallback? onLogMeasurement;
   final VoidCallback? onViewOutOfRangeLabs;
   final VoidCallback? onOpenMedications;
+  final VoidCallback? onPrepareDoctorVisit;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     // Count lab results directly to avoid multiple full Iterable evaluations
     final labCount = records
         .where((record) => record.category == RecordCategory.lab)
@@ -770,6 +775,68 @@ class OverviewPage extends StatelessWidget {
                 ],
               ],
             ),
+            if (onPrepareDoctorVisit != null) ...[
+              const SizedBox(height: 12),
+              Card(
+                key: const ValueKey('overview-doctor-visit-banner'),
+                elevation: 0,
+                color: colors.primaryContainer.withValues(alpha: 0.35),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: colors.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: InkWell(
+                  onTap: onPrepareDoctorVisit,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.assignment_outlined,
+                            size: 18,
+                            color: colors.onPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Upcoming Doctor Visit?',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Prepare a tailored consultation summary with recent vitals, flagged labs, and discussion questions.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.chevron_right, color: colors.primary),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
           const SizedBox(height: 20),
         ],

@@ -4,8 +4,10 @@ import '../../data/synthetic_demonstration_data.dart';
 import '../../exports/export_selection.dart';
 import '../../exports/fhir_export_validator.dart';
 import '../../exports/health_export_service.dart';
+import '../../models/doctor_visit_preparation.dart';
 import '../../models/health_record.dart';
 import '../shared/record_widgets.dart';
+import 'doctor_visit_wizard_sheet.dart';
 import 'fhir_preflight_sheet.dart';
 
 typedef DoctorVisitPdfCallback =
@@ -20,6 +22,7 @@ typedef DoctorVisitPdfCallback =
       bool includeAllergies,
       bool includeQuestions,
       bool includeNotes,
+      DoctorVisitPreparationConfig? config,
     });
 
 class ExportPage extends StatefulWidget {
@@ -31,6 +34,7 @@ class ExportPage extends StatefulWidget {
     required this.onFhir,
     required this.onCsv,
     this.onDoctorVisitPdf,
+    this.onDoctorVisitWizard,
     this.onTextSummary,
     this.onCopyTextSummary,
     this.onVaultBackup,
@@ -40,6 +44,7 @@ class ExportPage extends StatefulWidget {
   final bool exporting;
   final ValueChanged<List<HealthRecord>> onPdf;
   final DoctorVisitPdfCallback? onDoctorVisitPdf;
+  final ValueChanged<DoctorVisitPreparationConfig>? onDoctorVisitWizard;
   final ValueChanged<List<HealthRecord>> onFhir;
   final ValueChanged<List<HealthRecord>> onCsv;
   final ValueChanged<List<HealthRecord>>? onTextSummary;
@@ -288,6 +293,34 @@ class _ExportPageState extends State<ExportPage> {
     }
   }
 
+  Future<void> _launchDoctorVisitWizard() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => DoctorVisitWizardSheet(
+        records: widget.records,
+        onGenerate: (config) {
+          if (widget.onDoctorVisitWizard != null) {
+            widget.onDoctorVisitWizard!(config);
+          } else if (widget.onDoctorVisitPdf != null) {
+            widget.onDoctorVisitPdf!(
+              widget.records,
+              config.dateRange,
+              config.agendaItems.join('\n'),
+              includeVitals: config.includeVitals,
+              includeLabs: config.includeLabs,
+              includeMedications: config.includeMedications,
+              includeConditions: config.includeConditions,
+              includeAllergies: config.includeAllergies,
+              config: config,
+            );
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedRecords = _selectedRecords;
@@ -515,14 +548,28 @@ class _ExportPageState extends State<ExportPage> {
                 ? null
                 : () => widget.onPdf(selectedRecords),
           ),
-          if (widget.onDoctorVisitPdf != null) ...[
+          if (widget.onDoctorVisitPdf != null ||
+              widget.onDoctorVisitWizard != null) ...[
             const SizedBox(height: 12),
             ExportAction(
+              key: const ValueKey('export-action-doctor-visit-wizard'),
+              icon: Icons.assignment_outlined,
+              title: 'Doctor Visit Preparation Wizard',
+              detail:
+                  'Interactive step-by-step preparation with specialty-tailored templates for Cardiology, Endocrinology, or Annual Wellness checkups.',
+              buttonText: 'Launch Wizard',
+              onPressed: widget.exporting || widget.records.isEmpty
+                  ? null
+                  : _launchDoctorVisitWizard,
+            ),
+            const SizedBox(height: 12),
+            ExportAction(
+              key: const ValueKey('export-action-doctor-visit-quick'),
               icon: Icons.medical_services_outlined,
-              title: 'Doctor visit preparation sheet',
+              title: 'Quick doctor visit summary',
               detail:
                   'Concise visit summary with vital signs, flagged lab results, and your discussion questions',
-              buttonText: 'Prepare visit PDF',
+              buttonText: 'Quick summary',
               onPressed: widget.exporting || selectedRecords.isEmpty
                   ? null
                   : () => _promptDoctorVisitPdf(selectedRecords),
