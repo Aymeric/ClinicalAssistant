@@ -44,6 +44,24 @@ void main() {
 
     final FilterChip deselectedChip = tester.widget(chipFinder);
     expect(deselectedChip.tooltip, equals('Include Vitals in export'));
+
+    // Verify date preset ChoiceChip tooltips
+    final presetAllFinder = find.byKey(
+      const ValueKey('export-date-preset-all'),
+    );
+    expect(presetAllFinder, findsOneWidget);
+    final ChoiceChip presetAllChip = tester.widget(presetAllFinder);
+    expect(
+      presetAllChip.tooltip,
+      equals('Include records from all time in export'),
+    );
+
+    final preset30Finder = find.byKey(
+      const ValueKey('export-date-preset-days30'),
+    );
+    expect(preset30Finder, findsOneWidget);
+    final ChoiceChip preset30Chip = tester.widget(preset30Finder);
+    expect(preset30Chip.tooltip, equals('Filter export to last 30 days'));
   });
 
   testWidgets('ExportPage filters by source chips and search query', (

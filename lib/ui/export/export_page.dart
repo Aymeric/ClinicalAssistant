@@ -59,6 +59,14 @@ enum ExportDatePreset {
 
   const ExportDatePreset(this.label);
   final String label;
+
+  String get tooltip => switch (this) {
+    ExportDatePreset.all => 'Include records from all time in export',
+    ExportDatePreset.days30 => 'Filter export to last 30 days',
+    ExportDatePreset.days90 => 'Filter export to last 90 days',
+    ExportDatePreset.year1 => 'Filter export to last 1 year',
+    ExportDatePreset.custom => 'Choose custom date range for export',
+  };
 }
 
 class _ExportPageState extends State<ExportPage> {
@@ -419,6 +427,7 @@ class _ExportPageState extends State<ExportPage> {
                   ChoiceChip(
                     visualDensity: VisualDensity.compact,
                     key: ValueKey('export-date-preset-${preset.name}'),
+                    tooltip: preset.tooltip,
                     label: Text(
                       preset == ExportDatePreset.custom &&
                               _customDateRange != null
