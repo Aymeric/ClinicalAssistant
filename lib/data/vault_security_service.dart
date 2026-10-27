@@ -99,7 +99,9 @@ class VaultSecurityService {
   }
 
   Future<bool> verifyPin(String enteredPin) async {
-    if (isRateLimited || enteredPin.length > 32) {
+    // Security: Validate PIN bounds (4-32 chars) early to prevent CPU exhaustion
+    // and PBKDF2 hashing computation on invalid short/long inputs.
+    if (isRateLimited || enteredPin.length < 4 || enteredPin.length > 32) {
       return false;
     }
 
