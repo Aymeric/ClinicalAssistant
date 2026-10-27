@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/clinical_panel.dart';
 import '../../models/health_record.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
@@ -475,72 +476,91 @@ class RecordsPageState extends State<RecordsPage> {
         else
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
-            sliver: SliverList.builder(
-              itemCount: filtered.length,
-              itemBuilder: (context, index) {
-                final current = filtered[index];
-                var isNewSection = false;
-                var sectionTitle = '';
+            sliver: () {
+              final listItems = groupRecordsIntoListItems(filtered);
+              return SliverList.builder(
+                itemCount: listItems.length,
+                itemBuilder: (context, index) {
+                  final current = listItems[index];
+                  var isNewSection = false;
+                  var sectionTitle = '';
 
-                if (_sortOrder == RecordSortOrder.newestFirst ||
-                    _sortOrder == RecordSortOrder.oldestFirst) {
-                  final curDate = current.recordedAt.toLocal();
-                  if (index == 0) {
-                    isNewSection = true;
-                  } else {
-                    final prevDate = filtered[index - 1].recordedAt.toLocal();
-                    if (curDate.year != prevDate.year ||
-                        curDate.month != prevDate.month) {
+                  if (_sortOrder == RecordSortOrder.newestFirst ||
+                      _sortOrder == RecordSortOrder.oldestFirst) {
+                    final curDate = current.recordedAt.toLocal();
+                    if (index == 0) {
                       isNewSection = true;
+                    } else {
+                      final prevDate = listItems[index - 1].recordedAt
+                          .toLocal();
+                      if (curDate.year != prevDate.year ||
+                          curDate.month != prevDate.month) {
+                        isNewSection = true;
+                      }
                     }
-                  }
-                  if (isNewSection) {
-                    sectionTitle = formatSectionMonthYear(curDate);
-                  }
-                } else {
-                  final curLetter = current.name.isNotEmpty
-                      ? current.name[0].toUpperCase()
-                      : '#';
-                  if (index == 0) {
-                    isNewSection = true;
+                    if (isNewSection) {
+                      sectionTitle = formatSectionMonthYear(curDate);
+                    }
                   } else {
-                    final prevLetter = filtered[index - 1].name.isNotEmpty
-                        ? filtered[index - 1].name[0].toUpperCase()
+                    final curLetter = current.displayName.isNotEmpty
+                        ? current.displayName[0].toUpperCase()
                         : '#';
-                    if (curLetter != prevLetter) {
+                    if (index == 0) {
                       isNewSection = true;
+                    } else {
+                      final prevLetter =
+                          listItems[index - 1].displayName.isNotEmpty
+                          ? listItems[index - 1].displayName[0].toUpperCase()
+                          : '#';
+                      if (curLetter != prevLetter) {
+                        isNewSection = true;
+                      }
+                    }
+                    if (isNewSection) {
+                      sectionTitle = curLetter;
                     }
                   }
-                  if (isNewSection) {
-                    sectionTitle = curLetter;
-                  }
-                }
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isNewSection)
-                      DateSectionHeader(
-                        title: sectionTitle,
-                        isFirst: index == 0,
-                      ),
-                    RecordRow(
-                      key: ValueKey(filtered[index].id),
-                      record: filtered[index],
-                      isLast: index == filtered.length - 1,
-                      onTap: () {
-                        if (widget.onRecordTap != null) {
-                          widget.onRecordTap!(filtered[index]);
-                        } else {
-                          _showRecordDetails(filtered[index]);
-                        }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isNewSection)
+                        DateSectionHeader(
+                          title: sectionTitle,
+                          isFirst: index == 0,
+                        ),
+                      switch (current) {
+                        SingleRecordListItem(:final record) => RecordRow(
+                          key: ValueKey(record.id),
+                          record: record,
+                          isLast: index == listItems.length - 1,
+                          onTap: () {
+                            if (widget.onRecordTap != null) {
+                              widget.onRecordTap!(record);
+                            } else {
+                              _showRecordDetails(record);
+                            }
+                          },
+                        ),
+                        GroupedPanelListItem(:final panel) => ClinicalPanelCard(
+                          key: ValueKey('clinical-panel-${panel.id}'),
+                          panel: panel,
+                          isLast: index == listItems.length - 1,
+                          onTapRecord: (record) {
+                            if (widget.onRecordTap != null) {
+                              widget.onRecordTap!(record);
+                            } else {
+                              _showRecordDetails(record);
+                            }
+                          },
+                        ),
                       },
-                    ),
-                  ],
-                );
-              },
-            ),
+                    ],
+                  );
+                },
+              );
+            }(),
           ),
       ],
     );

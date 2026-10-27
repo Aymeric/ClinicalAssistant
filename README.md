@@ -12,7 +12,11 @@ or CSV.
   original source data, including available workout-route samples, in the
   encrypted on-device vault. Apple-only clinical lab imports remain supported.
 - Connects to a patient portal that exposes a SMART-on-FHIR endpoint and imports
-  laboratory `Observation` resources, including result panels.
+  laboratory `Observation` resources, including result panels. Users can also directly
+  import local FHIR JSON files (single or multiple) with live resource count previews
+  and atomic pre-validation.
+- Tracks per-source import history and coverage, displaying local sync outcomes, last-checked
+  timestamps, record counts, and observed date coverage across all connected sources.
 - Preserves the source, date, units, status, and original FHIR resource where
   available. The app does not interpret results or provide medical advice.
 - Lets users log measurements manually and correct their values or recorded
@@ -25,11 +29,13 @@ or CSV.
 - Charts numeric lab results, vital measurements, sleep durations, nutrition
   measures, and daily activity totals by measurement and time range, with
   source-provided reference ranges marked at the associated readings when they
-  are numeric and unit-compatible. Trend indicators summarize observed change,
+  are numeric and unit-compatible. Filter trends by fasting context (fasting,
+  pre-meal, post-meal, bedtime, random) for like-for-like comparisons, and optionally
+  overlay medication start/stop milestone markers. Trend indicators summarize observed change,
   average, and range; an optional
   three-reading moving average is descriptive only and does not assess clinical
   significance.
-- Stores step activity as daily totals to avoid retaining a high-volume
+- Stores step and distance activity as daily or workout totals to avoid retaining a high-volume
   per-sample stream; other supported health records remain individual records.
   iOS and Android health imports use matching ten-year query windows.
 - Offers opt-in on-device alerts after imports for new lab results and health
@@ -48,8 +54,9 @@ or CSV.
   app-operated cloud service. Deleting the local records also turns off
   automatic sync and removes the saved FHIR refresh token.
 - Creates PDF, FHIR Bundle JSON, and CSV exports in temporary device storage.
-  Users choose which record categories to include, then choose whether and
-  where to share each export in the OS share sheet.
+  Users can scope exports by source or measurement, toggle privacy redactions for
+  personal notes and raw payload data, and run preflight conformance validation
+  against HL7 FHIR Release 4 (R4 v4.0.1) before sharing.
 - Includes an offline directory of guideline publishers and curated clinical
   guidelines from trusted organizations (NICE, USPSTF, WHO, Australian
   Department of Health, Canadian Task Force). Authoritative guidelines can be

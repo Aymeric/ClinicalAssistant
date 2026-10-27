@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../models/health_record.dart';
 import 'health_trend.dart';
+import 'medication_chart_event.dart';
 import 'trend_chart_painter.dart';
 
 /// Interactive chart panel rendering time-series measurements with inspection support,
-/// optional moving average overlay, and source reference ranges.
+/// optional moving average overlay, medication milestones, and source reference ranges.
 class TrendChartPanel extends StatefulWidget {
   const TrendChartPanel({
     super.key,
     required this.points,
     required this.showMovingAverage,
     required this.onMovingAverageChanged,
+    this.medicationRecords = const [],
     this.referenceBand,
     this.secondaryPoints = const [],
     this.primaryName,
@@ -22,6 +24,7 @@ class TrendChartPanel extends StatefulWidget {
   final List<HealthTrendPoint> points;
   final bool showMovingAverage;
   final ValueChanged<bool> onMovingAverageChanged;
+  final List<HealthRecord> medicationRecords;
   final HealthReferenceRange? referenceBand;
   final List<HealthTrendPoint> secondaryPoints;
   final String? primaryName;
@@ -34,6 +37,7 @@ class TrendChartPanel extends StatefulWidget {
 
 class _TrendChartPanelState extends State<TrendChartPanel> {
   int? _inspectedIndex;
+  bool _showMedicationMarkers = false;
 
   @override
   void didUpdateWidget(covariant TrendChartPanel oldWidget) {
@@ -90,6 +94,14 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
       context,
     ).formatShortDate(points.last.record.recordedAt.toLocal());
 
+    final medicationEvents = points.isEmpty
+        ? const <MedicationChartEvent>[]
+        : MedicationChartEvent.extractEvents(
+            widget.medicationRecords,
+            start: points.first.record.recordedAt,
+            end: points.last.record.recordedAt,
+          );
+
     final inspectedPoint =
         _inspectedIndex != null && _inspectedIndex! < points.length
         ? points[_inspectedIndex!]
@@ -126,6 +138,28 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                         : onMovingAverageChanged,
                   ),
                 ),
+                if (medicationEvents.isNotEmpty)
+                  Tooltip(
+                    message: _showMedicationMarkers
+                        ? 'Hide medication start and stop markers'
+                        : 'Show medication start and stop markers',
+                    child: FilterChip(
+                      key: const ValueKey('trend-medication-markers'),
+                      avatar: Icon(
+                        Icons.medication_outlined,
+                        size: 16,
+                        color: _showMedicationMarkers
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                      label: Text(
+                        'Medication dates (${medicationEvents.length})',
+                      ),
+                      selected: _showMedicationMarkers,
+                      onSelected: (val) =>
+                          setState(() => _showMedicationMarkers = val),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
@@ -134,6 +168,9 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                 points,
                 showMovingAverage,
                 referenceMarks.length,
+                medicationEventCount: _showMedicationMarkers
+                    ? medicationEvents.length
+                    : 0,
               ),
               child: ExcludeSemantics(
                 child: SizedBox(
@@ -175,6 +212,9 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                             totalPoints: points.length,
                             inspectedIndex: _inspectedIndex,
                             inspectedPoint: inspectedPoint,
+                            medicationEvents: _showMedicationMarkers
+                                ? medicationEvents
+                                : const [],
                             color: Theme.of(context).colorScheme.primary,
                             averageColor: Theme.of(
                               context,
@@ -243,7 +283,8 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
             if (showMovingAverage ||
                 referenceMarks.isNotEmpty ||
                 widget.referenceBand != null ||
-                hasSecondary) ...[
+                hasSecondary ||
+                (_showMedicationMarkers && medicationEvents.isNotEmpty)) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
@@ -309,8 +350,104 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ],
+                  if (_showMedicationMarkers &&
+                      medicationEvents.isNotEmpty) ...[
+                    const LegendDot(color: Color(0xFF00796B)),
+                    Text(
+                      'Medication started',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    const SizedBox(width: 8),
+                    const LegendDot(color: Color(0xFFD97706)),
+                    Text(
+                      'Medication discontinued',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                 ],
               ),
+            ],
+            if (_showMedicationMarkers && medicationEvents.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+              Row(
+                key: const ValueKey('trend-medication-timeline-heading'),
+                children: [
+                  Icon(
+                    Icons.medication_outlined,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Medications in this timeframe',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Chronological alignment on a chart is descriptive only and does not imply treatment efficacy or clinical causation.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final event in medicationEvents) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 5),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: event.type == MedicationChartEventType.started
+                              ? const Color(0xFF00796B)
+                              : const Color(0xFFD97706),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${event.type.label}: ${event.medicationName}${event.dose.isNotEmpty ? ' (${event.dose})' : ''}',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              '${MaterialLocalizations.of(context).formatShortDate(event.date.toLocal())} · Source: ${event.source}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (widget.onRecordTap != null)
+                        IconButton(
+                          tooltip: 'View medication details',
+                          icon: const Icon(Icons.chevron_right, size: 18),
+                          onPressed: () =>
+                              widget.onRecordTap!(event.medication),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ],
         ),
@@ -329,14 +466,16 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
   static String _chartDescription(
     List<HealthTrendPoint> points,
     bool showMovingAverage,
-    int referenceRangeCount,
-  ) {
+    int referenceRangeCount, {
+    int medicationEventCount = 0,
+  }) {
     final trend = summarizeHealthTrend(points);
     final latest = trend.latest.record;
     return 'Chart with ${points.length} recorded values. '
         'Latest is ${latest.displayValue} on '
         '${latest.recordedAt.toLocal().toString().split(' ').first}. '
         '${showMovingAverage ? 'Includes a three-reading moving average. ' : ''}'
+        '${medicationEventCount == 0 ? '' : 'Includes $medicationEventCount medication start or stop markers. '}'
         '${referenceRangeCount == 0 ? '' : 'Shows source reference ranges for $referenceRangeCount readings.'}';
   }
 
@@ -418,7 +557,7 @@ class ChartInspectionBanner extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Source: ${record.source}${record.referenceRange != null ? ' · Ref: ${record.referenceRange}' : ''}${onViewDetails != null ? ' · Tap for details' : ''}',
+                        'Source: ${record.source}${record.hasExplicitMeasurementContext ? ' · Context: ${record.measurementContext}' : ''}${record.referenceRange != null ? ' · Ref: ${record.referenceRange}' : ''}${onViewDetails != null ? ' · Tap for details' : ''}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),

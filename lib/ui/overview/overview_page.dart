@@ -84,6 +84,10 @@ class OverviewPage extends StatelessWidget {
     final labCount = records
         .where((record) => record.category == RecordCategory.lab)
         .length;
+    final rawSamplesCount = countRawSamples(records);
+    final rawSamplesSuffix = rawSamplesCount > records.length
+        ? ' ($rawSamplesCount raw samples)'
+        : '';
     final latest = [...records]
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     final trendSeries = buildHealthTrendSeries(records)
@@ -216,7 +220,7 @@ class OverviewPage extends StatelessWidget {
                   Text(
                     loading
                         ? 'Opening your encrypted record vault...'
-                        : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved  ·  $labCount lab ${labCount == 1 ? 'result' : 'results'}',
+                        : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved$rawSamplesSuffix  ·  $labCount lab ${labCount == 1 ? 'result' : 'results'}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -281,77 +285,90 @@ class OverviewPage extends StatelessWidget {
                   for (final record in pinnedRecords)
                     Padding(
                       padding: const EdgeInsets.only(right: 10),
-                      child: InkWell(
-                        onTap: () => onRecordTap?.call(record),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          width: 170,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withValues(alpha: 0.4),
+                      child: Tooltip(
+                        message: '${record.name}: ${record.displayValue}',
+                        child: Semantics(
+                          label:
+                              'Pinned metric ${record.name}, ${record.displayValue}, recorded on ${MaterialLocalizations.of(context).formatShortDate(record.recordedAt.toLocal())}',
+                          button: true,
+                          excludeSemantics: true,
+                          child: InkWell(
+                            onTap: () => onRecordTap?.call(record),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .outlineVariant
-                                  .withValues(alpha: 0.6),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                            child: Container(
+                              width: 170,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withValues(alpha: 0.4),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant
+                                      .withValues(alpha: 0.6),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(
-                                    Icons.push_pin,
-                                    size: 14,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.push_pin,
+                                        size: 14,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          record.name,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      record.name,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    record.displayValue,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    MaterialLocalizations.of(
+                                      context,
+                                    ).formatShortDate(
+                                      record.recordedAt.toLocal(),
                                     ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                record.displayValue,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                    ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                MaterialLocalizations.of(
-                                  context,
-                                ).formatShortDate(record.recordedAt.toLocal()),
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -673,6 +690,10 @@ class OverviewMetricStrip extends StatelessWidget {
         .map((record) => record.category)
         .toSet()
         .length;
+    final rawSamplesCount = countRawSamples(records);
+    final recordsValue = rawSamplesCount > records.length
+        ? '${records.length} ($rawSamplesCount raw)'
+        : records.length.toString();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -685,7 +706,7 @@ class OverviewMetricStrip extends StatelessWidget {
           Expanded(
             child: MetricItem(
               label: 'Records',
-              value: records.length.toString(),
+              value: recordsValue,
               icon: Icons.receipt_long_outlined,
             ),
           ),

@@ -125,6 +125,75 @@ class HealthRecord {
     return unit.isEmpty ? formatted : '$formatted $unit';
   }
 
+  /// Returns the structured measurement or meal-state context of this record
+  /// (e.g. 'Fasting', 'Pre-meal', 'Post-meal (2 hr)', 'Bedtime', 'Random').
+  ///
+  /// Resolves in order:
+  /// 1. Explicit `sourceData['measurementContext']` entry.
+  /// 2. Metadata meal-state keys from health platform data.
+  /// 3. Context tag in user notes (e.g., `Context: Fasting`).
+  /// 4. Defaults strictly to `'Unspecified'`.
+  String get measurementContext {
+    final direct = sourceData?['measurementContext'];
+    if (direct is String && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+    final metadata = sourceData?['metadata'];
+    if (metadata is Map) {
+      final meal =
+          metadata['meal_type'] ??
+          metadata['mealContext'] ??
+          metadata['meal_time'] ??
+          metadata['measurement_context'];
+      if (meal != null && meal.toString().trim().isNotEmpty) {
+        return meal.toString().trim();
+      }
+    }
+    if (notes != null && notes!.isNotEmpty) {
+      final match = RegExp(
+        r'(?:^|·|\n)\s*Context:\s*([^·\n\r]+)',
+        caseSensitive: false,
+      ).firstMatch(notes!);
+      if (match != null) {
+        final val = match.group(1)?.trim();
+        if (val != null && val.isNotEmpty) return val;
+      }
+    }
+    return 'Unspecified';
+  }
+
+  bool get hasExplicitMeasurementContext => measurementContext != 'Unspecified';
+
+  /// Returns the number of underlying raw health samples represented by this record.
+  ///
+  /// - Daily aggregated records store their sample count in `sourceData['sampleCount']`.
+  /// - Workout-aggregated records count the workout itself (`1`) plus any child
+  ///   samples folded into `sourceData['aggregatedWorkoutMetrics']`.
+  /// - Non-aggregated records represent `1` raw sample.
+  int get rawSampleCount {
+    final directCount = sourceData?['sampleCount'];
+    if (directCount is num && directCount > 0) {
+      return directCount.toInt();
+    }
+    final workoutMetrics = sourceData?['aggregatedWorkoutMetrics'];
+    if (workoutMetrics is Map) {
+      var total = 1;
+      for (final key in const [
+        'distanceSampleCount',
+        'calorieSampleCount',
+        'stepSampleCount',
+        'flightsSampleCount',
+      ]) {
+        final v = workoutMetrics[key];
+        if (v is num && v > 0) {
+          total += v.toInt();
+        }
+      }
+      return total;
+    }
+    return 1;
+  }
+
   HealthRecord copyWith({
     String? id,
     String? name,
@@ -190,4 +259,13 @@ class HealthRecord {
       notes: json['notes'] as String?,
     );
   }
+}
+
+/// Sums [HealthRecord.rawSampleCount] across all [records].
+int countRawSamples(Iterable<HealthRecord> records) {
+  var total = 0;
+  for (final record in records) {
+    total += record.rawSampleCount;
+  }
+  return total;
 }

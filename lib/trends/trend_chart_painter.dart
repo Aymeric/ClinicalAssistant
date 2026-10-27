@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/health_record.dart';
 import 'health_trend.dart';
+import 'medication_chart_event.dart';
 
 /// Custom painter for rendering clinical time-series trend lines, grid lines,
 /// reference ranges, and optional moving averages.
@@ -20,6 +21,8 @@ class TrendChartPainter extends CustomPainter {
     this.secondaryPoints,
     this.secondaryIndexes,
     this.secondaryColor,
+    this.medicationEvents = const [],
+    this.medicationMarkerColor,
     required this.color,
     required this.averageColor,
     required this.referenceColor,
@@ -38,6 +41,8 @@ class TrendChartPainter extends CustomPainter {
   final List<HealthTrendPoint>? secondaryPoints;
   final List<int>? secondaryIndexes;
   final Color? secondaryColor;
+  final List<MedicationChartEvent> medicationEvents;
+  final Color? medicationMarkerColor;
   final Color color;
   final Color averageColor;
   final Color referenceColor;
@@ -344,6 +349,47 @@ class TrendChartPainter extends CustomPainter {
           ..style = PaintingStyle.stroke,
       );
     }
+
+    if (medicationEvents.isNotEmpty && points.isNotEmpty) {
+      final startMs = points.first.record.recordedAt.millisecondsSinceEpoch;
+      final endMs = points.last.record.recordedAt.millisecondsSinceEpoch;
+      final timeSpan = endMs - startMs;
+
+      for (final event in medicationEvents) {
+        final eventMs = event.date.millisecondsSinceEpoch;
+        final fraction = timeSpan <= 0
+            ? 0.5
+            : ((eventMs - startMs) / timeSpan).clamp(0.0, 1.0);
+        final x = plot.left + fraction * plot.width;
+
+        final isStart = event.type == MedicationChartEventType.started;
+        final markerColor =
+            medicationMarkerColor ??
+            (isStart ? const Color(0xFF00796B) : const Color(0xFFD97706));
+
+        final dashPaint = Paint()
+          ..color = markerColor.withValues(alpha: 0.65)
+          ..strokeWidth = 1.4
+          ..style = PaintingStyle.stroke;
+
+        const dashHeight = 4.0;
+        const dashSpace = 3.0;
+        var startY = plot.top;
+        while (startY < plot.bottom) {
+          canvas.drawLine(
+            Offset(x, startY),
+            Offset(x, math.min(startY + dashHeight, plot.bottom)),
+            dashPaint,
+          );
+          startY += dashHeight + dashSpace;
+        }
+
+        final badgePaint = Paint()
+          ..color = markerColor
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset(x, plot.top), 3.5, badgePaint);
+      }
+    }
   }
 
   @override
@@ -355,6 +401,8 @@ class TrendChartPainter extends CustomPainter {
       oldDelegate.totalPoints != totalPoints ||
       oldDelegate.inspectedIndex != inspectedIndex ||
       oldDelegate.inspectedPoint != inspectedPoint ||
+      oldDelegate.medicationEvents != medicationEvents ||
+      oldDelegate.medicationMarkerColor != medicationMarkerColor ||
       oldDelegate.color != color ||
       oldDelegate.averageColor != averageColor ||
       oldDelegate.referenceColor != referenceColor ||

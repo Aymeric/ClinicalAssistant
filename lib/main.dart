@@ -12,6 +12,7 @@ import 'exports/health_export_service.dart';
 import 'guidelines/clinical_guideline.dart';
 import 'guidelines/guideline_viewer_page.dart';
 import 'guidelines/guidelines_library_page.dart';
+import 'integrations/fhir_file_import.dart';
 import 'models/health_record.dart';
 import 'notifications/result_notification_manager.dart';
 import 'records/manual_record_edit_sheet.dart';
@@ -462,6 +463,19 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _importFhirFiles(
+    List<FhirFilePayload> files, {
+    String? source,
+  }) async {
+    await _runAction(
+      (onProgress) => _controller.importFhirFiles(
+        files,
+        customSourceLabel: source,
+        onProgress: onProgress,
+      ),
+    );
+  }
+
   Future<FhirConnectionOutcome?> _importFhir({
     required String baseUrl,
     required String clientId,
@@ -874,6 +888,37 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _resetHealthSyncAnchor() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset sync anchor?'),
+        content: const Text(
+          'Resetting the sync anchor forces the next sync to re-check all historical records from the platform from scratch.\n\nExisting records saved in your encrypted vault will NOT be deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Reset anchor'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _controller.resetHealthSyncAnchor();
+      await _reloadSyncState();
+      if (mounted) {
+        _showMessage(
+          'Sync anchor reset. The next sync will check all records from scratch without deleting saved data.',
+        );
+      }
+    }
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -931,8 +976,11 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
       ConnectionsPage(
         busy: _controller.busy,
         healthRecordCount: _controller.healthRecordCount,
+        healthRawSampleCount: _controller.healthRawSampleCount,
         fhirRecordCount: _controller.fhirRecordCount,
         syntheticRecordCount: _controller.syntheticRecordCount,
+        records: _controller.records,
+        importHistory: _controller.importHistory,
         syncState: _syncState,
         syncSettingsLoading: _syncSettingsLoading,
         syncing: _syncing,
@@ -942,10 +990,12 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onLoadSyntheticDemo: _loadSyntheticDemo,
         onClearSyntheticDemo: _clearSyntheticDemo,
         onImportFhirJson: _importFhirJson,
+        onImportFhirFiles: _importFhirFiles,
         onHealthAutoSyncChanged: _onHealthAutoSyncChanged,
         onFhirAutoSyncDisabled: _disableFhirAutoSync,
         onSyncNow: _syncNow,
         onDeleteRecords: _deleteAllRecords,
+        onResetHealthSyncAnchor: _resetHealthSyncAnchor,
         notificationManager: _notificationManager,
         syncValueStore: _controller.syncValueStore,
         onProgress: _reportProgress,
@@ -973,6 +1023,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
               includeConditions = true,
               includeAllergies = true,
               includeQuestions = true,
+              includeNotes = true,
             }) => _shareExport(
               () => _exporter.createDoctorVisitSummaryPdf(
                 records,

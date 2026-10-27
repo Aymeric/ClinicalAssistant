@@ -5,6 +5,7 @@ class ForegroundSyncState {
     this.healthAutoSync = false,
     this.fhirAutoSync = false,
     this.fhirRefreshTokenAvailable = false,
+    this.hasHealthSyncAnchor = false,
     this.lastHealthSyncAt,
     this.lastFhirSyncAt,
   });
@@ -12,6 +13,7 @@ class ForegroundSyncState {
   final bool healthAutoSync;
   final bool fhirAutoSync;
   final bool fhirRefreshTokenAvailable;
+  final bool hasHealthSyncAnchor;
   final DateTime? lastHealthSyncAt;
   final DateTime? lastFhirSyncAt;
 

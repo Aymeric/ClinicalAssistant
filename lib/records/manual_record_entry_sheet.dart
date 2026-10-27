@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
 
@@ -74,6 +75,25 @@ const kCommonLabPresets = [
   ),
 ];
 
+class _PanelAnalyteInput {
+  _PanelAnalyteInput({
+    required this.name,
+    required this.unit,
+    required this.defaultRefRange,
+    this.loincCode,
+  }) : controller = TextEditingController();
+
+  final String name;
+  final String unit;
+  final String defaultRefRange;
+  final String? loincCode;
+  final TextEditingController controller;
+
+  void dispose() {
+    controller.dispose();
+  }
+}
+
 class ManualRecordEntrySheet extends StatefulWidget {
   const ManualRecordEntrySheet({super.key, required this.onSave});
 
@@ -98,6 +118,14 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   final _medicationRouteController = TextEditingController();
   final _notesController = TextEditingController();
 
+  // Panel entry state
+  var _isPanelMode = false;
+  ClinicalPanelPreset? _selectedPanelPreset = kStandardClinicalPanels.first;
+  final _panelNameController = TextEditingController(
+    text: kStandardClinicalPanels.first.name,
+  );
+  var _panelAnalytes = <_PanelAnalyteInput>[];
+
   var _customCategory = RecordCategory.vital;
   var _glucoseContext = 'Fasting';
   var _weightUnit = 'lbs';
@@ -106,6 +134,33 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   DateTime? _medicationEndDate;
 
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPanelPreset(kStandardClinicalPanels.first);
+  }
+
+  void _loadPanelPreset(ClinicalPanelPreset? preset) {
+    for (final a in _panelAnalytes) {
+      a.dispose();
+    }
+    _selectedPanelPreset = preset;
+    if (preset != null) {
+      _panelNameController.text = preset.name;
+      _panelAnalytes = preset.analytes.map((a) {
+        return _PanelAnalyteInput(
+          name: a.name,
+          unit: a.unit,
+          defaultRefRange: a.defaultRefRange,
+          loincCode: a.loincCode,
+        );
+      }).toList();
+    } else {
+      _panelNameController.text = 'Custom Lab Panel';
+      _panelAnalytes = [];
+    }
+  }
 
   @override
   void dispose() {
@@ -118,6 +173,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
     _medicationFrequencyController.dispose();
     _medicationRouteController.dispose();
     _notesController.dispose();
+    _panelNameController.dispose();
+    for (final a in _panelAnalytes) {
+      a.dispose();
+    }
     super.dispose();
   }
 
@@ -252,6 +311,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
             recordedAt: timestamp,
             category: RecordCategory.lab,
             source: 'Manual Entry',
+            sourceData: {'measurementContext': _glucoseContext},
             referenceRange: _refRangeController.text.trim().isEmpty
                 ? '70 – 99 mg/dL'
                 : _refRangeController.text.trim(),
@@ -330,20 +390,77 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         break;
 
       case ManualEntryType.labResult:
-        final labRef = _refRangeController.text.trim();
-        records.add(
-          HealthRecord(
-            id: 'manual:lab:$nowMs',
-            name: _customNameController.text.trim(),
-            value: _valueController.text.trim(),
-            unit: _customUnitController.text.trim(),
-            recordedAt: timestamp,
-            category: RecordCategory.lab,
-            source: 'Manual Entry',
-            referenceRange: labRef.isEmpty ? null : labRef,
-            notes: userNote,
-          ),
-        );
+        if (_isPanelMode) {
+          final enteredAnalytes = _panelAnalytes
+              .where((a) => a.controller.text.trim().isNotEmpty)
+              .toList();
+          if (enteredAnalytes.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please enter at least one analyte value.'),
+              ),
+            );
+            return;
+          }
+
+          for (final a in enteredAnalytes) {
+            final val = a.controller.text.trim();
+            if (double.tryParse(val) == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Invalid value for ${a.name}: "$val"')),
+              );
+              return;
+            }
+          }
+
+          final panelName = _panelNameController.text.trim().isNotEmpty
+              ? _panelNameController.text.trim()
+              : (_selectedPanelPreset?.name ?? 'Clinical Panel');
+          final panelId = 'manual-panel-$nowMs';
+          final panelCode = _selectedPanelPreset?.loincCode;
+
+          for (var i = 0; i < enteredAnalytes.length; i++) {
+            final a = enteredAnalytes[i];
+            records.add(
+              HealthRecord(
+                id: 'manual:panel:$nowMs-$i',
+                name: a.name,
+                value: a.controller.text.trim(),
+                unit: a.unit,
+                recordedAt: timestamp,
+                category: RecordCategory.lab,
+                source: 'Manual Entry',
+                code: a.loincCode,
+                referenceRange: a.defaultRefRange.isNotEmpty
+                    ? a.defaultRefRange
+                    : null,
+                notes: userNote,
+                sourceData: {
+                  'panel': {
+                    'id': panelId,
+                    'name': panelName,
+                    'code': ?panelCode,
+                  },
+                },
+              ),
+            );
+          }
+        } else {
+          final labRef = _refRangeController.text.trim();
+          records.add(
+            HealthRecord(
+              id: 'manual:lab:$nowMs',
+              name: _customNameController.text.trim(),
+              value: _valueController.text.trim(),
+              unit: _customUnitController.text.trim(),
+              recordedAt: timestamp,
+              category: RecordCategory.lab,
+              source: 'Manual Entry',
+              referenceRange: labRef.isEmpty ? null : labRef,
+              notes: userNote,
+            ),
+          );
+        }
         break;
 
       case ManualEntryType.medication:
@@ -552,88 +669,235 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                   ],
                 ),
               ] else if (_selectedType == ManualEntryType.labResult) ...[
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final preset in kCommonLabPresets)
-                      ActionChip(
-                        key: ValueKey('manual-lab-preset-${preset.name}'),
-                        label: Text(preset.name),
-                        avatar: _customNameController.text == preset.name
-                            ? const Icon(Icons.check, size: 16)
-                            : null,
-                        onPressed: () {
-                          setState(() {
-                            _customNameController.text = preset.name;
-                            _customUnitController.text = preset.unit;
-                            _refRangeController.text = preset.defaultRefRange;
-                          });
-                        },
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const ValueKey('manual-lab-name'),
-                  controller: _customNameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Lab test name',
-                    hintText: 'e.g. Hemoglobin A1c, Ferritin',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (val) => val == null || val.trim().isEmpty
-                      ? 'Enter a lab name'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        key: const ValueKey('manual-lab-value'),
-                        controller: _valueController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          labelText: 'Result Value',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Required';
-                          }
-                          return null;
-                        },
-                      ),
+                SegmentedButton<bool>(
+                  key: const ValueKey('manual-lab-mode-toggle'),
+                  segments: const [
+                    ButtonSegment(
+                      value: false,
+                      label: Text('Single Test'),
+                      icon: Icon(Icons.science_outlined),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        key: const ValueKey('manual-lab-unit'),
-                        controller: _customUnitController,
-                        decoration: const InputDecoration(
-                          labelText: 'Unit',
-                          hintText: '% or mg/dL',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
+                    ButtonSegment(
+                      value: true,
+                      label: Text('Clinical Panel'),
+                      icon: Icon(Icons.table_rows_outlined),
                     ),
                   ],
+                  selected: {_isPanelMode},
+                  onSelectionChanged: (set) {
+                    setState(() {
+                      _isPanelMode = set.first;
+                      if (_isPanelMode && _panelAnalytes.isEmpty) {
+                        _loadPanelPreset(kStandardClinicalPanels.first);
+                      }
+                    });
+                  },
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  key: const ValueKey('manual-lab-ref-range'),
-                  controller: _refRangeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Reference Range (optional)',
-                    hintText: 'e.g. 4.0 – 5.6 %',
-                    border: OutlineInputBorder(),
+                if (!_isPanelMode) ...[
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final preset in kCommonLabPresets)
+                        ActionChip(
+                          key: ValueKey('manual-lab-preset-${preset.name}'),
+                          label: Text(preset.name),
+                          avatar: _customNameController.text == preset.name
+                              ? const Icon(Icons.check, size: 16)
+                              : null,
+                          onPressed: () {
+                            setState(() {
+                              _customNameController.text = preset.name;
+                              _customUnitController.text = preset.unit;
+                              _refRangeController.text = preset.defaultRefRange;
+                            });
+                          },
+                        ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const ValueKey('manual-lab-name'),
+                    controller: _customNameController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Lab test name',
+                      hintText: 'e.g. Hemoglobin A1c, Ferritin',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Enter a lab name'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          key: const ValueKey('manual-lab-value'),
+                          controller: _valueController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Result Value',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return 'Required';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          key: const ValueKey('manual-lab-unit'),
+                          controller: _customUnitController,
+                          decoration: const InputDecoration(
+                            labelText: 'Unit',
+                            hintText: '% or mg/dL',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const ValueKey('manual-lab-ref-range'),
+                    controller: _refRangeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Reference Range (optional)',
+                      hintText: 'e.g. 4.0 – 5.6 %',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ] else ...[
+                  DropdownButtonFormField<ClinicalPanelPreset?>(
+                    key: const ValueKey('manual-lab-panel-preset-dropdown'),
+                    initialValue: _selectedPanelPreset,
+                    decoration: const InputDecoration(
+                      labelText: 'Select Panel Preset',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final preset in kStandardClinicalPanels)
+                        DropdownMenuItem(
+                          value: preset,
+                          child: Text(preset.name),
+                        ),
+                    ],
+                    onChanged: (preset) {
+                      setState(() {
+                        _loadPanelPreset(preset);
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const ValueKey('manual-lab-panel-name'),
+                    controller: _panelNameController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Panel Name',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Enter panel name'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Analytes (${_panelAnalytes.length})',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Enter values for tests included in this panel. Unfilled analytes will be omitted.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final analyte in _panelAnalytes) ...[
+                    Card(
+                      elevation: 0,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    analyte.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${analyte.unit} · Ref: ${analyte.defaultRefRange}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.outline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 110,
+                              child: TextFormField(
+                                key: ValueKey(
+                                  'manual-panel-analyte-${analyte.name}',
+                                ),
+                                controller: analyte.controller,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: InputDecoration(
+                                  hintText: analyte.unit,
+                                  isDense: true,
+                                  border: const OutlineInputBorder(),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                ],
               ] else if (_selectedType == ManualEntryType.medication) ...[
                 TextFormField(
                   key: const ValueKey('manual-medication-name'),
@@ -859,20 +1123,31 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                 ),
                 if (_selectedType == ManualEntryType.glucose) ...[
                   const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Text('Context:'),
-                      for (final ctx in ['Fasting', 'Random', 'Postprandial'])
-                        ChoiceChip(
-                          label: Text(ctx),
-                          selected: _glucoseContext == ctx,
-                          onSelected: (_) =>
-                              setState(() => _glucoseContext = ctx),
-                        ),
-                    ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        const Text('Context:'),
+                        const SizedBox(width: 8),
+                        for (final ctx in const [
+                          'Fasting',
+                          'Pre-meal',
+                          'Post-meal (2 hr)',
+                          'Bedtime',
+                          'Random',
+                        ])
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              key: ValueKey('glucose-context-chip-$ctx'),
+                              label: Text(ctx),
+                              selected: _glucoseContext == ctx,
+                              onSelected: (_) =>
+                                  setState(() => _glucoseContext = ctx),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 12),

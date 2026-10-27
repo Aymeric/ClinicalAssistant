@@ -35,6 +35,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
   RecordCategory? _category;
   _TrendRange _range = _TrendRange.all;
   String? _selectedSeriesId;
+  String? _selectedContext;
   bool _showMovingAverage = false;
 
   @override
@@ -51,6 +52,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
       setState(() {
         _selectedSeriesId = widget.initialSeriesId;
         _category = null;
+        _selectedContext = null;
       });
     }
   }
@@ -65,13 +67,60 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
       (series) => series?.id == _selectedSeriesId,
       orElse: () => visibleSeries.isEmpty ? null : visibleSeries.first,
     );
+
+    // Compute distinct measurement contexts across all points for this series.
+    final availableContexts = selectedSeries == null
+        ? const <String>{}
+        : selectedSeries.points.map((p) => p.record.measurementContext).toSet();
+
+    const preferredContextOrder = [
+      'Fasting',
+      'Pre-meal',
+      'Post-meal (2 hr)',
+      'Bedtime',
+      'Random',
+      'Unspecified',
+    ];
+    final sortedContexts = availableContexts.toList()
+      ..sort((a, b) {
+        final indexA = preferredContextOrder.indexOf(a);
+        final indexB = preferredContextOrder.indexOf(b);
+        if (indexA != -1 && indexB != -1) return indexA.compareTo(indexB);
+        if (indexA != -1) return -1;
+        if (indexB != -1) return 1;
+        return a.compareTo(b);
+      });
+
+    final activeContext =
+        _selectedContext != null && availableContexts.contains(_selectedContext)
+        ? _selectedContext
+        : null;
+
+    final seriesPoints = selectedSeries == null
+        ? const <HealthTrendPoint>[]
+        : (activeContext == null
+              ? selectedSeries.points
+              : selectedSeries.points
+                    .where((p) => p.record.measurementContext == activeContext)
+                    .toList());
+
     final selectedPoints = selectedSeries == null
         ? const <HealthTrendPoint>[]
         : pointsWithinRange(
-            selectedSeries.points,
+            seriesPoints,
             now: DateTime.now(),
             days: _range.days,
           );
+
+    final secondarySeriesPoints =
+        selectedSeries != null && selectedSeries.hasSecondarySeries
+        ? (activeContext == null
+              ? selectedSeries.secondaryPoints
+              : selectedSeries.secondaryPoints
+                    .where((p) => p.record.measurementContext == activeContext)
+                    .toList())
+        : const <HealthTrendPoint>[];
+
     final orderedPoints = [...selectedPoints]
       ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
     final summary = orderedPoints.isEmpty
@@ -155,6 +204,57 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                           ),
                       ],
                     ),
+                    if (availableContexts.length > 1) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.tune,
+                            size: 16,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Measurement context',
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        key: const ValueKey('trend-context-filter-chips'),
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          ChoiceChip(
+                            key: const ValueKey('trend-context-chip-all'),
+                            label: const Text('All contexts'),
+                            selected: activeContext == null,
+                            onSelected: (_) =>
+                                setState(() => _selectedContext = null),
+                          ),
+                          for (final contextName in sortedContexts)
+                            ChoiceChip(
+                              key: ValueKey('trend-context-chip-$contextName'),
+                              label: Text(contextName),
+                              selected: activeContext == contextName,
+                              onSelected: (selected) => setState(() {
+                                _selectedContext = selected
+                                    ? contextName
+                                    : null;
+                              }),
+                            ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     if (widget.loading)
                       const Center(
@@ -178,14 +278,27 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                       )
                     else if (orderedPoints.isEmpty)
                       TrendEmptyState(
-                        title: 'No readings in this time range',
-                        message:
-                            'Try a longer range to include earlier measurements.',
-                        action: TextButton(
-                          onPressed: () =>
-                              setState(() => _range = _TrendRange.all),
-                          child: const Text('Show all time'),
-                        ),
+                        title: activeContext != null
+                            ? 'No $activeContext readings in this range'
+                            : 'No readings in this time range',
+                        message: activeContext != null
+                            ? 'Try switching to all contexts or a longer time range.'
+                            : 'Try a longer range to include earlier measurements.',
+                        action: activeContext != null
+                            ? TextButton(
+                                onPressed: () => setState(() {
+                                  _selectedContext = null;
+                                  _range = _TrendRange.all;
+                                }),
+                                child: const Text(
+                                  'Show all contexts & all time',
+                                ),
+                              )
+                            : TextButton(
+                                onPressed: () =>
+                                    setState(() => _range = _TrendRange.all),
+                                child: const Text('Show all time'),
+                              ),
                       )
                     else ...[
                       SelectedReadingHeading(
@@ -195,13 +308,18 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                       const SizedBox(height: 14),
                       TrendChartPanel(
                         points: orderedPoints,
+                        medicationRecords: widget.records
+                            .where(
+                              (r) => r.category == RecordCategory.medication,
+                            )
+                            .toList(),
                         showMovingAverage: _showMovingAverage,
                         onMovingAverageChanged: (value) =>
                             setState(() => _showMovingAverage = value),
                         referenceBand: selectedSeries.referenceBand,
                         secondaryPoints: selectedSeries.hasSecondarySeries
                             ? pointsWithinRange(
-                                selectedSeries.secondaryPoints,
+                                secondarySeriesPoints,
                                 now: DateTime.now(),
                                 days: _range.days,
                               )
@@ -252,6 +370,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
       onSelected: (_) => setState(() {
         _category = category;
         _selectedSeriesId = null;
+        _selectedContext = null;
         _showMovingAverage = false;
       }),
     );
@@ -270,6 +389,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
     if (!mounted || selectedId == null) return;
     setState(() {
       _selectedSeriesId = selectedId;
+      _selectedContext = null;
       _showMovingAverage = false;
     });
   }

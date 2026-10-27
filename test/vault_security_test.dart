@@ -227,6 +227,8 @@ void main() {
         expect(service.constantTimeCompare(listA, listShorter), isFalse);
         expect(service.constantTimeCompare(listA, listLonger), isFalse);
         expect(service.constantTimeCompare([], []), isTrue);
+        expect(service.constantTimeCompare([1], []), isFalse);
+        expect(service.constantTimeCompare([], [1]), isFalse);
       },
     );
   });

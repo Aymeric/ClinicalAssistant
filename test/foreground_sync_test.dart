@@ -8,6 +8,8 @@ import 'package:clinical_assistant/main.dart';
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
 import 'package:clinical_assistant/sync/import_progress.dart';
+import 'package:clinical_assistant/ui/connections/connections_page.dart';
+import 'package:clinical_assistant/ui/shared/record_widgets.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,6 +57,108 @@ void main() {
       lessThan(const Duration(days: 4)),
     );
   });
+
+  test(
+    'health sync uses change token for incremental sync on Android and updates next token',
+    () async {
+      final healthImporter = _FakeHealthImporter(
+        [
+          [_record('health:initial-1')],
+          [_record('health:unexpected-range')],
+        ],
+        changesTokenValue: 'token-1',
+        changesResults: [
+          HealthChangesResult(
+            records: [_record('health:delta-2')],
+            nextChangesToken: 'token-2',
+          ),
+        ],
+      );
+      final syncValues = _MemorySyncValueStore();
+      final controller = HealthDataController(
+        store: _MemoryRecordStore(),
+        healthImporter: healthImporter,
+        fhirImporter: _FakeFhirImporter(),
+        syncValueStore: syncValues,
+      );
+      addTearDown(controller.dispose);
+      await controller.load();
+
+      // Initial sync (no token exists yet) performs range import and saves token-1
+      final initial = await controller.syncHealth(isAndroid: true);
+      expect(initial.map((r) => r.id), ['health:initial-1']);
+      expect(syncValues.values['health_sync_changes_token_v1'], 'token-1');
+      expect(healthImporter.sinceValues.length, 1);
+
+      // Incremental sync uses changesToken instead of range querying
+      final incremental = await controller.syncHealth(isAndroid: true);
+      expect(incremental.map((r) => r.id), ['health:delta-2']);
+      expect(syncValues.values['health_sync_changes_token_v1'], 'token-2');
+      expect(healthImporter.changesTokenCalls, ['token-1']);
+      // Verify no additional range query was executed
+      expect(healthImporter.sinceValues.length, 1);
+
+      // Verify records are merged
+      expect(
+        controller.records.map((r) => r.id),
+        containsAll(['health:initial-1', 'health:delta-2']),
+      );
+    },
+  );
+
+  test(
+    'resetHealthSyncAnchor clears tokens without deleting stored records',
+    () async {
+      final healthImporter = _FakeHealthImporter([
+        [_record('health:record-1')],
+        [_record('health:record-2')],
+      ], changesTokenValue: 'token-1');
+      final syncValues = _MemorySyncValueStore();
+      final store = _MemoryRecordStore();
+      final controller = HealthDataController(
+        store: store,
+        healthImporter: healthImporter,
+        fhirImporter: _FakeFhirImporter(),
+        syncValueStore: syncValues,
+      );
+      addTearDown(controller.dispose);
+      await controller.load();
+
+      await controller.syncHealth(isAndroid: true);
+      expect(controller.records.length, 1);
+
+      var state = await controller.loadForegroundSyncState();
+      expect(state.hasHealthSyncAnchor, isTrue);
+      expect(
+        syncValues.values.containsKey('health_sync_changes_token_v1'),
+        isTrue,
+      );
+      expect(syncValues.values.containsKey('last_health_sync_v1'), isTrue);
+
+      // Reset the anchor
+      await controller.resetHealthSyncAnchor();
+
+      // Anchor flags and keys are cleared
+      state = await controller.loadForegroundSyncState();
+      expect(state.hasHealthSyncAnchor, isFalse);
+      expect(state.lastHealthSyncAt, isNull);
+      expect(
+        syncValues.values.containsKey('health_sync_changes_token_v1'),
+        isFalse,
+      );
+      expect(syncValues.values.containsKey('last_health_sync_v1'), isFalse);
+
+      // But existing records in memory and database are PRESERVED!
+      expect(controller.records.length, 1);
+      expect(controller.records.first.id, 'health:record-1');
+      expect((await store.load()).map((r) => r.id), ['health:record-1']);
+
+      // Next sync starts range search from scratch (year 1900) without token
+      await controller.syncHealth(isAndroid: true);
+      expect(healthImporter.sinceValues.last.year, lessThanOrEqualTo(1900));
+      expect(controller.records.length, 2);
+    },
+  );
 
   test(
     'FHIR sync stores, rotates, and removes opted-in refresh credentials',
@@ -320,6 +424,70 @@ void main() {
     expect(syncValues.values['fhir_refresh_token_v1'], 'initial-refresh');
     expect(syncValues.values['fhir_patient_id_v1'], 'patient-7');
   });
+
+  testWidgets(
+    'renders reset anchor buttons when anchor is present and triggers reset',
+    (tester) async {
+      var resetCalled = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: [
+                  ForegroundSyncPanel(
+                    state: const ForegroundSyncState(
+                      healthAutoSync: true,
+                      hasHealthSyncAnchor: true,
+                    ),
+                    loading: false,
+                    syncing: false,
+                    healthSyncAvailable: true,
+                    status: null,
+                    onHealthAutoSyncChanged: (_) {},
+                    onSyncNow: () {},
+                    onResetHealthSyncAnchor: () {
+                      resetCalled = true;
+                    },
+                  ),
+                  SourcePanel(
+                    icon: Icons.favorite,
+                    title: 'Health Connect',
+                    description: 'Test description',
+                    count: 5,
+                    connected: true,
+                    busy: false,
+                    hasAnchor: true,
+                    buttonLabel: 'Connect',
+                    onPressed: () {},
+                    onResetAnchor: () {
+                      resetCalled = true;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('reset-sync-anchor-foreground-button')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('reset-health-sync-anchor-button')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('reset-sync-anchor-foreground-button')),
+      );
+      await tester.pumpAndSettle();
+      expect(resetCalled, isTrue);
+    },
+  );
 }
 
 HealthRecord _record(String id) => HealthRecord(
@@ -372,10 +540,42 @@ class _MemorySyncValueStore implements SyncValueStore {
 }
 
 class _FakeHealthImporter extends HealthPlatformImporter {
-  _FakeHealthImporter(this.responses);
+  _FakeHealthImporter(
+    this.responses, {
+    this.changesTokenValue,
+    List<HealthChangesResult>? changesResults,
+  }) : changesResults = changesResults != null
+           ? List<HealthChangesResult>.from(changesResults)
+           : <HealthChangesResult>[];
 
   final List<List<HealthRecord>> responses;
   final sinceValues = <DateTime>[];
+  String? changesTokenValue;
+  final List<HealthChangesResult> changesResults;
+  final changesTokenCalls = <String>[];
+  var getChangesTokenCallCount = 0;
+
+  @override
+  Future<String?> getChangesToken({bool? isAndroid}) async {
+    getChangesTokenCallCount++;
+    return changesTokenValue;
+  }
+
+  @override
+  Future<HealthChangesResult?> importChanges({
+    required String changesToken,
+    ImportProgressCallback? onProgress,
+    bool? isAndroid,
+  }) async {
+    changesTokenCalls.add(changesToken);
+    onProgress?.call(
+      const ImportProgress(fraction: 0.5, message: 'Reading test changes'),
+    );
+    if (changesResults.isNotEmpty) {
+      return changesResults.removeAt(0);
+    }
+    return null;
+  }
 
   @override
   Future<List<HealthRecord>> importRecords({

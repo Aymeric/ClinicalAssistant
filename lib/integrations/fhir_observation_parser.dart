@@ -34,17 +34,22 @@ class FhirObservationParser {
       }
     } else if (decoded is List) {
       final records = <HealthRecord>[];
+      final items = <Map<String, dynamic>>[];
       for (final item in decoded) {
         if (item is Map) {
-          final map = Map<String, dynamic>.from(item);
-          final record = _parseResource(
-            map,
-            source: source,
-            sourceId: sourceId ?? source,
-            idPrefix: idPrefix,
-          );
-          if (record != null) records.add(record);
+          items.add(Map<String, dynamic>.from(item));
         }
+      }
+      final panelMappings = _extractPanelMappings(items);
+      for (final map in items) {
+        final record = _parseResource(
+          map,
+          source: source,
+          sourceId: sourceId ?? source,
+          idPrefix: idPrefix,
+          panelMappings: panelMappings,
+        );
+        if (record != null) records.add(record);
       }
       if (records.isNotEmpty) return records;
     }
@@ -65,6 +70,7 @@ class FhirObservationParser {
     final entries = bundle['entry'];
     if (entries is! List) return const [];
 
+    final panelMappings = _extractPanelMappings(entries);
     final records = <HealthRecord>[];
     for (final entry in entries) {
       if (entry is! Map || entry['resource'] is! Map) continue;
@@ -74,12 +80,25 @@ class FhirObservationParser {
         source: source,
         sourceId: sourceId ?? source,
         idPrefix: idPrefix,
+        panelMappings: panelMappings,
       );
       if (record != null) records.add(record);
 
       if (resource['resourceType'] == 'Observation') {
         final components = resource['component'];
         if (components is List) {
+          final isLab = _categorizeObservation(resource) == RecordCategory.lab;
+          final panelData =
+              _resolvePanelForObservation(resource, panelMappings) ??
+              (isLab
+                  ? <String, String>{
+                      'id': resource['id']?.toString() ?? 'obs-panel',
+                      'name': _conceptText(resource['code']),
+                      if (_conceptCode(resource['code']) != null)
+                        'code': _conceptCode(resource['code'])!,
+                    }
+                  : null);
+
           for (var index = 0; index < components.length; index++) {
             final component = components[index];
             if (component is! Map) continue;
@@ -99,6 +118,7 @@ class FhirObservationParser {
               source: source,
               sourceId: sourceId ?? source,
               idPrefix: idPrefix,
+              panelData: panelData,
             );
             if (componentRecord != null) records.add(componentRecord);
           }
@@ -113,15 +133,18 @@ class FhirObservationParser {
     required String source,
     required String sourceId,
     required String idPrefix,
+    Map<String, Map<String, String>> panelMappings = const {},
   }) {
     final type = resource['resourceType']?.toString();
     switch (type) {
       case 'Observation':
+        final panelData = _resolvePanelForObservation(resource, panelMappings);
         return _parseObservation(
           resource,
           source: source,
           sourceId: sourceId,
           idPrefix: idPrefix,
+          panelData: panelData,
         );
       case 'MedicationRequest':
         return _parseMedicationRequest(
@@ -168,6 +191,7 @@ class FhirObservationParser {
     required String source,
     required String sourceId,
     required String idPrefix,
+    Map<String, String>? panelData,
   }) {
     final status = observation['status']?.toString();
     if (status == 'entered-in-error' || status == 'cancelled') return null;
@@ -206,6 +230,11 @@ class FhirObservationParser {
     final recordedAt = _observationDate(observation);
     if (id == null || id.isEmpty || recordedAt == null) return null;
 
+    final sourceData = Map<String, Object?>.from(observation);
+    if (panelData != null) {
+      sourceData['panel'] = panelData;
+    }
+
     return HealthRecord(
       id: '$idPrefix:$sourceId:$id',
       name: name,
@@ -219,7 +248,7 @@ class FhirObservationParser {
       referenceRange: _referenceRange(observation['referenceRange']),
       status: status,
       notes: _notesText(observation['note']),
-      sourceData: Map<String, Object?>.from(observation),
+      sourceData: sourceData,
     );
   }
 
@@ -663,5 +692,99 @@ class FhirObservationParser {
     final val = quantity['value'];
     if (val is num) return formatSensibleNumber(val);
     return formatSensibleValue(val.toString());
+  }
+
+  Map<String, Map<String, String>> _extractPanelMappings(List<dynamic> items) {
+    final panelMap = <String, Map<String, String>>{};
+
+    for (final item in items) {
+      Map<String, dynamic>? resource;
+      if (item is Map) {
+        if (item['resource'] is Map) {
+          resource = Map<String, dynamic>.from(item['resource'] as Map);
+        } else {
+          resource = Map<String, dynamic>.from(item);
+        }
+      }
+      if (resource == null) continue;
+
+      final resourceType = resource['resourceType']?.toString();
+      if (resourceType == 'DiagnosticReport') {
+        final name = _conceptText(resource['code']);
+        final code = _conceptCode(resource['code']);
+        final panelId = resource['id']?.toString() ?? 'report-${name.hashCode}';
+        final panelName = name.isNotEmpty ? name : 'Diagnostic Report';
+        final panelInfo = <String, String>{
+          'id': panelId,
+          'name': panelName,
+          'code': ?code,
+        };
+
+        final results = resource['result'];
+        if (results is List) {
+          for (final resRef in results) {
+            if (resRef is Map) {
+              final ref = resRef['reference']?.toString();
+              if (ref != null && ref.isNotEmpty) {
+                _registerPanelRef(panelMap, ref, panelInfo);
+              }
+            }
+          }
+        }
+      } else if (resourceType == 'Observation') {
+        final hasMember = resource['hasMember'];
+        if (hasMember is List && hasMember.isNotEmpty) {
+          final name = _conceptText(resource['code']);
+          final code = _conceptCode(resource['code']);
+          final panelId =
+              resource['id']?.toString() ?? 'panel-${name.hashCode}';
+          final panelName = name.isNotEmpty ? name : 'Observation Panel';
+          final panelInfo = <String, String>{
+            'id': panelId,
+            'name': panelName,
+            'code': ?code,
+          };
+
+          for (final memberRef in hasMember) {
+            if (memberRef is Map) {
+              final ref = memberRef['reference']?.toString();
+              if (ref != null && ref.isNotEmpty) {
+                _registerPanelRef(panelMap, ref, panelInfo);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return panelMap;
+  }
+
+  void _registerPanelRef(
+    Map<String, Map<String, String>> panelMap,
+    String ref,
+    Map<String, String> panelInfo,
+  ) {
+    panelMap[ref] = panelInfo;
+    if (ref.startsWith('#')) {
+      panelMap[ref.substring(1)] = panelInfo;
+    }
+    if (ref.startsWith('Observation/')) {
+      panelMap[ref.substring('Observation/'.length)] = panelInfo;
+    }
+    if (ref.startsWith('urn:uuid:')) {
+      panelMap[ref.substring('urn:uuid:'.length)] = panelInfo;
+    }
+  }
+
+  Map<String, String>? _resolvePanelForObservation(
+    Map<String, dynamic> observation,
+    Map<String, Map<String, String>> panelMappings,
+  ) {
+    final id = observation['id']?.toString();
+    if (id == null) return null;
+    return panelMappings[id] ??
+        panelMappings['Observation/$id'] ??
+        panelMappings['urn:uuid:$id'];
   }
 }

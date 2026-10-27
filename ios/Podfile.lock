@@ -7,6 +7,9 @@ PODS:
     - AppAuth/Core
   - device_info_plus (0.0.1):
     - Flutter
+  - file_picker_darwin (1.0.0):
+    - Flutter
+    - FlutterMacOS
   - Flutter (1.0.0)
   - flutter_appauth (0.0.1):
     - AppAuth (= 2.1.0)
@@ -25,6 +28,7 @@ PODS:
 
 DEPENDENCIES:
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
+  - file_picker_darwin (from `.symlinks/plugins/file_picker_darwin/darwin`)
   - Flutter (from `Flutter`)
   - flutter_appauth (from `.symlinks/plugins/flutter_appauth/ios`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
@@ -40,6 +44,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   device_info_plus:
     :path: ".symlinks/plugins/device_info_plus/ios"
+  file_picker_darwin:
+    :path: ".symlinks/plugins/file_picker_darwin/darwin"
   Flutter:
     :path: Flutter
   flutter_appauth:
@@ -58,6 +64,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   AppAuth: ef4da5a3fc2e10b90c09a0a94a9baeaedc0341d5
   device_info_plus: bf2e3232933866d73fe290f2942f2156cdd10342
+  file_picker_darwin: 27e043831d68462d54f1c40e724b1f53c9d1e8be
   Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   flutter_appauth: 0ead1975417b9c3be9fdf4d6ac7b749cfaf7804f
   flutter_local_notifications: eda81afddbf18f8589f6ec069ce593c4c6378769
