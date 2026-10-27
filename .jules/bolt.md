@@ -21,3 +21,7 @@
 ## 2026-10-24 - Pre-compute workout window boundaries and map lookups for activity sample aggregation
 **Learning:** During health data imports, associating activity samples with workouts executed `workouts.where().toList()` and recalculated workout start/end `DateTime`s in UTC and max duration bounds on every activity sample point. With thousands of activity samples, this incurred O(N * M) redundant `DateTime` conversions and array allocations.
 **Action:** Pre-compute workout window boundaries (`_WorkoutWindow`) and map workouts by UUID once prior to the activity sample iteration loop.
+
+## 2026-10-24 - Fast-path substring check before regex execution and single-pass category aggregation
+**Learning:** Model property getters like `HealthRecord.measurementContext` that instantiate `RegExp` per call create regex allocation overhead across rendering, filtering, and chart inspection. Fast-path checking for substring presence (e.g. `notes.toLowerCase().contains('context')`) before executing a static `RegExp` instance avoids regex parsing completely for non-matching strings. Additionally, performing category count aggregation in a single pass over series eliminates O(C * N) linear list scans when building category chips.
+**Action:** Always compile regex patterns statically and use fast-path substring checks before running `RegExp.firstMatch` in model getters, and aggregate category counts in a single Map pass.
