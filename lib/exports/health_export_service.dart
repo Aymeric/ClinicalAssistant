@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
 import '../trends/health_trend.dart';
@@ -386,13 +387,23 @@ class HealthExportService {
     final flaggedSeriesIds = outOfRangeLabs
         .map((summary) => healthTrendSeriesId(summary.latest.record))
         .toSet();
-    final otherLabs = ordered
-        .where(
-          (record) =>
-              record.category == RecordCategory.lab &&
-              !flaggedSeriesIds.contains(healthTrendSeriesId(record)),
-        )
-        .toList();
+    final otherLabs =
+        ordered
+            .where(
+              (record) =>
+                  record.category == RecordCategory.lab &&
+                  !flaggedSeriesIds.contains(healthTrendSeriesId(record)),
+            )
+            .toList()
+          ..sort((a, b) {
+            final dateCmp = b.recordedAt.compareTo(a.recordedAt);
+            if (dateCmp != 0) return dateCmp;
+            final aPanel = extractRecordPanelInfo(a)?.name ?? '';
+            final bPanel = extractRecordPanelInfo(b)?.name ?? '';
+            final panelCmp = aPanel.compareTo(bPanel);
+            if (panelCmp != 0) return panelCmp;
+            return a.name.compareTo(b.name);
+          });
 
     final medications = ordered
         .where((r) => r.category == RecordCategory.medication)
@@ -530,6 +541,10 @@ class HealthExportService {
               data: outOfRangeLabs.map((summary) {
                 final record = summary.latest.record;
                 final previous = summary.previous;
+                final panelInfo = extractRecordPanelInfo(record);
+                final testName = panelInfo != null
+                    ? '${record.name} (${panelInfo.name})'
+                    : record.name;
                 final flag = summary.latestStatus == HealthReferenceStatus.above
                     ? 'HIGH'
                     : 'LOW';
@@ -542,7 +557,7 @@ class HealthExportService {
                       ].join('\n');
                 return [
                   _formatDate(record.recordedAt),
-                  record.name,
+                  testName,
                   '${record.displayValue} ($flag)',
                   (record.referenceRange ?? '-').replaceAll('–', '-'),
                   previousContext,
@@ -665,18 +680,19 @@ class HealthExportService {
                 'Reference Range',
                 'Source',
               ],
-              data: otherLabs
-                  .take(12)
-                  .map(
-                    (record) => [
-                      _formatDate(record.recordedAt),
-                      record.name,
-                      record.displayValue,
-                      (record.referenceRange ?? '-').replaceAll('–', '-'),
-                      record.source,
-                    ],
-                  )
-                  .toList(),
+              data: otherLabs.take(12).map((record) {
+                final panelInfo = extractRecordPanelInfo(record);
+                final testName = panelInfo != null
+                    ? '${record.name} (${panelInfo.name})'
+                    : record.name;
+                return [
+                  _formatDate(record.recordedAt),
+                  testName,
+                  record.displayValue,
+                  (record.referenceRange ?? '-').replaceAll('–', '-'),
+                  record.source,
+                ];
+              }).toList(),
               headerStyle: pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,
                 color: PdfColors.white,

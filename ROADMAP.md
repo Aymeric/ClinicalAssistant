@@ -96,10 +96,10 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
 - [x] **FHIR Export Preflight** ([#120](https://github.com/Aymeric/ClinicalAssistant/issues/120)):
   - [x] Validate exported Bundles against a declared supported FHIR release/profile and summarize included resources and warnings before sharing.
   - [x] Keep validation local, preserve source records, and avoid implying universal provider acceptance.
-- [ ] **Grouped Clinical Lab Panels & Multi-Analyte Entry** ([#130](https://github.com/Aymeric/ClinicalAssistant/issues/130)):
-  - Preserve FHIR panel membership (`Observation.hasMember`, `DiagnosticReport.result`, or standard LOINC panel codes) and group same-source, same-timestamp panel analytes (such as CBC, CMP, BMP, Lipid, and Thyroid panels) in the records list and PDF summaries.
-  - Provide collapsible panel headers showing panel name, date, source, analyte count, and out-of-range summary while expanding to individual analyte rows and source reference ranges.
-  - Support multi-analyte panel entry in a single manual form while saving each analyte as a distinct record so individual analyte trend series continue to work unchanged.
+- [x] **Grouped Clinical Lab Panels & Multi-Analyte Entry** ([#130](https://github.com/Aymeric/ClinicalAssistant/issues/130)):
+  - [x] Preserve FHIR panel membership (`Observation.hasMember`, `DiagnosticReport.result`, or standard LOINC panel codes) and group same-source, same-timestamp panel analytes (such as CBC, CMP, BMP, Lipid, and Thyroid panels) in the records list and PDF summaries.
+  - [x] Provide collapsible panel headers showing panel name, date, source, analyte count, and out-of-range summary while expanding to individual analyte rows and source reference ranges.
+  - [x] Support multi-analyte panel entry in a single manual form while saving each analyte as a distinct record so individual analyte trend series continue to work unchanged.
 - [x] **Source-Scoped Exports & Privacy Redaction Controls** ([#131](https://github.com/Aymeric/ClinicalAssistant/issues/131)):
   - Expose source selection and measurement search filtering on the Export screen so patients can scope exports to chosen sources and measurements.
   - Provide explicit privacy toggles to include or omit personal record notes and raw `sourceData` JSON payloads in CSV, PDF, text, and FHIR exports without altering stored vault data.

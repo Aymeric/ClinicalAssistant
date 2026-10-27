@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../guidelines/clinical_guideline_catalog.dart';
+import '../../models/clinical_panel.dart';
 import '../../models/health_record.dart';
 import '../../sync/import_progress.dart';
 import '../../trends/health_trend.dart';
@@ -454,6 +455,279 @@ class RecordRow extends StatelessWidget {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ClinicalPanelCard extends StatefulWidget {
+  const ClinicalPanelCard({
+    super.key,
+    required this.panel,
+    required this.isLast,
+    this.onTapRecord,
+    this.initiallyExpanded = false,
+  });
+
+  final ClinicalPanel panel;
+  final bool isLast;
+  final ValueChanged<HealthRecord>? onTapRecord;
+  final bool initiallyExpanded;
+
+  @override
+  State<ClinicalPanelCard> createState() => _ClinicalPanelCardState();
+}
+
+class _ClinicalPanelCardState extends State<ClinicalPanelCard> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final color = categoryColor(RecordCategory.lab, colors);
+    final outOfRange = widget.panel.outOfRangeCount;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 40,
+            child: Column(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  margin: const EdgeInsets.only(top: 12),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                if (!widget.isLast)
+                  Container(
+                    width: 1,
+                    height: _expanded
+                        ? (60.0 + widget.panel.records.length * 48.0)
+                        : 60,
+                    margin: const EdgeInsets.only(top: 4),
+                    color: colors.outlineVariant,
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: outOfRange > 0
+                      ? colors.error.withValues(alpha: 0.5)
+                      : colors.outlineVariant,
+                ),
+              ),
+              color: colors.surfaceContainerLow,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.table_rows_outlined,
+                            size: 20,
+                            color: color,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.panel.name,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.secondaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${widget.panel.analyteCount} tests',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colors.onSecondaryContainer,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                          if (outOfRange > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.errorContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 13,
+                                    color: colors.onErrorContainer,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '$outOfRange out of range',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: colors.onErrorContainer,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: Icon(
+                              _expanded ? Icons.expand_less : Icons.expand_more,
+                            ),
+                            tooltip: _expanded
+                                ? 'Collapse panel'
+                                : 'Expand panel',
+                            onPressed: () =>
+                                setState(() => _expanded = !_expanded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${formatRecordDate(widget.panel.recordedAt)}  ·  ${widget.panel.source}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      if (_expanded) ...[
+                        const SizedBox(height: 12),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+                        for (final record in widget.panel.records)
+                          _buildAnalyteRow(context, record, colors),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyteRow(
+    BuildContext context,
+    HealthRecord record,
+    ColorScheme colors,
+  ) {
+    HealthReferenceStatus? status;
+    if (record.referenceRange != null && record.referenceRange!.isNotEmpty) {
+      final range = HealthReferenceRange.tryParse(record.referenceRange);
+      final numVal = parseHealthRecordValue(record.value);
+      if (range != null && numVal != null) {
+        status = range.evaluate(numVal);
+      }
+    }
+    final isOutOfRange =
+        status == HealthReferenceStatus.above ||
+        status == HealthReferenceStatus.below;
+
+    return InkWell(
+      key: ValueKey('clinical-panel-analyte-${record.name}'),
+      onTap: widget.onTapRecord != null
+          ? () => widget.onTapRecord!(record)
+          : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    record.name,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (record.referenceRange != null &&
+                      record.referenceRange!.isNotEmpty)
+                    Text(
+                      'Ref: ${record.referenceRange}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.outline,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (isOutOfRange) ...[
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.errorContainer,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  status == HealthReferenceStatus.above ? 'High' : 'Low',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onErrorContainer,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
+            Text(
+              record.displayValue,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 16, color: colors.outlineVariant),
           ],
         ),
       ),
