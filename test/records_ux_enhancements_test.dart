@@ -322,4 +322,39 @@ void main() {
     expect(find.byTooltip('Hide raw FHIR source data'), findsOneWidget);
     expect(find.textContaining('Observation'), findsOneWidget);
   });
+
+  testWidgets('RecordRow renders accessible Semantics with consolidated label', (
+    tester,
+  ) async {
+    final record = HealthRecord(
+      id: 'lab:high_chol',
+      name: 'Total Cholesterol',
+      value: '240',
+      unit: 'mg/dL',
+      referenceRange: '< 200 mg/dL',
+      recordedAt: DateTime.utc(2025, 5, 10),
+      category: RecordCategory.lab,
+      source: 'LabCorp',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RecordRow(record: record, isLast: true, onTap: () {}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final semanticsFinder = find.byWidgetPredicate(
+      (w) =>
+          w is Semantics &&
+          w.properties.button == true &&
+          (w.properties.label?.contains(
+                'Total Cholesterol, 240 mg/dL, Out of range: High, Labs, Recorded 2025-05-10, Source LabCorp',
+              ) ??
+              false),
+    );
+    expect(semanticsFinder, findsOneWidget);
+  });
 }
