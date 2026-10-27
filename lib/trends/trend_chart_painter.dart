@@ -62,17 +62,34 @@ class TrendChartPainter extends CustomPainter {
       size.width - right < left + 1 ? left + 1 : size.width - right,
       size.height - bottom < top + 1 ? top + 1 : size.height - bottom,
     );
-    final values = [
-      ...points.map((point) => point.value),
-      if (secondaryPoints != null) ...secondaryPoints!.map((p) => p.value),
-      ...averages,
-      for (final mark in referenceMarks) ?mark.range.lowerBound,
-      for (final mark in referenceMarks) ?mark.range.upperBound,
-      if (referenceBand?.lowerBound != null) referenceBand!.lowerBound!,
-      if (referenceBand?.upperBound != null) referenceBand!.upperBound!,
-    ];
-    var minimum = values.reduce((a, b) => a < b ? a : b);
-    var maximum = values.reduce((a, b) => a > b ? a : b);
+    // Compute value bounds in a single pass across primary series, secondary
+    // series, moving averages, and reference bounds without heap list allocations.
+    var minimum = double.infinity;
+    var maximum = -double.infinity;
+
+    void updateBounds(double value) {
+      if (value < minimum) minimum = value;
+      if (value > maximum) maximum = value;
+    }
+
+    for (var index = 0; index < points.length; index++) {
+      updateBounds(points[index].value);
+    }
+    if (secondaryPoints != null) {
+      for (var index = 0; index < secondaryPoints!.length; index++) {
+        updateBounds(secondaryPoints![index].value);
+      }
+    }
+    for (var index = 0; index < averages.length; index++) {
+      updateBounds(averages[index]);
+    }
+    for (var index = 0; index < referenceMarks.length; index++) {
+      final mark = referenceMarks[index];
+      if (mark.range.lowerBound case final lower?) updateBounds(lower);
+      if (mark.range.upperBound case final upper?) updateBounds(upper);
+    }
+    if (referenceBand?.lowerBound case final lower?) updateBounds(lower);
+    if (referenceBand?.upperBound case final upper?) updateBounds(upper);
     final padding = maximum == minimum
         ? math.max(maximum.abs() * 0.06, 0.5)
         : (maximum - minimum) * 0.12;
@@ -262,16 +279,16 @@ class TrendChartPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
       final secLine = Path();
-      final secIndexes =
-          secondaryIndexes ?? List.generate(secondaryPoints!.length, (i) => i);
       final secTotal = secondaryIndexes != null
           ? totalPoints
           : secondaryPoints!.length;
       for (var index = 0; index < secondaryPoints!.length; index++) {
+        final pointIndex = secondaryIndexes != null
+            ? secondaryIndexes![index]
+            : index;
         final secOffset = Offset(
           plot.left +
-              (secTotal <= 1 ? 0.5 : secIndexes[index] / (secTotal - 1)) *
-                  plot.width,
+              (secTotal <= 1 ? 0.5 : pointIndex / (secTotal - 1)) * plot.width,
           plot.bottom -
               (secondaryPoints![index].value - minimum) /
                   (maximum - minimum) *
@@ -287,9 +304,12 @@ class TrendChartPainter extends CustomPainter {
       final secMarkerPaint = Paint()..color = secColor;
       for (var index = 0; index < secondaryPoints!.length; index++) {
         if (index % 8 == 0 || index == secondaryPoints!.length - 1) {
+          final pointIndex = secondaryIndexes != null
+              ? secondaryIndexes![index]
+              : index;
           final secOffset = Offset(
             plot.left +
-                (secTotal <= 1 ? 0.5 : secIndexes[index] / (secTotal - 1)) *
+                (secTotal <= 1 ? 0.5 : pointIndex / (secTotal - 1)) *
                     plot.width,
             plot.bottom -
                 (secondaryPoints![index].value - minimum) /
