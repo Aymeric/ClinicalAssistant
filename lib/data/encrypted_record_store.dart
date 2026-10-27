@@ -168,6 +168,7 @@ class EncryptedRecordStore {
 
     final temporaryFile = File('${file.path}.tmp');
     await temporaryFile.writeAsString(envelopeJson, flush: true);
+    await _restrictFilePermissions(temporaryFile);
     try {
       await temporaryFile.rename(file.path);
     } on FileSystemException {
@@ -176,6 +177,7 @@ class EncryptedRecordStore {
         await temporaryFile.delete();
       } catch (_) {}
     }
+    await _restrictFilePermissions(file);
 
     onProgress?.call(
       const ImportProgress(fraction: 1.0, message: 'Vault updated'),
@@ -234,5 +236,15 @@ class EncryptedRecordStore {
     final appDirectory = directory ?? await LocalVaultDirectory.resolve();
     await appDirectory.create(recursive: true);
     return File('${appDirectory.path}/$_fileName');
+  }
+
+  Future<void> _restrictFilePermissions(File file) async {
+    // Restrict permissions to user read/write only (0600) on POSIX platforms
+    // to safeguard local vault files against local process or multi-user access.
+    if (!Platform.isWindows) {
+      try {
+        await Process.run('chmod', ['600', file.path]);
+      } catch (_) {}
+    }
   }
 }
