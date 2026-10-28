@@ -968,6 +968,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                     suffixIcon: _filterQuery.isEmpty
                         ? null
                         : IconButton(
+                            tooltip: 'Clear search',
                             icon: const Icon(Icons.close, size: 18),
                             onPressed: () {
                               _searchController.clear();

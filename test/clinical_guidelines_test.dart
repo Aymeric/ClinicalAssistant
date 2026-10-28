@@ -662,7 +662,8 @@ void main() {
         expect(find.text('Lifestyle advice across all stages'), findsOneWidget);
 
         // Clear search
-        await tester.tap(find.byIcon(Icons.close));
+        expect(find.byTooltip('Clear search'), findsOneWidget);
+        await tester.tap(find.byTooltip('Clear search'));
         await tester.pumpAndSettle();
 
         // Download from viewer
