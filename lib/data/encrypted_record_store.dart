@@ -60,6 +60,7 @@ class EncryptedRecordStore {
               await tmpFile.copy(file.path);
               await tmpFile.delete();
             }
+            await _restrictFilePermissions(file);
             return recovered;
           } catch (_) {}
         }
@@ -73,6 +74,7 @@ class EncryptedRecordStore {
         await tmpFile.copy(file.path);
         await tmpFile.delete();
       }
+      await _restrictFilePermissions(file);
       return recovered;
     }
 
