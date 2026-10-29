@@ -4,6 +4,7 @@ import 'package:clinical_assistant/controllers/health_data_controller.dart';
 import 'package:clinical_assistant/data/encrypted_record_store.dart';
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/models/manual_medication_details.dart';
+import 'package:clinical_assistant/models/medication_adherence_log.dart';
 import 'package:clinical_assistant/sync/foreground_sync_state.dart';
 import 'package:clinical_assistant/sync/import_progress.dart';
 import 'package:clinical_assistant/ui/medications/medications_page.dart';
@@ -144,6 +145,74 @@ void main() {
       // Medication should now be deleted
       expect(controller.activeMedications.isEmpty, equals(true));
       expect(find.text('Deleted Lisinopril'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'MedicationsPage log count chip presents tooltip, semantics, and opens history sheet on tap',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final now = DateTime.now();
+      final medRecord = HealthRecord(
+        id: 'med-456',
+        name: 'Metformin',
+        category: RecordCategory.medication,
+        value: '500mg',
+        unit: 'twice daily',
+        recordedAt: now,
+        source: 'Manual entry',
+        referenceRange: 'active',
+        sourceData: ManualMedicationDetails(
+          frequency: 'Twice daily',
+          route: 'Oral',
+          adherenceLogs: [
+            MedicationAdherenceLog(
+              id: 'log-1',
+              medicationId: 'med-456',
+              medicationName: 'Metformin',
+              takenAt: now.subtract(const Duration(hours: 2)),
+              notes: 'Taken with breakfast',
+            ),
+          ],
+        ).withSourceData(null),
+      );
+
+      final store = _FakeRecordStore([medRecord]);
+      final controller = HealthDataController(
+        store: store,
+        syncValueStore: _MemorySyncValueStore(),
+      );
+      await controller.load();
+
+      await tester.pumpWidget(
+        MaterialApp(home: MedicationsPage(controller: controller)),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Metformin'), findsOneWidget);
+      expect(find.text('1 dose logged'), findsOneWidget);
+
+      // Verify Tooltip and Semantics for the log count chip
+      final logCountChipTooltip = tester.widget<Tooltip>(
+        find.ancestor(
+          of: find.text('1 dose logged'),
+          matching: find.byType(Tooltip),
+        ),
+      );
+      expect(logCountChipTooltip.message, equals('View adherence history'));
+
+      // Tap log count chip to open adherence history modal
+      await tester.tap(find.text('1 dose logged'));
+      await tester.pumpAndSettle();
+
+      // Verify adherence sheet opens
+      expect(find.text('Metformin Adherence'), findsOneWidget);
+      expect(find.text('Taken with breakfast'), findsOneWidget);
     },
   );
 }
