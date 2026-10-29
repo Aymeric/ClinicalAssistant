@@ -21,6 +21,37 @@ String formatRecordsSpan(List<HealthRecord> records) {
   return '$years yrs';
 }
 
+/// Efficiently selects the top [count] latest records without copying and sorting
+/// the entire list, reducing overhead from O(N log N) to O(N * count) = O(N) time
+/// and eliminating full-array heap allocations during Overview widget builds.
+List<HealthRecord> selectLatestRecords(List<HealthRecord> records, int count) {
+  if (records.isEmpty || count <= 0) return const [];
+  if (records.length <= count) {
+    final copy = List<HealthRecord>.of(records);
+    copy.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    return copy;
+  }
+
+  final result = <HealthRecord>[];
+  for (final record in records) {
+    if (result.length < count) {
+      int pos = result.length;
+      while (pos > 0 && record.recordedAt.isAfter(result[pos - 1].recordedAt)) {
+        pos--;
+      }
+      result.insert(pos, record);
+    } else if (record.recordedAt.isAfter(result.last.recordedAt)) {
+      result.removeLast();
+      int pos = result.length;
+      while (pos > 0 && record.recordedAt.isAfter(result[pos - 1].recordedAt)) {
+        pos--;
+      }
+      result.insert(pos, record);
+    }
+  }
+  return result;
+}
+
 String formatSyncTimestamp(DateTime? value) {
   if (value == null) return 'Not synced yet';
   final local = value.toLocal();
@@ -88,8 +119,8 @@ class OverviewPage extends StatelessWidget {
     final rawSamplesSuffix = rawSamplesCount > records.length
         ? ' ($rawSamplesCount raw samples)'
         : '';
-    final latest = [...records]
-      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    // Find latest 4 records in O(N) pass instead of full list copy and O(N log N) sort.
+    final latestRecentRecords = selectLatestRecords(records, 4);
     final trendSeries = buildHealthTrendSeries(records)
       ..sort((a, b) {
         final latestDateOrder = b.points.last.record.recordedAt.compareTo(
@@ -606,7 +637,7 @@ class OverviewPage extends StatelessWidget {
             )
           else
             RecordLedger(
-              records: latest.take(4).toList(),
+              records: latestRecentRecords,
               onTapRecord: onRecordTap,
             ),
           if (records.isNotEmpty) ...[
