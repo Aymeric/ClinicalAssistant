@@ -597,13 +597,21 @@ class _MedicationsPageState extends State<MedicationsPage> {
                     color: colors.primary,
                   ),
                 if (logCount > 0)
-                  InkWell(
-                    onTap: () => _showAdherenceHistory(med),
-                    borderRadius: BorderRadius.circular(12),
-                    child: _detailPill(
-                      Icons.history,
-                      '$logCount dose${logCount == 1 ? '' : 's'} logged',
-                      colors,
+                  Tooltip(
+                    message: 'View adherence history',
+                    child: Semantics(
+                      button: true,
+                      label:
+                          'View adherence history, $logCount dose${logCount == 1 ? '' : 's'} logged',
+                      child: InkWell(
+                        onTap: () => _showAdherenceHistory(med),
+                        borderRadius: BorderRadius.circular(12),
+                        child: _detailPill(
+                          Icons.history,
+                          '$logCount dose${logCount == 1 ? '' : 's'} logged',
+                          colors,
+                        ),
+                      ),
                     ),
                   ),
               ],
