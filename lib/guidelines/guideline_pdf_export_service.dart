@@ -461,9 +461,22 @@ class GuidelinePdfExportService {
       if (!await target.exists()) {
         await target.create(recursive: true);
       }
+      _restrictDirectoryPermissions(target);
       return target;
     } catch (_) {
-      return Directory.systemTemp.createTempSync('guideline_exports_');
+      final tempDir = Directory.systemTemp.createTempSync('guideline_exports_');
+      _restrictDirectoryPermissions(tempDir);
+      return tempDir;
+    }
+  }
+
+  void _restrictDirectoryPermissions(Directory directory) {
+    // Restrict permissions to user read/write/execute only (0700) on POSIX platforms
+    // to safeguard exported health guideline directories against local process access.
+    if (!Platform.isWindows) {
+      try {
+        Process.runSync('chmod', ['700', directory.path]);
+      } catch (_) {}
     }
   }
 
