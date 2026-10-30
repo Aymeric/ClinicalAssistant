@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'clinical_guideline.dart';
 
+final _filenameSanitizerPattern = RegExp(r'[^a-zA-Z0-9_\-]');
+
 class GuidelineStorageService {
   GuidelineStorageService({
     Directory? storageDirectory,
@@ -40,7 +42,7 @@ class GuidelineStorageService {
   }
 
   File _fileForId(Directory dir, String id) {
-    final sanitizedId = id.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+    final sanitizedId = id.replaceAll(_filenameSanitizerPattern, '_');
     return File('${dir.path}/$sanitizedId.json');
   }
 
@@ -161,7 +163,7 @@ class GuidelineStorageService {
   }
 
   File _notesFile(Directory dir, String id) {
-    final sanitizedId = id.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+    final sanitizedId = id.replaceAll(_filenameSanitizerPattern, '_');
     return File('${dir.path}/notes_$sanitizedId.txt');
   }
 

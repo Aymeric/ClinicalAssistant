@@ -70,10 +70,15 @@ class FhirProviderPreset {
     ),
   ];
 
+  static final _trailingSlashPattern = RegExp(r'/+$');
+
   static FhirProviderPreset? findByBaseUrl(String url) {
-    final cleanUrl = url.trim().replaceAll(RegExp(r'/+$'), '').toLowerCase();
+    final cleanUrl = url
+        .trim()
+        .replaceAll(_trailingSlashPattern, '')
+        .toLowerCase();
     for (final preset in standardPresets) {
-      if (preset.baseUrl.replaceAll(RegExp(r'/+$'), '').toLowerCase() ==
+      if (preset.baseUrl.replaceAll(_trailingSlashPattern, '').toLowerCase() ==
           cleanUrl) {
         return preset;
       }
