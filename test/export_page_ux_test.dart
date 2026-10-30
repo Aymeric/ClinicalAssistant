@@ -46,6 +46,69 @@ void main() {
     expect(deselectedChip.tooltip, equals('Include Vitals in export'));
   });
 
+  testWidgets(
+    'ExportPage date preset choice chips display accessible tooltips',
+    (WidgetTester tester) async {
+      final sampleRecord = HealthRecord(
+        id: 'vital-1',
+        name: 'Heart Rate',
+        category: RecordCategory.vital,
+        value: '72',
+        unit: 'bpm',
+        recordedAt: DateTime.now(),
+        source: 'Test',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ExportPage(
+              records: [sampleRecord],
+              exporting: false,
+              onPdf: (_) {},
+              onFhir: (_) {},
+              onCsv: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      final allChip = tester.widget<ChoiceChip>(
+        find.byKey(const ValueKey('export-date-preset-all')),
+      );
+      expect(allChip.tooltip, equals('Filter exported records from all time'));
+
+      final days30Chip = tester.widget<ChoiceChip>(
+        find.byKey(const ValueKey('export-date-preset-days30')),
+      );
+      expect(
+        days30Chip.tooltip,
+        equals('Filter exported records from last 30 days'),
+      );
+
+      final days90Chip = tester.widget<ChoiceChip>(
+        find.byKey(const ValueKey('export-date-preset-days90')),
+      );
+      expect(
+        days90Chip.tooltip,
+        equals('Filter exported records from last 90 days'),
+      );
+
+      final year1Chip = tester.widget<ChoiceChip>(
+        find.byKey(const ValueKey('export-date-preset-year1')),
+      );
+      expect(
+        year1Chip.tooltip,
+        equals('Filter exported records from last 1 year'),
+      );
+
+      final customChip = tester.widget<ChoiceChip>(
+        find.byKey(const ValueKey('export-date-preset-custom')),
+      );
+      expect(customChip.tooltip, equals('Choose custom date range for export'));
+    },
+  );
+
   testWidgets('ExportPage filters by source chips and search query', (
     WidgetTester tester,
   ) async {

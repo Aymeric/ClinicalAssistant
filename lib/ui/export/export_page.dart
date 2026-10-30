@@ -59,6 +59,17 @@ enum ExportDatePreset {
 
   const ExportDatePreset(this.label);
   final String label;
+
+  String tooltip(DateTimeRange? customRange) => switch (this) {
+    ExportDatePreset.all => 'Filter exported records from all time',
+    ExportDatePreset.days30 => 'Filter exported records from last 30 days',
+    ExportDatePreset.days90 => 'Filter exported records from last 90 days',
+    ExportDatePreset.year1 => 'Filter exported records from last 1 year',
+    ExportDatePreset.custom =>
+      customRange != null
+          ? 'Filter exported records from ${formatRecordDate(customRange.start)} to ${formatRecordDate(customRange.end)}'
+          : 'Choose custom date range for export',
+  };
 }
 
 class _ExportPageState extends State<ExportPage> {
@@ -426,6 +437,7 @@ class _ExportPageState extends State<ExportPage> {
                           : preset.label,
                     ),
                     selected: _datePreset == preset,
+                    tooltip: preset.tooltip(_customDateRange),
                     onSelected: (selected) async {
                       if (!selected) return;
                       if (preset == ExportDatePreset.custom) {
