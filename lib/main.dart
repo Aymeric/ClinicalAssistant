@@ -382,9 +382,11 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     }
   }
 
+  static final _manualBpPattern = RegExp(r'^manual:(sys|dia):(.+)$');
+
   Future<void> _editManualRecords(HealthRecord record) async {
     final recordsToEdit = <HealthRecord>[record];
-    final match = RegExp(r'^manual:(sys|dia):(.+)$').firstMatch(record.id);
+    final match = _manualBpPattern.firstMatch(record.id);
     if (match != null) {
       final siblingType = match[1] == 'sys' ? 'dia' : 'sys';
       final siblingId = 'manual:$siblingType:${match[2]}';

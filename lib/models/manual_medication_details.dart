@@ -1,6 +1,8 @@
 import 'health_record.dart';
 import 'medication_adherence_log.dart';
 
+final _isoDateOnlyPattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
 class ManualMedicationDetails {
   const ManualMedicationDetails({
     required this.frequency,
@@ -42,7 +44,7 @@ class ManualMedicationDetails {
       route: route is String && route.isNotEmpty ? route : null,
       endDate: endDate is String
           ? DateTime.tryParse(
-              RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(endDate)
+              _isoDateOnlyPattern.hasMatch(endDate)
                   ? '${endDate}T00:00:00'
                   : endDate,
             )
