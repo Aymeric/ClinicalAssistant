@@ -661,8 +661,17 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Lifestyle advice across all stages'), findsOneWidget);
 
+        // Verify search clear button tooltip
+        final clearSearchButton = tester.widget<IconButton>(
+          find.descendant(
+            of: find.byKey(const ValueKey('guideline-viewer-search')),
+            matching: find.byType(IconButton),
+          ),
+        );
+        expect(clearSearchButton.tooltip, equals('Clear search'));
+
         // Clear search
-        await tester.tap(find.byIcon(Icons.close));
+        await tester.tap(find.byTooltip('Clear search'));
         await tester.pumpAndSettle();
 
         // Download from viewer
@@ -727,6 +736,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Understanding Evidence Grades'), findsOneWidget);
         expect(find.textContaining('USPSTF Letter Grades'), findsOneWidget);
+        final closeEvidenceButton = tester.widget<IconButton>(
+          find.byKey(const ValueKey('close-evidence-guide-button')),
+        );
+        expect(closeEvidenceButton.tooltip, equals('Close'));
         await tester.tap(
           find.byKey(const ValueKey('close-evidence-guide-button')),
         );
