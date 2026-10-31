@@ -15,6 +15,8 @@ class VaultBackupService {
 
   static const String currentFormat = 'clinical_assistant_vault_backup_v1';
   static const int saltLength = 16;
+  static const int macLength = 16;
+  static const int maxPassphraseLength = 512;
 
   final AesGcm _cipher;
   final Pbkdf2 _kdf;
@@ -32,6 +34,12 @@ class VaultBackupService {
   ) async {
     if (passphrase.trim().length < 6) {
       throw ArgumentError('Passphrase must be at least 6 characters.');
+    }
+    // Security: Bound passphrase length to prevent CPU exhaustion DoS in PBKDF2 derivation.
+    if (passphrase.length > maxPassphraseLength) {
+      throw ArgumentError(
+        'Passphrase cannot exceed $maxPassphraseLength characters.',
+      );
     }
 
     final salt = _generateRandomSalt();
@@ -74,6 +82,12 @@ class VaultBackupService {
   ) async {
     if (passphrase.trim().isEmpty) {
       throw ArgumentError('Passphrase cannot be empty.');
+    }
+    // Security: Bound passphrase length to prevent CPU exhaustion DoS in PBKDF2 derivation.
+    if (passphrase.length > maxPassphraseLength) {
+      throw ArgumentError(
+        'Passphrase cannot exceed $maxPassphraseLength characters.',
+      );
     }
 
     dynamic decoded;
@@ -150,6 +164,21 @@ class VaultBackupService {
       );
     }
 
+    final cipherText = base64Decode(cipherB64);
+    if (cipherText.isEmpty) {
+      throw const FormatException('Missing ciphertext in backup.');
+    }
+
+    // Security: Validate AES-256-GCM authentication tag (MAC) length upfront.
+    // AES-GCM requires a 128-bit (16-byte) tag. Decoding and validating MAC
+    // and ciphertext before PBKDF2 prevents CPU exhaustion DoS attacks on malformed backups.
+    final mac = base64Decode(macB64);
+    if (mac.length < macLength) {
+      throw const FormatException(
+        'Invalid cipher MAC length in backup. Expected at least $macLength bytes.',
+      );
+    }
+
     final kdf = iterations == 100000
         ? _kdf
         : Pbkdf2(
@@ -163,11 +192,7 @@ class VaultBackupService {
       nonce: salt,
     );
 
-    final secretBox = SecretBox(
-      base64Decode(cipherB64),
-      nonce: nonce,
-      mac: Mac(base64Decode(macB64)),
-    );
+    final secretBox = SecretBox(cipherText, nonce: nonce, mac: Mac(mac));
 
     List<int> cleartext;
     try {
