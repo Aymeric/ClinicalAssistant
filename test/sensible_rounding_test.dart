@@ -52,6 +52,8 @@ void main() {
       expect(formatSensibleNumber(-1.50000001), '-1.5');
       expect(formatSensibleNumber(-0.333333), '-0.33');
       expect(formatSensibleNumber(-0.00000000001), '0');
+      expect(formatSensibleNumber(-0.001), '-0.001');
+      expect(formatSensibleNumber(1.000001), '1');
     });
 
     test('handles non-finite values safely', () {

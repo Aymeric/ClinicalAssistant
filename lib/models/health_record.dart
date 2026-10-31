@@ -17,8 +17,6 @@ enum RecordCategory {
 /// - Standard numbers use at most [maxDecimals] decimal places (default 2, e.g. `98.6`, `120.25`).
 /// - Small decimal values (< 0.1) allow up to 3 or 4 decimals so values like `0.005` aren't rounded to 0.
 /// - Trailing zeros after the decimal point are trimmed (e.g. `4.10` -> `4.1`).
-final _trailingZerosPattern = RegExp(r'0+$');
-final _trailingDotPattern = RegExp(r'\.$');
 final _groupedNumberPattern = RegExp(
   r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
 );
@@ -28,6 +26,9 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
   if (!value.isFinite) return value.toString();
   if (value == 0) return '0';
 
+  // Fast-path integers directly without floating-point arithmetic or regexes.
+  if (value is int) return value.toString();
+
   final rounded = value.roundToDouble();
   if ((value - rounded).abs() < 1e-9) {
     return rounded.toInt().toString();
@@ -36,11 +37,20 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
   final absVal = value.abs();
   final decimals = absVal < 0.01 ? 4 : (absVal < 0.1 ? 3 : maxDecimals);
 
-  var fixed = value.toStringAsFixed(decimals);
-  if (fixed.contains('.')) {
-    fixed = fixed
-        .replaceFirst(_trailingZerosPattern, '')
-        .replaceFirst(_trailingDotPattern, '');
+  final fixed = value.toStringAsFixed(decimals);
+  final dotIndex = fixed.indexOf('.');
+  if (dotIndex != -1) {
+    // Fast string index scanning: trim trailing zeros and dot without RegExp execution or multiple allocations.
+    var end = fixed.length;
+    while (end > dotIndex + 1 && fixed.codeUnitAt(end - 1) == 0x30 /* '0' */ ) {
+      end--;
+    }
+    if (end == dotIndex + 1 && fixed.codeUnitAt(dotIndex) == 0x2E /* '.' */ ) {
+      end = dotIndex;
+    }
+    final trimmed = end == fixed.length ? fixed : fixed.substring(0, end);
+    if (trimmed == '-0') return '0';
+    return trimmed;
   }
 
   if (fixed == '-0') return '0';
