@@ -45,14 +45,11 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
     while (end > dotIndex + 1 && fixed.codeUnitAt(end - 1) == 0x30 /* '0' */ ) {
       end--;
     }
-    if (end > dotIndex && fixed.codeUnitAt(end - 1) == 0x30 /* '0' */ ) {
-      end--;
-    }
-    if (end == dotIndex + 1 && fixed.codeUnitAt(end - 1) == 0x2E /* '.' */ ) {
+    if (end == dotIndex + 1 && fixed.codeUnitAt(dotIndex) == 0x2E /* '.' */ ) {
       end = dotIndex;
     }
     final trimmed = end == fixed.length ? fixed : fixed.substring(0, end);
-    if (trimmed == '-0' || trimmed == '-0.' || trimmed == '0.') return '0';
+    if (trimmed == '-0') return '0';
     return trimmed;
   }
 
