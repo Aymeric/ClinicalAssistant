@@ -10,6 +10,7 @@ enum RecordCategory {
   allergy,
   immunization,
   coverage,
+  procedure,
 }
 
 /// Formats a numeric value with sensible rounding and decimal limits for health data.

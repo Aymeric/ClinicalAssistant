@@ -19,6 +19,7 @@ String categoryLabel(RecordCategory category) => switch (category) {
   RecordCategory.allergy => 'Allergies',
   RecordCategory.immunization => 'Immunizations',
   RecordCategory.coverage => 'Insurance & Coverage',
+  RecordCategory.procedure => 'Procedures & Surgeries',
 };
 
 String formatRecordDate(DateTime date) {
@@ -44,6 +45,7 @@ IconData categoryIcon(RecordCategory category) => switch (category) {
   RecordCategory.allergy => Icons.warning_amber_outlined,
   RecordCategory.immunization => Icons.vaccines_outlined,
   RecordCategory.coverage => Icons.badge_outlined,
+  RecordCategory.procedure => Icons.healing_outlined,
 };
 
 Color categoryColor(RecordCategory category, ColorScheme colors) {
@@ -59,6 +61,7 @@ Color categoryColor(RecordCategory category, ColorScheme colors) {
     RecordCategory.allergy => Colors.redAccent.shade700,
     RecordCategory.immunization => Colors.cyan.shade700,
     RecordCategory.coverage => Colors.indigo.shade700,
+    RecordCategory.procedure => Colors.teal.shade800,
   };
 }
 

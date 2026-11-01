@@ -10,6 +10,7 @@ import '../../models/clinical_panel.dart';
 import '../../models/coverage_details.dart';
 import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
+import '../../models/procedure_details.dart';
 import '../../safety/critical_safety_evaluator.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
@@ -152,6 +153,7 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
         ? ManualMedicationDetails.fromRecord(record)
         : null;
     final coverageDetails = CoverageDetails.fromRecord(record);
+    final procedureDetails = ProcedureDetails.fromRecord(record);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
@@ -580,6 +582,28 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
                   value: coverageDetails.copays
                       .map((c) => '${c.type}: ${c.amount}')
                       .join(' · '),
+                ),
+            ],
+            if (procedureDetails != null) ...[
+              if (procedureDetails.bodySite != null)
+                DetailLine(
+                  label: 'Anatomical site',
+                  value: procedureDetails.bodySite!,
+                ),
+              if (procedureDetails.outcome != null)
+                DetailLine(
+                  label: 'Procedure outcome',
+                  value: procedureDetails.outcome!,
+                ),
+              if (procedureDetails.performer != null)
+                DetailLine(
+                  label: 'Performer / Surgeon',
+                  value: procedureDetails.performer!,
+                ),
+              if (procedureDetails.reason != null)
+                DetailLine(
+                  label: 'Indication / Reason',
+                  value: procedureDetails.reason!,
                 ),
             ],
             Builder(

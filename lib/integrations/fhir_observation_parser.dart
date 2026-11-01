@@ -363,6 +363,13 @@ class FhirObservationParser {
           sourceId: sourceId,
           idPrefix: idPrefix,
         );
+      case 'Procedure':
+        return _parseProcedure(
+          resource,
+          source: source,
+          sourceId: sourceId,
+          idPrefix: idPrefix,
+        );
       default:
         return null;
     }
@@ -892,6 +899,78 @@ class FhirObservationParser {
       status: status ?? 'active',
       notes: _notesText(coverage['note'] ?? coverage['text']),
       sourceData: Map<String, Object?>.from(coverage),
+    );
+  }
+
+  HealthRecord? _parseProcedure(
+    Map<String, dynamic> procedure, {
+    required String source,
+    required String sourceId,
+    required String idPrefix,
+  }) {
+    final status = procedure['status']?.toString().toLowerCase();
+    if (status == 'entered-in-error' || status == 'not-done') return null;
+
+    final id = procedure['id']?.toString();
+    if (id == null || id.isEmpty) return null;
+
+    final codeObj = procedure['code'];
+    final name = _conceptText(codeObj);
+    if (name.isEmpty) return null;
+
+    // Anatomical location / body site
+    String? bodySite;
+    final rawSite = procedure['bodySite'];
+    if (rawSite is List && rawSite.isNotEmpty) {
+      final first = rawSite.first;
+      if (first is Map) {
+        bodySite = _conceptText(first);
+      }
+    } else if (rawSite is Map) {
+      bodySite = _conceptText(rawSite);
+    }
+
+    // Outcome
+    final rawOutcome = procedure['outcome'];
+    final outcome = rawOutcome is Map ? _conceptText(rawOutcome) : null;
+
+    // Performer
+    final performer = _performerText(procedure['performer']);
+
+    // Build concise, clinical summary value
+    final statusDisplay = status != null ? _capitalize(status) : 'Completed';
+    final parts = <String>[statusDisplay];
+    if (bodySite != null && bodySite.isNotEmpty) {
+      parts.add(bodySite);
+    }
+    if (outcome != null && outcome.isNotEmpty) {
+      parts.add(outcome);
+    } else if (performer != null && performer.isNotEmpty) {
+      parts.add(performer);
+    }
+    final value = parts.join(' · ');
+
+    final recordedAt =
+        _parseFhirDate(procedure['performedDateTime']) ??
+        _parseFhirDate((procedure['performedPeriod'] as Map?)?['start']) ??
+        _parseFhirDate((procedure['performedPeriod'] as Map?)?['end']) ??
+        _parseFhirDate(procedure['occurrenceDateTime']) ??
+        _parseFhirDate((procedure['meta'] as Map?)?['lastUpdated']) ??
+        DateTime.now().toUtc();
+
+    return HealthRecord(
+      id: '$idPrefix:$sourceId:$id',
+      name: name,
+      value: value,
+      unit: '',
+      recordedAt: recordedAt,
+      category: RecordCategory.procedure,
+      source: source,
+      sourceId: sourceId,
+      code: _conceptCode(codeObj),
+      status: status ?? 'completed',
+      notes: _notesText(procedure['note'] ?? procedure['text']),
+      sourceData: Map<String, Object?>.from(procedure),
     );
   }
 

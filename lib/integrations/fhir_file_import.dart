@@ -91,7 +91,7 @@ class FhirFilePreview {
           records: const [],
           resourceCounts: const {},
           error:
-              'No supported clinical resources (Observations, Medications, Conditions, Allergies, Immunizations) were found.',
+              'No supported clinical resources (Observations, Medications, Conditions, Allergies, Immunizations, Procedures, Coverage) were found.',
         );
       }
 
@@ -105,6 +105,7 @@ class FhirFilePreview {
               RecordCategory.allergy => 'AllergyIntolerance',
               RecordCategory.immunization => 'Immunization',
               RecordCategory.coverage => 'Coverage',
+              RecordCategory.procedure => 'Procedure',
               _ => 'Observation',
             };
         counts[resourceType] = (counts[resourceType] ?? 0) + 1;

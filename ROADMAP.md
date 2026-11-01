@@ -73,7 +73,7 @@ Focus: Hardening current functionality, platform compliance, security review, an
 
 Focus: Expanding beyond lab observations to encompass broader clinical history, paper document ingestion, standardized survey instruments, cross-provider reconciliation, and medication safety checks.
 
-- [ ] **Expanded FHIR Resource Ingestion** ([#74](https://github.com/Aymeric/ClinicalAssistant/issues/74)):
+- [x] **Expanded FHIR Resource Ingestion** ([#74](https://github.com/Aymeric/ClinicalAssistant/issues/74)):
   - [x] **Conditions & Diagnoses (`Condition`)**:
     - [x] Ingest active, inactive, and resolved problem lists from SMART-on-FHIR portals and Apple Health Clinical Records.
     - [x] Track clinical status, verification status, onset date, and coded SNOMED CT / ICD-10-CM terminology.
@@ -83,8 +83,8 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
   - [x] **Allergies & Intolerances (`AllergyIntolerance`)**:
     - [x] Record allergen substances (food, medication, environmental), reaction categories, critical severity badges, and manifestation notes.
     - [x] Highlight high-risk anaphylaxis manifestations prominently.
-  - [ ] **Procedures & Interventions (`Procedure`)**:
-    - Historical clinical procedures, surgical interventions, performed dates, and body sites.
+  - [x] **Procedures & Interventions (`Procedure`)**:
+    - [x] Historical clinical procedures, surgical interventions, performed dates, and body sites.
   - [x] **Diagnostic Reports & Clinical Documents (`DiagnosticReport`, `DocumentReference`)**:
     - [x] Ingest diagnostic report summaries and embedded text notes (pathology summaries, radiology narrative impressions).
   - [x] **Health Insurance & Coverage (`Coverage`)** ([#155](https://github.com/Aymeric/ClinicalAssistant/issues/155)):

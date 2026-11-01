@@ -195,6 +195,7 @@ class HealthExportService {
         RecordCategory.allergy => 'Allergies & Intolerances',
         RecordCategory.immunization => 'Immunizations',
         RecordCategory.coverage => 'Insurance & Health Plan Coverage',
+        RecordCategory.procedure => 'Procedures & Surgeries',
       };
 
       buffer.writeln('--- $categoryTitle (${categoryRecords.length}) ---');
@@ -445,6 +446,9 @@ class HealthExportService {
         .toList();
     final coverages = ordered
         .where((r) => r.category == RecordCategory.coverage)
+        .toList();
+    final procedures = ordered
+        .where((r) => r.category == RecordCategory.procedure)
         .toList();
 
     final summaryTitle = switch (effectiveSpecialty) {
@@ -966,6 +970,61 @@ class HealthExportService {
       );
     }
 
+    // Helper to render procedures and surgical history table
+    pw.Widget buildProceduresTable() {
+      if (procedures.isEmpty) return pw.SizedBox();
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Procedures & Surgical History (${procedures.take(8).length})',
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+              color: specialtyHeaderColor,
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          pw.TableHelper.fromTextArray(
+            headers: const [
+              'Procedure / Intervention',
+              'Status / Details',
+              'Date',
+              'Source',
+            ],
+            data: procedures.take(8).map((record) {
+              return [
+                record.name,
+                record.displayValue,
+                _formatDate(record.recordedAt),
+                record.source,
+              ];
+            }).toList(),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+              fontSize: 8,
+            ),
+            headerDecoration: const pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFF004D40),
+            ),
+            cellStyle: const pw.TextStyle(fontSize: 8),
+            cellPadding: const pw.EdgeInsets.symmetric(
+              horizontal: 5,
+              vertical: 4,
+            ),
+            border: pw.TableBorder(
+              horizontalInside: pw.BorderSide(
+                color: PdfColor.fromHex('#E0E0E0'),
+                width: 0.5,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 14),
+        ],
+      );
+    }
+
     // Helper to render patient discussion topics / agenda
     pw.Widget buildQuestionsSection() {
       final combinedAgenda = <String>[
@@ -1296,6 +1355,7 @@ class HealthExportService {
               buildConditionsTable(),
             if (effectiveIncludeAllergies && allergies.isNotEmpty)
               buildAllergiesTable(),
+            if (procedures.isNotEmpty) buildProceduresTable(),
             if (coverages.isNotEmpty) buildCoverageTable(),
             if (effectiveIncludeQuestions) buildQuestionsSection(),
           ] else if (effectiveSpecialty ==
@@ -1316,6 +1376,7 @@ class HealthExportService {
               buildConditionsTable(),
             if (effectiveIncludeAllergies && allergies.isNotEmpty)
               buildAllergiesTable(),
+            if (procedures.isNotEmpty) buildProceduresTable(),
             if (coverages.isNotEmpty) buildCoverageTable(),
             if (effectiveIncludeQuestions) buildQuestionsSection(),
           ] else ...[
@@ -1332,6 +1393,7 @@ class HealthExportService {
               buildConditionsTable(),
             if (effectiveIncludeAllergies && allergies.isNotEmpty)
               buildAllergiesTable(),
+            if (procedures.isNotEmpty) buildProceduresTable(),
             if (coverages.isNotEmpty) buildCoverageTable(),
             if (effectiveIncludeQuestions) buildQuestionsSection(),
           ],
@@ -1401,6 +1463,7 @@ class HealthExportService {
             RecordCategory.allergy => 'Allergy',
             RecordCategory.immunization => 'Immunization',
             RecordCategory.coverage => 'Coverage',
+            RecordCategory.procedure => 'Procedure',
           },
         },
       ],
