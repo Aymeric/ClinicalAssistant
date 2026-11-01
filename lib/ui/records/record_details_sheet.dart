@@ -665,6 +665,11 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
                     .split('.')
                     .first,
               ),
+            if (medicationDetails?.discontinueReason != null)
+              DetailLine(
+                label: 'Discontinue reason',
+                value: medicationDetails!.discontinueReason!,
+              ),
             if (record.code != null)
               DetailLine(label: 'Code', value: record.code!),
             if (record.sourceId != null)

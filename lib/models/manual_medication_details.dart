@@ -6,6 +6,7 @@ class ManualMedicationDetails {
     required this.frequency,
     this.route,
     this.endDate,
+    this.discontinueReason,
     this.adherenceLogs = const [],
   });
 
@@ -14,6 +15,7 @@ class ManualMedicationDetails {
   final String frequency;
   final String? route;
   final DateTime? endDate;
+  final String? discontinueReason;
   final List<MedicationAdherenceLog> adherenceLogs;
 
   factory ManualMedicationDetails.fromRecord(HealthRecord record) {
@@ -25,6 +27,7 @@ class ManualMedicationDetails {
     final frequency = raw['frequency'];
     final route = raw['route'];
     final endDate = raw['endDate'];
+    final discontinueReason = raw['discontinueReason']?.toString().trim();
     final rawLogs = raw['adherenceLogs'];
     final logs = <MedicationAdherenceLog>[];
     if (rawLogs is List) {
@@ -47,6 +50,10 @@ class ManualMedicationDetails {
                   : endDate,
             )
           : null,
+      discontinueReason:
+          discontinueReason != null && discontinueReason.isNotEmpty
+          ? discontinueReason
+          : null,
       adherenceLogs: logs,
     );
   }
@@ -56,12 +63,14 @@ class ManualMedicationDetails {
       frequency: frequency,
       route: route,
       endDate: endDate,
+      discontinueReason: discontinueReason,
       adherenceLogs: [...adherenceLogs, log],
     );
   }
 
   Map<String, Object?> withSourceData(Map<String, Object?>? sourceData) {
     final end = endDate;
+    final reason = discontinueReason;
     return {
       ...?sourceData,
       sourceDataKey: {
@@ -70,6 +79,7 @@ class ManualMedicationDetails {
         if (end != null)
           'endDate':
               '${end.year.toString().padLeft(4, '0')}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}',
+        if (reason != null && reason.isNotEmpty) 'discontinueReason': reason,
         if (adherenceLogs.isNotEmpty)
           'adherenceLogs': adherenceLogs.map((l) => l.toJson()).toList(),
       },

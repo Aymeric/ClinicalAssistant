@@ -65,12 +65,15 @@ List<HealthRecord> applyManualRecordEdits(
       if (!const {
         'active',
         'stopped',
+        'discontinued',
         'on-hold',
         'completed',
       }.contains(edit.status)) {
         throw StateError('Medication status is not supported.');
       }
-      if ((edit.status == 'stopped' || edit.status == 'completed') &&
+      if ((edit.status == 'stopped' ||
+              edit.status == 'discontinued' ||
+              edit.status == 'completed') &&
           details.endDate == null) {
         throw StateError('Stopped medications need an end date.');
       }

@@ -82,6 +82,7 @@ class FhirExportValidator {
     'entered-in-error',
     'intended',
     'stopped',
+    'discontinued',
     'on-hold',
     'unknown',
     'not-taken',

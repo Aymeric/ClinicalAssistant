@@ -179,6 +179,140 @@ class _MedicationsPageState extends State<MedicationsPage> {
     }
   }
 
+  Future<void> _showDiscontinueDialog(HealthRecord med) async {
+    DateTime chosenDate = DateTime.now();
+    String selectedReason = 'Completed prescribed course';
+    final customReasonController = TextEditingController();
+    bool isCustom = false;
+
+    const commonReasons = [
+      'Completed prescribed course',
+      'Adverse reaction / side effect',
+      'Changed or replaced by prescriber',
+      'Ineffective / no longer needed',
+      'Other reason',
+    ];
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Discontinue ${med.name}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Record the effective date and clinical reason for stopping this medication:',
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_today_outlined),
+                  title: const Text('Effective Stop Date'),
+                  subtitle: Text(
+                    MaterialLocalizations.of(ctx).formatMediumDate(chosenDate),
+                  ),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: chosenDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) {
+                        setDialogState(() => chosenDate = picked);
+                      }
+                    },
+                    child: const Text('Change'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Reason for Discontinuing',
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedReason,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                  items: commonReasons.map((reason) {
+                    return DropdownMenuItem<String>(
+                      value: reason,
+                      child: Text(reason, overflow: TextOverflow.ellipsis),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() {
+                        selectedReason = val;
+                        isCustom = val == 'Other reason';
+                      });
+                    }
+                  },
+                ),
+                if (isCustom) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: customReasonController,
+                    decoration: const InputDecoration(
+                      labelText: 'Specify reason',
+                      hintText: 'e.g. Switched to alternative therapy',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              child: const Text('Discontinue'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final effectiveReason =
+          isCustom && customReasonController.text.trim().isNotEmpty
+          ? customReasonController.text.trim()
+          : selectedReason;
+
+      await widget.controller.updateMedicationStatus(
+        med,
+        'discontinued',
+        endDate: chosenDate,
+        discontinueReason: effectiveReason,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${med.name} marked discontinued ($effectiveReason)'),
+          ),
+        );
+      }
+    }
+  }
+
   void _showAdherenceHistory(HealthRecord med) {
     final details = ManualMedicationDetails.fromRecord(med);
     final logs = [...details.adherenceLogs]
@@ -490,10 +624,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
                         'paused',
                       );
                     } else if (action == 'discontinue') {
-                      await widget.controller.updateMedicationStatus(
-                        med,
-                        'discontinued',
-                      );
+                      await _showDiscontinueDialog(med);
                     } else if (action == 'reactivate') {
                       await widget.controller.updateMedicationStatus(
                         med,
@@ -605,6 +736,19 @@ class _MedicationsPageState extends State<MedicationsPage> {
                       '$logCount dose${logCount == 1 ? '' : 's'} logged',
                       colors,
                     ),
+                  ),
+                if (!isActive && details.endDate != null)
+                  _detailPill(
+                    Icons.event_busy,
+                    'Stopped: ${MaterialLocalizations.of(context).formatShortDate(details.endDate!.toLocal())}',
+                    colors,
+                    color: colors.error,
+                  ),
+                if (!isActive && details.discontinueReason != null)
+                  _detailPill(
+                    Icons.info_outline,
+                    details.discontinueReason!,
+                    colors,
                   ),
               ],
             ),

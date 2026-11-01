@@ -738,16 +738,21 @@ class HealthDataController extends ChangeNotifier {
     HealthRecord med,
     String newStatus, {
     DateTime? endDate,
+    String? discontinueReason,
   }) async {
     final details = ManualMedicationDetails.fromRecord(med);
+    final isClearingEnd = newStatus == 'active' || newStatus == 'on-hold';
     final updatedDetails = ManualMedicationDetails(
       frequency: details.frequency.trim().isEmpty
           ? 'As directed'
           : details.frequency,
       route: details.route,
-      endDate: (newStatus == 'active' || newStatus == 'on-hold')
+      endDate: isClearingEnd ? null : (endDate ?? DateTime.now()),
+      discontinueReason: isClearingEnd
           ? null
-          : (endDate ?? DateTime.now()),
+          : (discontinueReason?.trim().isNotEmpty == true
+                ? discontinueReason!.trim()
+                : details.discontinueReason),
       adherenceLogs: details.adherenceLogs,
     );
     final updatedRecord = med.copyWith(

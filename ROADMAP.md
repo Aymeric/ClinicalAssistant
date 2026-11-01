@@ -139,7 +139,7 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
   - [ ] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
   - [ ] Log medication adherence history against prescribed regimens.
-  - [ ] Discontinue / archive medications with reason annotations and date effective.
+  - [x] Discontinue / archive medications with reason annotations and date effective.
 - [ ] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
   - [ ] **Cross-Provider Record Reconciliation**:
     - Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
