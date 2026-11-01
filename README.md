@@ -12,9 +12,18 @@ or CSV.
   original source data, including available workout-route samples, in the
   encrypted on-device vault. Apple-only clinical lab imports remain supported.
 - Connects to a patient portal that exposes a SMART-on-FHIR endpoint and imports
-  laboratory `Observation` resources, including result panels. Users can also directly
+  laboratory observations, diagnostic reports, conditions, medications, allergies,
+  immunizations, and health insurance coverage policies. Users can also directly
   import local FHIR JSON files (single or multiple) with live resource count previews
   and atomic pre-validation.
+- Groups clinical lab panels (such as CBC, CMP, BMP, Lipid, and Thyroid panels) preserving
+  analyte relationships, reference ranges, and diagnostic performer details, while supporting
+  rapid multi-analyte entry.
+- Provides a Doctor Visit Preparation Wizard and tailored consultation summaries (Cardiology,
+  Endocrinology, Annual Wellness) complete with discussion agendas, out-of-range highlights,
+  and offline insurance policy cards.
+- Evaluates critical safety indicators on vital and lab readings using recognized clinical thresholds,
+  providing clear, non-diagnostic visual badges for readings requiring urgent medical attention.
 - Tracks per-source import history and coverage, displaying local sync outcomes, last-checked
   timestamps, record counts, and observed date coverage across all connected sources.
 - Preserves the source, date, units, status, and original FHIR resource where

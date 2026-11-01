@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.4.0 - 2026-11-01
+
+### Added
+
+- Health Insurance & Coverage ingestion (`Coverage`) from SMART-on-FHIR provider endpoints and Apple Health Clinical Records (`HKClinicalTypeIdentifier.coverageRecord`), featuring structured plan details, subscriber ID, group number, copays, deductibles, and an offline policy summary card ([#155](https://github.com/Aymeric/ClinicalAssistant/issues/155)).
+- Multi-resource FHIR ingestion expanding coverage to `Condition`, `MedicationRequest`, `AllergyIntolerance`, `Immunization`, and `DiagnosticReport` across provider portals and Apple Health Clinical Records ([#74](https://github.com/Aymeric/ClinicalAssistant/issues/74)).
+- Grouped clinical lab panels and multi-analyte entry support, preserving panel membership (`Observation.hasMember`, `DiagnosticReport.result`) and grouping same-source, same-timestamp analytes (CBC, CMP, BMP, Lipid, Thyroid) with collapsible headers and out-of-range indicators ([#130](https://github.com/Aymeric/ClinicalAssistant/issues/130)).
+- Interactive Doctor Visit Preparation Wizard UI and tailored specialty PDF consultation summaries (Cardiology, Endocrinology & Diabetes, Annual Wellness) with patient discussion agendas and customizable note prompts ([#81](https://github.com/Aymeric/ClinicalAssistant/issues/81)).
+- Clinical specialty group filtering across records and trends, allowing focused exploration of cardiovascular, endocrine, metabolic, renal, and wellness records.
+- Critical-value safety evaluator and visual badges for high-risk biometric readings (systolic/diastolic blood pressure, glucose, resting heart rate, oxygen saturation, potassium, sodium, calcium, hemoglobin, platelets) based on established clinical guidelines ([#79](https://github.com/Aymeric/ClinicalAssistant/issues/79)).
+- Customizable resting heart rate safety profiles and threshold preferences (General Adult, Athletic, Bradycardia/Tachycardia custom thresholds).
+- Native Apple Watch ECG classification and Heart Rate Variability (SDNN) ingestion into encrypted vault with diagnostic neutrality disclosures.
+
+### Changed
+
+- Automatically normalize raw decimal fraction health percentages and blood oxygen values (e.g., `0.98` converted to `98%`).
+- Include health insurance and plan details in clinical consultation summary PDFs without off-device transmission.
+
+### Security and reliability
+
+- Restrict vault file permissions on POSIX systems (`chmod 0600`) ([#135](https://github.com/Aymeric/ClinicalAssistant/issues/135)).
+- Add extensive constant-time comparison security test suites for cryptographic authentication and PIN verification ([#137](https://github.com/Aymeric/ClinicalAssistant/issues/137)).
+- Optimize trend chart painter bounds, index loops, and workout activity aggregation hot paths ([#134](https://github.com/Aymeric/ClinicalAssistant/issues/134), [#138](https://github.com/Aymeric/ClinicalAssistant/issues/138)).
+
+### Usability and accessibility
+
+- Add accessible Tooltips and Semantics to pinned metric cards ([#136](https://github.com/Aymeric/ClinicalAssistant/issues/136)).
+- Improve accessibility for health record rows with consolidated Semantics announcements ([#139](https://github.com/Aymeric/ClinicalAssistant/issues/139)).
+
 ## 0.3.0 - 2026-10-26
 
 ### Added
