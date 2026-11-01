@@ -12,6 +12,7 @@ import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
 import '../../models/procedure_details.dart';
 import '../../safety/critical_safety_evaluator.dart';
+import '../../terminology/cross_provider_reconciler.dart';
 import '../../terminology/loinc_dictionary.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
@@ -29,6 +30,7 @@ class RecordDetailsSheet extends StatefulWidget {
     this.onViewInTrends,
     this.onOpenGuideline,
     this.restingHeartRateCriticalLow,
+    this.reconciledGroup,
   });
 
   final HealthRecord record;
@@ -41,6 +43,7 @@ class RecordDetailsSheet extends StatefulWidget {
   final VoidCallback? onViewInTrends;
   final ValueChanged<ClinicalGuideline>? onOpenGuideline;
   final double? restingHeartRateCriticalLow;
+  final ReconciledRecordGroup? reconciledGroup;
 
   @override
   State<RecordDetailsSheet> createState() => _RecordDetailsSheetState();
@@ -710,6 +713,79 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
             ),
             if (record.sourceId != null)
               DetailLine(label: 'Source ID', value: record.sourceId!),
+            if (widget.reconciledGroup != null &&
+                widget.reconciledGroup!.isMultiProvider) ...[
+              const SizedBox(height: 8),
+              Container(
+                key: const ValueKey('reconciled-sources-card'),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: colors.primary.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.sync_alt_rounded,
+                          size: 16,
+                          color: colors.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cross-Provider Reconciliation',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'This measurement was recorded by ${widget.reconciledGroup!.distinctSourceCount} separate portals/sources on this date. Contributing records and provenance are preserved:',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    for (final r in widget.reconciledGroup!.contributingRecords)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Row(
+                          children: [
+                            Icon(
+                              r.id == record.id
+                                  ? Icons.check_circle
+                                  : Icons.circle_outlined,
+                              size: 12,
+                              color: r.id == record.id
+                                  ? colors.primary
+                                  : colors.outline,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '${r.source}: ${r.displayValue}${r.referenceRange != null ? " (${r.referenceRange})" : ""}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: r.id == record.id
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),

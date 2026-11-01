@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/clinical_panel.dart';
 import '../../models/doctor_visit_preparation.dart';
 import '../../models/health_record.dart';
+import '../../terminology/cross_provider_reconciler.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
 import 'record_details_sheet.dart';
@@ -540,6 +541,8 @@ class RecordsPageState extends State<RecordsPage> {
             padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
             sliver: () {
               final listItems = groupRecordsIntoListItems(filtered);
+              final reconciledGroups =
+                  CrossProviderReconciler.findReconciledGroups(widget.records);
               return SliverList.builder(
                 itemCount: listItems.length,
                 itemBuilder: (context, index) {
@@ -597,11 +600,18 @@ class RecordsPageState extends State<RecordsPage> {
                           key: ValueKey(record.id),
                           record: record,
                           isLast: index == listItems.length - 1,
+                          reconciledGroupSourcesCount:
+                              reconciledGroups[record.id]
+                                  ?.distinctSourceCount ??
+                              0,
                           onTap: () {
                             if (widget.onRecordTap != null) {
                               widget.onRecordTap!(record);
                             } else {
-                              _showRecordDetails(record);
+                              _showRecordDetails(
+                                record,
+                                reconciledGroup: reconciledGroups[record.id],
+                              );
                             }
                           },
                         ),
@@ -613,7 +623,10 @@ class RecordsPageState extends State<RecordsPage> {
                             if (widget.onRecordTap != null) {
                               widget.onRecordTap!(record);
                             } else {
-                              _showRecordDetails(record);
+                              _showRecordDetails(
+                                record,
+                                reconciledGroup: reconciledGroups[record.id],
+                              );
                             }
                           },
                         ),
@@ -728,7 +741,10 @@ class RecordsPageState extends State<RecordsPage> {
     );
   }
 
-  Future<void> _showRecordDetails(HealthRecord record) async {
+  Future<void> _showRecordDetails(
+    HealthRecord record, {
+    ReconciledRecordGroup? reconciledGroup,
+  }) async {
     final isNumeric = parseHealthRecordValue(record.value) != null;
     await showModalBottomSheet<void>(
       context: context,
@@ -737,6 +753,7 @@ class RecordsPageState extends State<RecordsPage> {
       builder: (sheetContext) => RecordDetailsSheet(
         record: record,
         isNumeric: isNumeric,
+        reconciledGroup: reconciledGroup,
         onViewInTrends: isNumeric && widget.onViewInTrends != null
             ? () {
                 Navigator.pop(sheetContext);

@@ -280,11 +280,13 @@ class RecordRow extends StatelessWidget {
     required this.record,
     required this.isLast,
     this.onTap,
+    this.reconciledGroupSourcesCount = 0,
   });
 
   final HealthRecord record;
   final bool isLast;
   final VoidCallback? onTap;
+  final int reconciledGroupSourcesCount;
 
   @override
   Widget build(BuildContext context) {
@@ -460,6 +462,29 @@ class RecordRow extends StatelessWidget {
                         color: colors.onSurfaceVariant,
                       ),
                     ),
+                    if (reconciledGroupSourcesCount > 1) ...[
+                      const SizedBox(height: 3),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.sync_alt_rounded,
+                            size: 11,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Reported by $reconciledGroupSourcesCount sources',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: colors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ],
                     if (hasGuideline) ...[
                       const SizedBox(height: 4),
                       Container(
