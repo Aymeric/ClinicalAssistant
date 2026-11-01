@@ -486,6 +486,25 @@ void main() {
       expect(record.unit, '%');
       expect(record.displayValue, '22 %');
     });
+
+    test(
+      'rounds tracker fractional resting heart rate (e.g. 39.68 bpm) to clean integer bpm',
+      () {
+        final record = mapper.mapPoint(
+          _point(
+            HealthDataType.RESTING_HEART_RATE,
+            NumericHealthValue(numericValue: 39.68),
+            unit: HealthDataUnit.BEATS_PER_MINUTE,
+          ),
+          fallbackSource: 'Tracker',
+        );
+
+        expect(record.name, 'Resting heart rate');
+        expect(record.value, '40');
+        expect(record.displayValue, '40 bpm');
+        expect(record.unit, 'bpm');
+      },
+    );
   });
 }
 

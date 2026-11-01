@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../data/critical_safety_preferences.dart';
 import '../data/encrypted_record_store.dart';
 import '../data/pinned_metrics_preferences.dart';
 import '../data/synthetic_demonstration_data.dart';
@@ -27,6 +28,7 @@ class HealthDataController extends ChangeNotifier {
     FlutterSecureStorage? secureStorage,
     SyncValueStore? syncValueStore,
     PinnedMetricsPreferences? pinnedPreferences,
+    CriticalSafetyPreferences? safetyPreferences,
     VaultBackupService? vaultBackupService,
   }) : _store = store ?? EncryptedRecordStore(),
        _healthImporter = healthImporter ?? HealthPlatformImporter(),
@@ -39,6 +41,15 @@ class HealthDataController extends ChangeNotifier {
        _pinnedPreferences =
            pinnedPreferences ??
            PinnedMetricsPreferences(
+             storage:
+                 syncValueStore ??
+                 SecureSyncValueStore(
+                   storage: secureStorage ?? const FlutterSecureStorage(),
+                 ),
+           ),
+       _safetyPreferences =
+           safetyPreferences ??
+           CriticalSafetyPreferences(
              storage:
                  syncValueStore ??
                  SecureSyncValueStore(
@@ -63,6 +74,7 @@ class HealthDataController extends ChangeNotifier {
   final FhirPortalImporter _fhirImporter;
   final SyncValueStore _syncValueStore;
   final PinnedMetricsPreferences _pinnedPreferences;
+  final CriticalSafetyPreferences _safetyPreferences;
   final VaultBackupService _vaultBackupService;
   late final SourceImportHistoryStore _historyStore = SourceImportHistoryStore(
     storage: _syncValueStore,
@@ -74,7 +86,29 @@ class HealthDataController extends ChangeNotifier {
   Object? error;
   SyncValueStore get syncValueStore => _syncValueStore;
   PinnedMetricsPreferences get pinnedPreferences => _pinnedPreferences;
+  CriticalSafetyPreferences get safetyPreferences => _safetyPreferences;
   VaultBackupService get vaultBackupService => _vaultBackupService;
+
+  RestingHeartRateProfile _restingHeartRateProfile =
+      RestingHeartRateProfile.athletic;
+  RestingHeartRateProfile get restingHeartRateProfile =>
+      _restingHeartRateProfile;
+  double get restingHeartRateCriticalLow =>
+      _restingHeartRateProfile.thresholdBpm;
+
+  Future<void> loadSafetyPreferences() async {
+    _restingHeartRateProfile = await _safetyPreferences.getProfile();
+    notifyListeners();
+  }
+
+  Future<void> setRestingHeartRateProfile(
+    RestingHeartRateProfile profile,
+  ) async {
+    _restingHeartRateProfile = profile;
+    await _safetyPreferences.setProfile(profile);
+    notifyListeners();
+  }
+
   List<SourceImportEvent> get importHistory =>
       List<SourceImportEvent>.unmodifiable(_importHistory);
   List<SourceCoverageSummary> get sourceCoverageSummaries =>
@@ -146,6 +180,7 @@ class HealthDataController extends ChangeNotifier {
       notifyListeners();
     }
     unawaited(_loadImportHistory());
+    unawaited(loadSafetyPreferences());
   }
 
   Future<void> _loadImportHistory() async {

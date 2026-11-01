@@ -174,6 +174,12 @@ class HealthDataRecordMapper {
       if (value > 0 && value <= 1.0) {
         return value * 100;
       }
+    } else if (type == HealthDataType.HEART_RATE ||
+        type == HealthDataType.RESTING_HEART_RATE) {
+      // Wearables and health platforms often report averaged heart rates with
+      // floating-point precision (e.g. 39.68 bpm). Standard clinical practice and
+      // platform UI displays represent heart rate as discrete integer beats per minute.
+      return value.round();
     }
     return value;
   }

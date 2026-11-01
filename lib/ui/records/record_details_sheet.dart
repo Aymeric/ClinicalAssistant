@@ -26,6 +26,7 @@ class RecordDetailsSheet extends StatefulWidget {
     this.onEdit,
     this.onViewInTrends,
     this.onOpenGuideline,
+    this.restingHeartRateCriticalLow,
   });
 
   final HealthRecord record;
@@ -37,6 +38,7 @@ class RecordDetailsSheet extends StatefulWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onViewInTrends;
   final ValueChanged<ClinicalGuideline>? onOpenGuideline;
+  final double? restingHeartRateCriticalLow;
 
   @override
   State<RecordDetailsSheet> createState() => _RecordDetailsSheetState();
@@ -435,7 +437,12 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
             ),
             Builder(
               builder: (context) {
-                final criticalAlert = CriticalSafetyEvaluator.evaluate(record);
+                final criticalAlert = CriticalSafetyEvaluator.evaluate(
+                  record,
+                  heartRateCriticalLow:
+                      widget.restingHeartRateCriticalLow ??
+                      CriticalSafetyEvaluator.kHeartRateCriticalLowDefault,
+                );
                 if (criticalAlert == null) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(top: 10),

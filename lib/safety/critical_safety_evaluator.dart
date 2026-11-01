@@ -20,7 +20,7 @@ enum CriticalSafetyType {
   severeArrhythmia(
     title: 'Critical Heart Rate',
     emergencySummary:
-        'A resting heart rate below 40 bpm or above 140 bpm requires urgent medical evaluation. If accompanied by chest discomfort, dizziness, shortness of breath, or lightheadedness, call emergency services (such as 911 or 112) immediately.',
+        'A resting heart rate below 35 bpm or above 140 bpm requires urgent medical evaluation. If accompanied by chest discomfort, dizziness, shortness of breath, or lightheadedness, call emergency services (such as 911 or 112) immediately.',
   );
 
   const CriticalSafetyType({
@@ -40,15 +40,18 @@ class CriticalSafetyAlert {
     required this.record,
     required this.readingSummary,
     this.pairedRecord,
+    this.customEmergencyGuidance,
   });
 
   final CriticalSafetyType type;
   final HealthRecord record;
   final String readingSummary;
   final HealthRecord? pairedRecord;
+  final String? customEmergencyGuidance;
 
   String get title => type.title;
-  String get emergencyGuidance => type.emergencySummary;
+  String get emergencyGuidance =>
+      customEmergencyGuidance ?? type.emergencySummary;
 
   static const String clinicalDisclaimer =
       'Descriptive safety notice based on standard clinical consensus thresholds. Clinical Assistant provides informational guidance only and does not provide automated clinical diagnosis or triage.';
@@ -63,15 +66,29 @@ class CriticalSafetyEvaluator {
   static const double kGlucoseCriticalMgDl = 54.0;
   static const double kGlucoseCriticalMmolL = 3.0;
   static const double kOxygenCriticalPercent = 88.0;
-  static const double kHeartRateCriticalLow = 40.0;
+
+  /// Clinical threshold constants for resting bradycardia:
+  /// - Standard non-athletic adult threshold (< 40 bpm)
+  /// - Athletic / Active baseline calibrated emergency threshold (< 35 bpm)
+  /// - Elite endurance baseline threshold (< 30 bpm)
+  static const double kHeartRateCriticalLowStandard = 40.0;
+  static const double kHeartRateCriticalLowAthletic = 35.0;
+  static const double kHeartRateCriticalLowElite = 30.0;
+
+  /// Default clinical critical resting bradycardia threshold (calibrated to < 35 bpm).
+  static const double kHeartRateCriticalLowDefault =
+      kHeartRateCriticalLowAthletic;
+  static const double kHeartRateCriticalLow = kHeartRateCriticalLowDefault;
   static const double kHeartRateCriticalHigh = 140.0;
 
   /// Evaluates a single record for critical thresholds.
   /// If the record is part of a paired measurement (such as systolic with diastolic),
   /// pass [pairedRecord] for a combined alert.
+  /// [heartRateCriticalLow] sets the critical resting bradycardia threshold (defaults to [kHeartRateCriticalLowDefault]).
   static CriticalSafetyAlert? evaluate(
     HealthRecord record, {
     HealthRecord? pairedRecord,
+    double heartRateCriticalLow = kHeartRateCriticalLowDefault,
   }) {
     if (record.category != RecordCategory.vital &&
         record.category != RecordCategory.lab) {
@@ -197,17 +214,37 @@ class CriticalSafetyEvaluator {
       return null;
     }
 
-    // 6. Heart Rate
-    if (_isHeartRate(lowerName, code)) {
+    // 6. Heart Rate (Resting vs Active)
+    final isResting = _isRestingHeartRate(lowerName, code);
+    final isHeartRate = isResting || _isHeartRate(lowerName, code);
+
+    if (isHeartRate) {
       final val = parseHealthRecordValue(record.value);
-      if (val != null &&
-          val > 0 &&
-          (val < kHeartRateCriticalLow || val > kHeartRateCriticalHigh)) {
-        return CriticalSafetyAlert(
-          type: CriticalSafetyType.severeArrhythmia,
-          record: record,
-          readingSummary: record.displayValue,
-        );
+      if (val != null && val > 0) {
+        // Clinically, heart rate is measured and evaluated in discrete integer beats
+        // per minute (bpm). Wearables often report mathematical averages with fractional
+        // decimals (e.g., 39.68 bpm from nocturnal sleep tracking, which rounds to 40 bpm).
+        // Rounding to nearest integer bpm prevents fractional averaging noise from falsely breaching thresholds.
+        final hrBpm = val.round();
+        // High heart rate (> 140 bpm) is a critical threshold strictly for resting heart rate.
+        // Continuous/active heart rate (type HEART_RATE) during exercise or physical activity
+        // normally exceeds 140 bpm and must not be mis-classified as resting heart rate.
+        final isCriticalHigh = isResting && hrBpm > kHeartRateCriticalHigh;
+        // Severe bradycardia indicates profound hypoperfusion risk.
+        final isCriticalLow = hrBpm < heartRateCriticalLow;
+
+        if (isCriticalHigh || isCriticalLow) {
+          final customGuidance =
+              heartRateCriticalLow != kHeartRateCriticalLowDefault
+              ? 'A resting heart rate below ${heartRateCriticalLow.round()} bpm or above 140 bpm requires urgent medical evaluation. If accompanied by chest discomfort, dizziness, shortness of breath, or lightheadedness, call emergency services (such as 911 or 112) immediately.'
+              : null;
+          return CriticalSafetyAlert(
+            type: CriticalSafetyType.severeArrhythmia,
+            record: record,
+            readingSummary: record.displayValue,
+            customEmergencyGuidance: customGuidance,
+          );
+        }
       }
       return null;
     }
@@ -218,7 +255,11 @@ class CriticalSafetyEvaluator {
   /// Scans [records], automatically pairing systolic and diastolic blood pressure
   /// records matching timestamp and source, and returns all active critical alerts
   /// sorted newest first.
-  static List<CriticalSafetyAlert> evaluateAll(List<HealthRecord> records) {
+  /// [heartRateCriticalLow] sets the critical resting bradycardia threshold (defaults to [kHeartRateCriticalLowDefault]).
+  static List<CriticalSafetyAlert> evaluateAll(
+    List<HealthRecord> records, {
+    double heartRateCriticalLow = kHeartRateCriticalLowDefault,
+  }) {
     if (records.isEmpty) return const [];
 
     final alerts = <CriticalSafetyAlert>[];
@@ -255,7 +296,11 @@ class CriticalSafetyEvaluator {
         if (sys != null && dia != null) {
           pairedIds.add(sys.id);
           pairedIds.add(dia.id);
-          final alert = evaluate(sys, pairedRecord: dia);
+          final alert = evaluate(
+            sys,
+            pairedRecord: dia,
+            heartRateCriticalLow: heartRateCriticalLow,
+          );
           if (alert != null) {
             alerts.add(alert);
           }
@@ -263,7 +308,10 @@ class CriticalSafetyEvaluator {
         }
       }
 
-      final alert = evaluate(record);
+      final alert = evaluate(
+        record,
+        heartRateCriticalLow: heartRateCriticalLow,
+      );
       if (alert != null) {
         alerts.add(alert);
       }
@@ -312,10 +360,28 @@ class CriticalSafetyEvaluator {
         name.contains('oximetry');
   }
 
+  static bool _isRestingHeartRate(String name, String? code) {
+    final lowerCode = code?.toLowerCase();
+    if (lowerCode == 'resting_heart_rate' || code == '40443-4') {
+      return true;
+    }
+    if (lowerCode == 'heart_rate' || lowerCode == '8867-4') {
+      return false;
+    }
+    return name.contains('resting heart rate') ||
+        name.contains('resting pulse') ||
+        name.contains('resting hr') ||
+        name.startsWith('resting');
+  }
+
   static bool _isHeartRate(String name, String? code) {
-    if (code == '8867-4') return true;
-    return name.contains('heart rate') ||
-        name.contains('pulse') ||
-        name == 'resting heart rate';
+    final lowerCode = code?.toLowerCase();
+    if (lowerCode == 'heart_rate' ||
+        lowerCode == 'resting_heart_rate' ||
+        code == '8867-4' ||
+        code == '40443-4') {
+      return true;
+    }
+    return name.contains('heart rate') || name.contains('pulse');
   }
 }

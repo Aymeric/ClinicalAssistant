@@ -246,36 +246,164 @@ void main() {
   });
 
   group('CriticalSafetyEvaluator - Heart Rate', () {
-    test('detects Critical Heart Rate when < 40 bpm or > 140 bpm', () {
-      final lowHr = HealthRecord(
-        id: 'hr-low',
-        name: 'Heart Rate',
-        value: '36',
-        unit: 'bpm',
-        recordedAt: now,
-        category: RecordCategory.vital,
-        source: 'Watch',
-      );
+    test(
+      'detects Critical Heart Rate on resting HR when below threshold or > 140 bpm',
+      () {
+        final lowHr = HealthRecord(
+          id: 'hr-low',
+          name: 'Resting Heart Rate',
+          value: '33',
+          unit: 'bpm',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Watch',
+          code: 'RESTING_HEART_RATE',
+        );
 
-      final highHr = HealthRecord(
-        id: 'hr-high',
-        name: 'Heart Rate',
-        value: '155',
-        unit: 'bpm',
-        recordedAt: now,
-        category: RecordCategory.vital,
-        source: 'Watch',
-      );
+        final highHr = HealthRecord(
+          id: 'hr-high',
+          name: 'Resting Heart Rate',
+          value: '155',
+          unit: 'bpm',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Watch',
+          code: 'RESTING_HEART_RATE',
+        );
 
-      expect(
-        CriticalSafetyEvaluator.evaluate(lowHr)?.type,
-        CriticalSafetyType.severeArrhythmia,
-      );
-      expect(
-        CriticalSafetyEvaluator.evaluate(highHr)?.type,
-        CriticalSafetyType.severeArrhythmia,
-      );
-    });
+        expect(
+          CriticalSafetyEvaluator.evaluate(lowHr)?.type,
+          CriticalSafetyType.severeArrhythmia,
+        );
+        expect(
+          CriticalSafetyEvaluator.evaluate(highHr)?.type,
+          CriticalSafetyType.severeArrhythmia,
+        );
+      },
+    );
+
+    test(
+      'does not trigger false critical alert on continuous active HEART_RATE > 140 bpm (e.g. 155 bpm during exercise)',
+      () {
+        final exerciseHr = HealthRecord(
+          id: 'hr-exercise',
+          name: 'Heart rate',
+          value: '155',
+          unit: 'bpm',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Apple Health',
+          code: 'HEART_RATE',
+        );
+
+        expect(CriticalSafetyEvaluator.evaluate(exerciseHr), isNull);
+      },
+    );
+
+    test(
+      'triggers Critical Heart Rate when continuous HEART_RATE has severe bradycardia (< 35 bpm default)',
+      () {
+        final bradyHr = HealthRecord(
+          id: 'hr-brady',
+          name: 'Heart rate',
+          value: '33',
+          unit: 'bpm',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Apple Health',
+          code: 'HEART_RATE',
+        );
+
+        final alert = CriticalSafetyEvaluator.evaluate(bradyHr);
+        expect(alert, isNotNull);
+        expect(alert!.type, CriticalSafetyType.severeArrhythmia);
+      },
+    );
+
+    test(
+      'does not trigger false critical alert on physiological athlete resting HR of 39.68 bpm or 39.39 bpm on default 35 bpm threshold',
+      () {
+        final rhr1 = HealthRecord(
+          id: 'hr-39-68',
+          name: 'Resting Heart Rate',
+          value: '39.68',
+          unit: 'bpm',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Tracker',
+          code: 'RESTING_HEART_RATE',
+        );
+
+        final rhr2 = HealthRecord(
+          id: 'hr-39-39',
+          name: 'Resting Heart Rate',
+          value: '39.39',
+          unit: 'bpm',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Tracker',
+          code: 'RESTING_HEART_RATE',
+        );
+
+        expect(CriticalSafetyEvaluator.evaluate(rhr1), isNull);
+        expect(CriticalSafetyEvaluator.evaluate(rhr2), isNull);
+      },
+    );
+
+    test(
+      'respects custom heartRateCriticalLow threshold for standard adult (40 bpm) vs elite athlete (30 bpm)',
+      () {
+        final rhr = HealthRecord(
+          id: 'hr-36',
+          name: 'Resting Heart Rate',
+          value: '36',
+          unit: 'bpm',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Tracker',
+          code: 'RESTING_HEART_RATE',
+        );
+
+        // On default athletic profile (<35 bpm), 36 bpm is NOT critical:
+        expect(
+          CriticalSafetyEvaluator.evaluate(
+            rhr,
+            heartRateCriticalLow:
+                CriticalSafetyEvaluator.kHeartRateCriticalLowDefault,
+          ),
+          isNull,
+        );
+
+        // On standard adult profile (<40 bpm), 36 bpm IS critical:
+        final standardAlert = CriticalSafetyEvaluator.evaluate(
+          rhr,
+          heartRateCriticalLow:
+              CriticalSafetyEvaluator.kHeartRateCriticalLowStandard,
+        );
+        expect(standardAlert, isNotNull);
+        expect(standardAlert!.type, CriticalSafetyType.severeArrhythmia);
+
+        // On elite endurance profile (<30 bpm), 32 bpm is NOT critical:
+        final rhr32 = HealthRecord(
+          id: 'hr-32',
+          name: 'Resting Heart Rate',
+          value: '32',
+          unit: 'bpm',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Tracker',
+          code: 'RESTING_HEART_RATE',
+        );
+        expect(
+          CriticalSafetyEvaluator.evaluate(
+            rhr32,
+            heartRateCriticalLow:
+                CriticalSafetyEvaluator.kHeartRateCriticalLowElite,
+          ),
+          isNull,
+        );
+      },
+    );
   });
 
   group('CriticalSafetyEvaluator - evaluateAll', () {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../controllers/health_data_controller.dart';
+import '../../data/critical_safety_preferences.dart';
 import '../../data/vault_security_service.dart';
 import '../../integrations/fhir_file_import.dart';
 import '../../integrations/fhir_provider_presets.dart';
@@ -53,6 +54,8 @@ class ConnectionsPage extends StatelessWidget {
     this.onLockVault,
     required this.onOpenGuidelines,
     this.onResetHealthSyncAnchor,
+    this.restingHeartRateProfile = RestingHeartRateProfile.athletic,
+    this.onRestingHeartRateProfileChanged,
   });
 
   final bool busy;
@@ -87,6 +90,8 @@ class ConnectionsPage extends StatelessWidget {
   final VoidCallback? onLockVault;
   final VoidCallback onOpenGuidelines;
   final VoidCallback? onResetHealthSyncAnchor;
+  final RestingHeartRateProfile restingHeartRateProfile;
+  final ValueChanged<RestingHeartRateProfile>? onRestingHeartRateProfileChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -213,6 +218,103 @@ class ConnectionsPage extends StatelessWidget {
             onLockNow: onLockVault,
           ),
         ],
+        const SizedBox(height: 14),
+        Card(
+          key: const ValueKey('critical-safety-settings-card'),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.health_and_safety_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Critical Safety Alerts',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Emergency notifications trigger when life-threatening vitals or panic-level lab values are detected.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Resting Heart Rate Emergency Baseline',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Athletes and active individuals often have lower baseline resting heart rates. Select a profile to prevent false emergency alerts:',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SegmentedButton<RestingHeartRateProfile>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: RestingHeartRateProfile.athletic,
+                      label: Text(
+                        '<35 bpm\nAthletic',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    ButtonSegment(
+                      value: RestingHeartRateProfile.standard,
+                      label: Text(
+                        '<40 bpm\nStandard',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    ButtonSegment(
+                      value: RestingHeartRateProfile.elite,
+                      label: Text(
+                        '<30 bpm\nElite',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                  selected: {restingHeartRateProfile},
+                  onSelectionChanged: onRestingHeartRateProfileChanged == null
+                      ? null
+                      : (newSelection) {
+                          if (newSelection.isNotEmpty) {
+                            onRestingHeartRateProfileChanged!(
+                              newSelection.first,
+                            );
+                          }
+                        },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  restingHeartRateProfile.description,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 24),
         Card(
           child: Padding(

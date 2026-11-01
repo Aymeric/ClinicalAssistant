@@ -59,6 +59,7 @@ class OverviewPage extends StatelessWidget {
     this.onViewOutOfRangeLabs,
     this.onOpenMedications,
     this.onPrepareDoctorVisit,
+    this.restingHeartRateCriticalLow,
   });
 
   final List<HealthRecord> records;
@@ -70,6 +71,7 @@ class OverviewPage extends StatelessWidget {
   final ForegroundSyncState? syncState;
   final bool syncing;
   final Set<String> pinnedSeries;
+  final double? restingHeartRateCriticalLow;
   final ValueChanged<RecordCategory>? onSelectCategory;
   final ValueChanged<DoctorVisitSpecialty>? onSelectSpecialty;
   final ValueChanged<HealthRecord>? onRecordTap;
@@ -127,7 +129,12 @@ class OverviewPage extends StatelessWidget {
         )
         .toList();
 
-    final criticalAlerts = CriticalSafetyEvaluator.evaluateAll(records);
+    final criticalAlerts = CriticalSafetyEvaluator.evaluateAll(
+      records,
+      heartRateCriticalLow:
+          restingHeartRateCriticalLow ??
+          CriticalSafetyEvaluator.kHeartRateCriticalLowDefault,
+    );
 
     // Pinned metrics: map series ID to latest record using computed trendSeries
     // or by fallback map lookup to avoid O(pinned * records) filtering & sorting.

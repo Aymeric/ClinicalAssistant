@@ -347,6 +347,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         record: record,
         isNumeric: isNumeric,
         isPinned: isPinned,
+        restingHeartRateCriticalLow: _controller.restingHeartRateCriticalLow,
         onOpenGuideline: _openGuideline,
         onTogglePin: () async {
           final newState = await _controller.pinnedPreferences.togglePin(
@@ -975,6 +976,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         syncState: _syncState,
         syncing: _syncing,
         pinnedSeries: _pinnedSeries,
+        restingHeartRateCriticalLow: _controller.restingHeartRateCriticalLow,
         onConnect: () => setState(() => _selectedIndex = 3),
         onSeeAll: () => setState(() => _selectedIndex = 2),
         onSelectCategory: _openRecordsWithCategory,
@@ -1043,6 +1045,9 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
           _isVaultLocked = true;
         }),
         onOpenGuidelines: _openGuidelines,
+        restingHeartRateProfile: _controller.restingHeartRateProfile,
+        onRestingHeartRateProfileChanged:
+            _controller.setRestingHeartRateProfile,
       ),
       ExportPage(
         records: _controller.records,
