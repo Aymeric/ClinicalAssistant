@@ -67,6 +67,49 @@ void main() {
     expect(find.text('Doctor Visit Preparation Wizard'), findsOneWidget);
     expect(find.text('Step 1 of 5: Specialty & Appointment'), findsOneWidget);
 
+    // Verify accessible tooltips and semantics on specialty option tiles
+    final annualWellnessFinder = find.byKey(
+      const ValueKey('specialty-option-annual_wellness'),
+    );
+    final cardiologyFinder = find.byKey(
+      const ValueKey('specialty-option-cardiology'),
+    );
+
+    final annualTooltip = tester.widget<Tooltip>(
+      find.descendant(of: annualWellnessFinder, matching: find.byType(Tooltip)),
+    );
+    expect(
+      annualTooltip.message,
+      equals('Annual Wellness & General template (selected)'),
+    );
+
+    final cardioTooltip = tester.widget<Tooltip>(
+      find.descendant(of: cardiologyFinder, matching: find.byType(Tooltip)),
+    );
+    expect(
+      cardioTooltip.message,
+      equals('Select Cardiology Consultation template'),
+    );
+
+    final annualSemantics = tester
+        .widgetList<Semantics>(
+          find.descendant(
+            of: annualWellnessFinder,
+            matching: find.byType(Semantics),
+          ),
+        )
+        .firstWhere((s) => s.properties.inMutuallyExclusiveGroup == true);
+    expect(annualSemantics.properties.button, isTrue);
+    expect(annualSemantics.properties.selected, isTrue);
+    expect(annualSemantics.properties.inMutuallyExclusiveGroup, isTrue);
+    expect(
+      annualSemantics.properties.label,
+      equals(
+        'Annual Wellness & General: Comprehensive checkup covering overall health, preventive care, vitals, and general labs.',
+      ),
+    );
+    expect(annualSemantics.excludeSemantics, isTrue);
+
     // Select Cardiology template
     await tester.tap(find.byKey(const ValueKey('specialty-option-cardiology')));
     await tester.pumpAndSettle();
