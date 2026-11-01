@@ -38,6 +38,7 @@ class FhirPortalImporter {
 
   static const clinicalResourceTypes = [
     'Observation',
+    'DiagnosticReport',
     'MedicationRequest',
     'Condition',
     'AllergyIntolerance',
@@ -49,6 +50,7 @@ class FhirPortalImporter {
     'fhirUser',
     'launch/patient',
     'patient/Observation.read',
+    'patient/DiagnosticReport.read',
     'patient/MedicationRequest.read',
     'patient/Condition.read',
     'patient/AllergyIntolerance.read',
@@ -340,7 +342,8 @@ class FhirPortalImporter {
       'patient': patientId,
       if (resourceType == 'Observation') 'category': 'laboratory',
       '_count': '100',
-      if (since != null && resourceType == 'Observation')
+      if (since != null &&
+          (resourceType == 'Observation' || resourceType == 'DiagnosticReport'))
         'date': 'ge${since.toUtc().toIso8601String()}',
     };
     final resourceUri = base

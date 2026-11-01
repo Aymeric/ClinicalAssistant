@@ -61,6 +61,8 @@ class HealthPlatformImporter {
     HealthDataType.WEIGHT,
     HealthDataType.WORKOUT,
     HealthDataType.WORKOUT_ROUTE,
+    HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+    HealthDataType.ELECTROCARDIOGRAM,
   ];
 
   /// Check whether a data type is supported on the current device/platform.
@@ -72,6 +74,12 @@ class HealthPlatformImporter {
   bool isDataTypeAvailable(HealthDataType type, {bool? isIos}) {
     final onIos = isIos ?? Platform.isIOS;
     if (onIos && type == HealthDataType.TOTAL_CALORIES_BURNED) {
+      return false;
+    }
+    // Apple Watch-specific cardiac metrics not supported on Android Health Connect
+    if (!onIos &&
+        (type == HealthDataType.HEART_RATE_VARIABILITY_SDNN ||
+            type == HealthDataType.ELECTROCARDIOGRAM)) {
       return false;
     }
     return _health.isDataTypeAvailable(type);
@@ -607,14 +615,14 @@ class HealthPlatformImporter {
     }
 
     if (Platform.isIOS) {
-      report('Reading Apple Health clinical labs');
+      report('Reading Apple Health clinical records');
       try {
         records.addAll(await _appleClinicalRecords.importLabRecords());
       } catch (_) {
-        // Clinical labs are optional; errors should not prevent basic health sync.
+        // Clinical records are optional; errors should not prevent basic health sync.
       }
       completedSteps++;
-      report('Read Apple Health clinical labs (${records.length} records)');
+      report('Read Apple Health clinical records (${records.length} records)');
     }
     if (Platform.isAndroid) {
       report('Reading Health Connect laboratory results');

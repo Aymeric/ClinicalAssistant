@@ -68,9 +68,38 @@ class HealthDataRecordMapper {
       ),
       NutritionHealthValue value => _nutritionSummary(value),
       MenstruationFlowHealthValue value => _menstruationSummary(value),
+      ElectrocardiogramHealthValue value => _ecgSummary(value),
       _ => point.value.toString(),
     };
   }
+
+  String _ecgSummary(ElectrocardiogramHealthValue value) {
+    final parts = <String>[];
+    if (value.classification != null) {
+      parts.add(_ecgClassificationLabel(value.classification!));
+    }
+    if (value.averageHeartRate != null) {
+      parts.add('${formatSensibleNumber(value.averageHeartRate!)} bpm avg');
+    }
+    return parts.isEmpty ? 'Electrocardiogram' : parts.join(' · ');
+  }
+
+  String _ecgClassificationLabel(
+    ElectrocardiogramClassification classification,
+  ) => switch (classification) {
+    ElectrocardiogramClassification.SINUS_RHYTHM => 'Sinus rhythm',
+    ElectrocardiogramClassification.ATRIAL_FIBRILLATION =>
+      'Atrial fibrillation',
+    ElectrocardiogramClassification.INCONCLUSIVE_LOW_HEART_RATE =>
+      'Inconclusive (low heart rate)',
+    ElectrocardiogramClassification.INCONCLUSIVE_HIGH_HEART_RATE =>
+      'Inconclusive (high heart rate)',
+    ElectrocardiogramClassification.INCONCLUSIVE_POOR_READING =>
+      'Inconclusive (poor reading)',
+    ElectrocardiogramClassification.INCONCLUSIVE_OTHER =>
+      'Inconclusive (other)',
+    _ => 'Recorded',
+  };
 
   String _workoutRouteSummary(
     WorkoutRouteHealthValue value, {
@@ -159,6 +188,9 @@ class HealthDataRecordMapper {
     HealthDataType.WEIGHT => 'Weight',
     HealthDataType.WORKOUT => 'Workout',
     HealthDataType.WORKOUT_ROUTE => 'Workout route',
+    HealthDataType.HEART_RATE_VARIABILITY_SDNN =>
+      'Heart rate variability (SDNN)',
+    HealthDataType.ELECTROCARDIOGRAM => 'Electrocardiogram (ECG)',
     _ => type.name.replaceAll('_', ' ').toLowerCase(),
   };
 

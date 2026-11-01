@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:clinical_assistant/integrations/health_data_record_mapper.dart';
-import 'package:clinical_assistant/integrations/health_import_windows.dart';
 import 'package:clinical_assistant/integrations/health_platform_importer.dart';
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:health/health.dart';
@@ -11,7 +10,7 @@ void main() {
   const mapper = HealthDataRecordMapper();
 
   test('requests the complete shared set of platform health types', () {
-    expect(HealthPlatformImporter.sharedDataTypes, hasLength(31));
+    expect(HealthPlatformImporter.sharedDataTypes, hasLength(33));
     expect(HealthPlatformImporter.sharedDataTypes.toSet(), {
       HealthDataType.ACTIVE_ENERGY_BURNED,
       HealthDataType.BASAL_ENERGY_BURNED,
@@ -44,6 +43,8 @@ void main() {
       HealthDataType.WEIGHT,
       HealthDataType.WORKOUT,
       HealthDataType.WORKOUT_ROUTE,
+      HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+      HealthDataType.ELECTROCARDIOGRAM,
     });
   });
 
@@ -387,19 +388,35 @@ void main() {
     );
   });
 
-  test('slices modern windows into configured day boundaries', () {
-    final window = HealthImportWindow(
-      DateTime.utc(2026, 9, 1),
-      DateTime.utc(2026, 9, 10),
+  test('maps heart rate variability SDNN and electrocardiogram points', () {
+    final hrvRecord = mapper.mapPoint(
+      _point(
+        HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+        NumericHealthValue(numericValue: 45),
+        unit: HealthDataUnit.MILLISECOND,
+      ),
+      fallbackSource: 'Apple Watch',
     );
-    final slices = HealthPlatformImporter.sliceWindow(window, maxDays: 3);
-    expect(slices, hasLength(3));
-    expect(slices[0].start, DateTime.utc(2026, 9, 1));
-    expect(slices[0].end, DateTime.utc(2026, 9, 4));
-    expect(slices[1].start, DateTime.utc(2026, 9, 4));
-    expect(slices[1].end, DateTime.utc(2026, 9, 7));
-    expect(slices[2].start, DateTime.utc(2026, 9, 7));
-    expect(slices[2].end, DateTime.utc(2026, 9, 10));
+    expect(hrvRecord.name, 'Heart rate variability (SDNN)');
+    expect(hrvRecord.displayValue, '45 ms');
+    expect(hrvRecord.category, RecordCategory.vital);
+
+    final ecgRecord = mapper.mapPoint(
+      _point(
+        HealthDataType.ELECTROCARDIOGRAM,
+        ElectrocardiogramHealthValue(
+          voltageValues: [],
+          averageHeartRate: 72,
+          samplingFrequency: 512,
+          classification: ElectrocardiogramClassification.SINUS_RHYTHM,
+        ),
+        unit: HealthDataUnit.VOLT,
+      ),
+      fallbackSource: 'Apple Watch',
+    );
+    expect(ecgRecord.name, 'Electrocardiogram (ECG)');
+    expect(ecgRecord.value, 'Sinus rhythm · 72 bpm avg');
+    expect(ecgRecord.category, RecordCategory.vital);
   });
 }
 

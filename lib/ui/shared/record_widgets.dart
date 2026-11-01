@@ -682,12 +682,46 @@ class _ClinicalPanelCardState extends State<ClinicalPanelCard> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${formatRecordDate(widget.panel.recordedAt)}  ·  ${widget.panel.source}',
+                        '${formatRecordDate(widget.panel.recordedAt)}  ·  ${widget.panel.source}${widget.panel.performer != null && widget.panel.performer!.isNotEmpty ? '  ·  ${widget.panel.performer}' : ''}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
                       ),
                       if (_expanded) ...[
+                        if (widget.panel.conclusion != null &&
+                            widget.panel.conclusion!.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.surfaceContainerHighest.withValues(
+                                alpha: 0.5,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.notes,
+                                  size: 15,
+                                  color: colors.primary,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    widget.panel.conclusion!,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(fontStyle: FontStyle.italic),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         const Divider(height: 1),
                         const SizedBox(height: 8),

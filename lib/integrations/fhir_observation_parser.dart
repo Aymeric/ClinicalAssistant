@@ -1,12 +1,14 @@
 import 'dart:convert';
 
+import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
 
 class FhirObservationParser {
   const FhirObservationParser();
 
   /// Parses a FHIR JSON string representing either a FHIR Bundle, an Observation,
-  /// MedicationRequest, Condition, AllergyIntolerance, Immunization, or a list of resources.
+  /// MedicationRequest, Condition, AllergyIntolerance, Immunization, DiagnosticReport,
+  /// or a list of resources.
   List<HealthRecord> parseJson(
     String jsonString, {
     String source = 'FHIR File',
@@ -16,11 +18,19 @@ class FhirObservationParser {
     final dynamic decoded = jsonDecode(jsonString);
     if (decoded is Map) {
       final map = Map<String, dynamic>.from(decoded);
-      if (map['resourceType'] == 'Bundle') {
+      final resourceType = map['resourceType']?.toString();
+      if (resourceType == 'Bundle') {
         return parseBundle(
           map,
           source: source,
           sourceId: sourceId,
+          idPrefix: idPrefix,
+        );
+      } else if (resourceType == 'DiagnosticReport') {
+        return parseDiagnosticReport(
+          map,
+          source: source,
+          sourceId: sourceId ?? source,
           idPrefix: idPrefix,
         );
       } else {
@@ -41,7 +51,40 @@ class FhirObservationParser {
         }
       }
       final panelMappings = _extractPanelMappings(items);
+      final reportsWithoutChildren = <Map<String, dynamic>>[];
+
       for (final map in items) {
+        final resourceType = map['resourceType']?.toString();
+        if (resourceType == 'DiagnosticReport') {
+          final panelInfo = _extractPanelInfoFromReport(map);
+          final contained = map['contained'];
+          var hasContained = false;
+          if (contained is List && contained.isNotEmpty) {
+            for (var index = 0; index < contained.length; index++) {
+              final c = contained[index];
+              if (c is! Map || c['resourceType'] != 'Observation') continue;
+              final obsMap = Map<String, dynamic>.from(c);
+              obsMap['id'] ??= '${map['id'] ?? 'report'}-contained-$index';
+              final containedRecord = _parseObservation(
+                obsMap,
+                source: source,
+                sourceId: sourceId ?? source,
+                idPrefix: idPrefix,
+                panelData: panelInfo,
+                fallbackDate: panelInfo['effectiveDateTime'],
+              );
+              if (containedRecord != null) {
+                records.add(containedRecord);
+                hasContained = true;
+              }
+            }
+          }
+          if (!hasContained) {
+            reportsWithoutChildren.add(map);
+          }
+          continue;
+        }
+
         final record = _parseResource(
           map,
           source: source,
@@ -51,11 +94,81 @@ class FhirObservationParser {
         );
         if (record != null) records.add(record);
       }
+
+      for (final report in reportsWithoutChildren) {
+        final panelInfo = _extractPanelInfoFromReport(report);
+        final reportId = panelInfo['id'];
+        final hasMatchingObservation = records.any((r) {
+          final rPanel = extractRecordPanelInfo(r);
+          return rPanel != null && rPanel.id == reportId;
+        });
+        if (!hasMatchingObservation) {
+          final standalone = _parseDiagnosticReportRecord(
+            report,
+            source: source,
+            sourceId: sourceId ?? source,
+            idPrefix: idPrefix,
+            panelInfo: panelInfo,
+          );
+          if (standalone != null) records.add(standalone);
+        }
+      }
+
       if (records.isNotEmpty) return records;
     }
     throw const FormatException(
       'The provided JSON is not a recognized FHIR Bundle or clinical resource.',
     );
+  }
+
+  /// Parses a standalone FHIR DiagnosticReport resource.
+  ///
+  /// If the report contains inline `contained` Observations, extracts them with
+  /// panel metadata attached. Otherwise, if the report represents a narrative/standalone
+  /// result (e.g. imaging, pathology, or simple test with conclusion), creates a
+  /// [HealthRecord] directly representing the DiagnosticReport.
+  List<HealthRecord> parseDiagnosticReport(
+    Map<String, dynamic> report, {
+    required String source,
+    String? sourceId,
+    String idPrefix = 'fhir',
+  }) {
+    final panelInfo = _extractPanelInfoFromReport(report);
+    final records = <HealthRecord>[];
+    final effectiveSourceId = sourceId ?? source;
+
+    final contained = report['contained'];
+    if (contained is List && contained.isNotEmpty) {
+      for (var index = 0; index < contained.length; index++) {
+        final item = contained[index];
+        if (item is Map && item['resourceType'] == 'Observation') {
+          final obsMap = Map<String, dynamic>.from(item);
+          obsMap['id'] ??= '${report['id'] ?? 'report'}-contained-$index';
+          final record = _parseObservation(
+            obsMap,
+            source: source,
+            sourceId: effectiveSourceId,
+            idPrefix: idPrefix,
+            panelData: panelInfo,
+            fallbackDate: panelInfo['effectiveDateTime'],
+          );
+          if (record != null) records.add(record);
+        }
+      }
+    }
+
+    if (records.isNotEmpty) return records;
+
+    final standalone = _parseDiagnosticReportRecord(
+      report,
+      source: source,
+      sourceId: effectiveSourceId,
+      idPrefix: idPrefix,
+      panelInfo: panelInfo,
+    );
+    if (standalone != null) return [standalone];
+
+    return records;
   }
 
   List<HealthRecord> parseBundle(
@@ -72,9 +185,43 @@ class FhirObservationParser {
 
     final panelMappings = _extractPanelMappings(entries);
     final records = <HealthRecord>[];
+    final reportsWithoutChildren = <Map<String, dynamic>>[];
+
     for (final entry in entries) {
       if (entry is! Map || entry['resource'] is! Map) continue;
       final resource = Map<String, dynamic>.from(entry['resource'] as Map);
+      final resourceType = resource['resourceType']?.toString();
+
+      if (resourceType == 'DiagnosticReport') {
+        final panelInfo = _extractPanelInfoFromReport(resource);
+        final contained = resource['contained'];
+        var hasContained = false;
+        if (contained is List && contained.isNotEmpty) {
+          for (var index = 0; index < contained.length; index++) {
+            final c = contained[index];
+            if (c is! Map || c['resourceType'] != 'Observation') continue;
+            final obsMap = Map<String, dynamic>.from(c);
+            obsMap['id'] ??= '${resource['id'] ?? 'report'}-contained-$index';
+            final containedRecord = _parseObservation(
+              obsMap,
+              source: source,
+              sourceId: sourceId ?? source,
+              idPrefix: idPrefix,
+              panelData: panelInfo,
+              fallbackDate: panelInfo['effectiveDateTime'],
+            );
+            if (containedRecord != null) {
+              records.add(containedRecord);
+              hasContained = true;
+            }
+          }
+        }
+        if (!hasContained) {
+          reportsWithoutChildren.add(resource);
+        }
+        continue;
+      }
+
       final record = _parseResource(
         resource,
         source: source,
@@ -84,7 +231,7 @@ class FhirObservationParser {
       );
       if (record != null) records.add(record);
 
-      if (resource['resourceType'] == 'Observation') {
+      if (resourceType == 'Observation') {
         final components = resource['component'];
         if (components is List) {
           final isLab = _categorizeObservation(resource) == RecordCategory.lab;
@@ -94,8 +241,7 @@ class FhirObservationParser {
                   ? <String, String>{
                       'id': resource['id']?.toString() ?? 'obs-panel',
                       'name': _conceptText(resource['code']),
-                      if (_conceptCode(resource['code']) != null)
-                        'code': _conceptCode(resource['code'])!,
+                      'code': ?_conceptCode(resource['code']),
                     }
                   : null);
 
@@ -125,6 +271,26 @@ class FhirObservationParser {
         }
       }
     }
+
+    for (final report in reportsWithoutChildren) {
+      final panelInfo = _extractPanelInfoFromReport(report);
+      final reportId = panelInfo['id'];
+      final hasMatchingObservation = records.any((r) {
+        final rPanel = extractRecordPanelInfo(r);
+        return rPanel != null && rPanel.id == reportId;
+      });
+      if (!hasMatchingObservation) {
+        final standalone = _parseDiagnosticReportRecord(
+          report,
+          source: source,
+          sourceId: sourceId ?? source,
+          idPrefix: idPrefix,
+          panelInfo: panelInfo,
+        );
+        if (standalone != null) records.add(standalone);
+      }
+    }
+
     return records;
   }
 
@@ -145,6 +311,15 @@ class FhirObservationParser {
           sourceId: sourceId,
           idPrefix: idPrefix,
           panelData: panelData,
+        );
+      case 'DiagnosticReport':
+        final panelInfo = _extractPanelInfoFromReport(resource);
+        return _parseDiagnosticReportRecord(
+          resource,
+          source: source,
+          sourceId: sourceId,
+          idPrefix: idPrefix,
+          panelInfo: panelInfo,
         );
       case 'MedicationRequest':
         return _parseMedicationRequest(
@@ -192,6 +367,7 @@ class FhirObservationParser {
     required String sourceId,
     required String idPrefix,
     Map<String, String>? panelData,
+    String? fallbackDate,
   }) {
     final status = observation['status']?.toString();
     if (status == 'entered-in-error' || status == 'cancelled') return null;
@@ -227,7 +403,12 @@ class FhirObservationParser {
     }
 
     final id = observation['id']?.toString();
-    final recordedAt = _observationDate(observation);
+    final recordedAt =
+        _observationDate(observation) ??
+        (fallbackDate != null ? _parseFhirDate(fallbackDate) : null) ??
+        (panelData != null && panelData['effectiveDateTime'] != null
+            ? _parseFhirDate(panelData['effectiveDateTime'])
+            : null);
     if (id == null || id.isEmpty || recordedAt == null) return null;
 
     final sourceData = Map<String, Object?>.from(observation);
@@ -694,6 +875,166 @@ class FhirObservationParser {
     return formatSensibleValue(val.toString());
   }
 
+  String? _performerText(Object? performer) {
+    if (performer is List && performer.isNotEmpty) {
+      final first = performer.first;
+      if (first is Map) {
+        final display = first['display']?.toString().trim();
+        if (display != null && display.isNotEmpty) return display;
+        final reference = first['reference']?.toString().trim();
+        if (reference != null && reference.isNotEmpty) return reference;
+      }
+    } else if (performer is Map) {
+      final display = performer['display']?.toString().trim();
+      if (display != null && display.isNotEmpty) return display;
+      final reference = performer['reference']?.toString().trim();
+      if (reference != null && reference.isNotEmpty) return reference;
+    }
+    return null;
+  }
+
+  String _stripHtml(String html) {
+    return html
+        .replaceAll(RegExp(r'<[^>]*>'), ' ')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String? _extractReportNarrative(Map<String, dynamic> report) {
+    final conclusion = report['conclusion']?.toString().trim();
+    if (conclusion != null && conclusion.isNotEmpty) return conclusion;
+
+    final conclusionCode = _conceptText(report['conclusionCode']);
+    if (conclusionCode.isNotEmpty) return conclusionCode;
+
+    final textObj = report['text'];
+    if (textObj is Map && textObj['div'] != null) {
+      final div = textObj['div'].toString();
+      final cleanText = _stripHtml(div);
+      if (cleanText.isNotEmpty) return cleanText;
+    }
+
+    final presentedForm = report['presentedForm'];
+    if (presentedForm is List && presentedForm.isNotEmpty) {
+      for (final form in presentedForm) {
+        if (form is Map) {
+          final data = form['data']?.toString().trim();
+          if (data != null && data.isNotEmpty) {
+            try {
+              final decodedBytes = base64Decode(data);
+              final decodedString = utf8.decode(decodedBytes).trim();
+              final clean = _stripHtml(decodedString);
+              if (clean.isNotEmpty) return clean;
+            } catch (_) {}
+          }
+          final title = form['title']?.toString().trim();
+          if (title != null && title.isNotEmpty) return title;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  Map<String, String> _extractPanelInfoFromReport(Map<String, dynamic> report) {
+    final name = _conceptText(report['code']);
+    final code = _conceptCode(report['code']);
+    final panelId = report['id']?.toString() ?? 'report-${name.hashCode}';
+    final panelName = name.isNotEmpty ? name : 'Diagnostic Report';
+    final effectiveDateTime =
+        (report['effectiveDateTime'] ??
+                (report['effectivePeriod'] is Map
+                    ? report['effectivePeriod']['start']
+                    : null) ??
+                report['issued'] ??
+                (report['meta'] is Map ? report['meta']['lastUpdated'] : null))
+            ?.toString();
+    final status = report['status']?.toString();
+    final conclusion = _extractReportNarrative(report);
+    final performer = _performerText(report['performer']);
+
+    return <String, String>{
+      'id': panelId,
+      'name': panelName,
+      'code': ?code,
+      'status': ?status,
+      'effectiveDateTime': ?effectiveDateTime,
+      'performer': ?performer,
+      'conclusion': ?conclusion,
+    };
+  }
+
+  HealthRecord? _parseDiagnosticReportRecord(
+    Map<String, dynamic> report, {
+    required String source,
+    required String sourceId,
+    required String idPrefix,
+    Map<String, String>? panelInfo,
+  }) {
+    final status = report['status']?.toString();
+    if (status == 'entered-in-error' || status == 'cancelled') return null;
+
+    final info = panelInfo ?? _extractPanelInfoFromReport(report);
+    final rawDate =
+        info['effectiveDateTime'] ??
+        report['effectiveDateTime']?.toString() ??
+        (report['effectivePeriod'] is Map
+            ? report['effectivePeriod']['start']?.toString()
+            : null) ??
+        report['issued']?.toString() ??
+        (report['meta'] is Map
+            ? (report['meta'] as Map)['lastUpdated']?.toString()
+            : null);
+    final recordedAt =
+        (rawDate != null ? _parseFhirDate(rawDate) : null) ??
+        DateTime.now().toUtc();
+
+    final id = report['id']?.toString() ?? 'report-${info['name'].hashCode}';
+    final narrative = _extractReportNarrative(report);
+    final value = (narrative != null && narrative.isNotEmpty)
+        ? narrative
+        : (status != null && status.isNotEmpty
+              ? 'Status: $status'
+              : 'Completed');
+
+    // Extract longer narrative for notes if text.div or presentedForm has extra content
+    String? fullNarrative;
+    final textObj = report['text'];
+    if (textObj is Map && textObj['div'] != null) {
+      final cleanText = _stripHtml(textObj['div'].toString());
+      if (cleanText.isNotEmpty && cleanText != value) {
+        fullNarrative = cleanText;
+      }
+    }
+
+    final sourceData = Map<String, Object?>.from(report);
+    sourceData['panel'] = info;
+
+    return HealthRecord(
+      id: '$idPrefix:$sourceId:$id',
+      name: info['name'] ?? 'Diagnostic Report',
+      value: value,
+      unit: '',
+      recordedAt: recordedAt,
+      category: RecordCategory.lab,
+      source: source,
+      sourceId: sourceId,
+      code: info['code'],
+      status: status,
+      notes:
+          fullNarrative ??
+          _notesText(report['presentedForm']) ??
+          _notesText(report['note']),
+      sourceData: sourceData,
+    );
+  }
+
   Map<String, Map<String, String>> _extractPanelMappings(List<dynamic> items) {
     final panelMap = <String, Map<String, String>>{};
 
@@ -710,15 +1051,10 @@ class FhirObservationParser {
 
       final resourceType = resource['resourceType']?.toString();
       if (resourceType == 'DiagnosticReport') {
-        final name = _conceptText(resource['code']);
-        final code = _conceptCode(resource['code']);
-        final panelId = resource['id']?.toString() ?? 'report-${name.hashCode}';
-        final panelName = name.isNotEmpty ? name : 'Diagnostic Report';
-        final panelInfo = <String, String>{
-          'id': panelId,
-          'name': panelName,
-          'code': ?code,
-        };
+        final panelInfo = _extractPanelInfoFromReport(resource);
+        final panelId = panelInfo['id']!;
+        _registerPanelRef(panelMap, panelId, panelInfo);
+        _registerPanelRef(panelMap, 'DiagnosticReport/$panelId', panelInfo);
 
         final results = resource['result'];
         if (results is List) {
@@ -731,6 +1067,18 @@ class FhirObservationParser {
             }
           }
         }
+
+        final contained = resource['contained'];
+        if (contained is List) {
+          for (final c in contained) {
+            if (c is Map && c['id'] != null) {
+              final cId = c['id'].toString();
+              _registerPanelRef(panelMap, cId, panelInfo);
+              _registerPanelRef(panelMap, '#$cId', panelInfo);
+              _registerPanelRef(panelMap, 'Observation/$cId', panelInfo);
+            }
+          }
+        }
       } else if (resourceType == 'Observation') {
         final hasMember = resource['hasMember'];
         if (hasMember is List && hasMember.isNotEmpty) {
@@ -739,11 +1087,16 @@ class FhirObservationParser {
           final panelId =
               resource['id']?.toString() ?? 'panel-${name.hashCode}';
           final panelName = name.isNotEmpty ? name : 'Observation Panel';
+          final performer = _performerText(resource['performer']);
           final panelInfo = <String, String>{
             'id': panelId,
             'name': panelName,
             'code': ?code,
+            'status': ?resource['status']?.toString(),
+            'performer': ?performer,
           };
+          _registerPanelRef(panelMap, panelId, panelInfo);
+          _registerPanelRef(panelMap, 'Observation/$panelId', panelInfo);
 
           for (final memberRef in hasMember) {
             if (memberRef is Map) {
@@ -772,6 +1125,9 @@ class FhirObservationParser {
     if (ref.startsWith('Observation/')) {
       panelMap[ref.substring('Observation/'.length)] = panelInfo;
     }
+    if (ref.startsWith('DiagnosticReport/')) {
+      panelMap[ref.substring('DiagnosticReport/'.length)] = panelInfo;
+    }
     if (ref.startsWith('urn:uuid:')) {
       panelMap[ref.substring('urn:uuid:'.length)] = panelInfo;
     }
@@ -782,9 +1138,39 @@ class FhirObservationParser {
     Map<String, Map<String, String>> panelMappings,
   ) {
     final id = observation['id']?.toString();
-    if (id == null) return null;
-    return panelMappings[id] ??
-        panelMappings['Observation/$id'] ??
-        panelMappings['urn:uuid:$id'];
+    if (id != null) {
+      final direct =
+          panelMappings[id] ??
+          panelMappings['Observation/$id'] ??
+          panelMappings['#$id'] ??
+          panelMappings['urn:uuid:$id'];
+      if (direct != null) return direct;
+    }
+
+    final partOf = observation['partOf'];
+    if (partOf is List) {
+      for (final refObj in partOf) {
+        if (refObj is Map) {
+          final ref = refObj['reference']?.toString();
+          if (ref != null && panelMappings.containsKey(ref)) {
+            return panelMappings[ref];
+          }
+        }
+      }
+    }
+
+    final basedOn = observation['basedOn'];
+    if (basedOn is List) {
+      for (final refObj in basedOn) {
+        if (refObj is Map) {
+          final ref = refObj['reference']?.toString();
+          if (ref != null && panelMappings.containsKey(ref)) {
+            return panelMappings[ref];
+          }
+        }
+      }
+    }
+
+    return null;
   }
 }

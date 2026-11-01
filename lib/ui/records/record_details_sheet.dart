@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../data/synthetic_demonstration_data.dart';
 import '../../guidelines/clinical_guideline.dart';
 import '../../guidelines/related_guidelines_widget.dart';
+import '../../models/clinical_panel.dart';
 import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
 import '../../safety/critical_safety_evaluator.dart';
@@ -518,6 +519,30 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
             DetailLine(
               label: 'Category',
               value: categoryLabel(record.category),
+            ),
+            Builder(
+              builder: (context) {
+                final panelInfo = extractRecordPanelInfo(record);
+                if (panelInfo == null) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DetailLine(label: 'Clinical panel', value: panelInfo.name),
+                    if (panelInfo.conclusion != null &&
+                        panelInfo.conclusion!.isNotEmpty)
+                      DetailLine(
+                        label: 'Report conclusion',
+                        value: panelInfo.conclusion!,
+                      ),
+                    if (panelInfo.performer != null &&
+                        panelInfo.performer!.isNotEmpty)
+                      DetailLine(
+                        label: 'Diagnostic performer',
+                        value: panelInfo.performer!,
+                      ),
+                  ],
+                );
+              },
             ),
             if (record.hasExplicitMeasurementContext)
               DetailLine(
