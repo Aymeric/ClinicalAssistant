@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
+import '../models/symptom_details.dart';
 import '../safety/critical_safety_evaluator.dart';
 
 enum ManualEntryType {
@@ -14,6 +15,7 @@ enum ManualEntryType {
   oxygen('Oxygen (SpO2)', Icons.air_outlined),
   labResult('Lab Result', Icons.science_outlined),
   medication('Medication', Icons.medication_outlined),
+  symptom('Symptom', Icons.sick_outlined),
   custom('Custom Measurement', Icons.tune_outlined);
 
   const ManualEntryType(this.label, this.icon);
@@ -133,6 +135,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   var _tempUnit = '°F';
   var _medicationStatus = 'active';
   DateTime? _medicationEndDate;
+  var _symptomSeverity = SymptomSeverity.moderate;
+  var _symptomCategory = SymptomCategory.general;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -487,6 +491,29 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         );
         break;
 
+      case ManualEntryType.symptom:
+        final symptomName = _customNameController.text.trim();
+        final details = SymptomDetails(
+          name: symptomName,
+          severity: _symptomSeverity,
+          category: _symptomCategory,
+          notes: userNote,
+        );
+        records.add(
+          HealthRecord(
+            id: 'manual:symptom:$nowMs',
+            name: symptomName,
+            value: _symptomSeverity.label,
+            unit: '',
+            recordedAt: timestamp,
+            category: RecordCategory.symptom,
+            source: 'Manual Entry',
+            sourceData: details.withSourceData(null),
+            notes: userNote,
+          ),
+        );
+        break;
+
       case ManualEntryType.custom:
         final ref = _refRangeController.text.trim();
         records.add(
@@ -647,6 +674,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                         ? 'Log Medication'
                         : _selectedType == ManualEntryType.labResult
                         ? 'Log Lab Result'
+                        : _selectedType == ManualEntryType.symptom
+                        ? 'Log Symptom'
                         : 'Log Health Measurement',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -1097,6 +1126,63 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                         : 'Ended: ${MaterialLocalizations.of(context).formatMediumDate(_medicationEndDate!)}',
                   ),
                 ),
+              ] else if (_selectedType == ManualEntryType.symptom) ...[
+                TextFormField(
+                  key: const ValueKey('manual-symptom-name'),
+                  controller: _customNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Symptom Name',
+                    hintText:
+                        'e.g. Headache, Dizziness, Chest tightness, Nausea',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (val) => val == null || val.trim().isEmpty
+                      ? 'Enter a symptom name'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<SymptomCategory>(
+                  key: const ValueKey('manual-symptom-category'),
+                  initialValue: _symptomCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'System Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: SymptomCategory.values.map((cat) {
+                    return DropdownMenuItem(
+                      value: cat,
+                      child: Row(
+                        children: [
+                          Icon(cat.icon, size: 18),
+                          const SizedBox(width: 8),
+                          Text(cat.label),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _symptomCategory = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Severity Level',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                SegmentedButton<SymptomSeverity>(
+                  segments: SymptomSeverity.values.map((sev) {
+                    return ButtonSegment(value: sev, label: Text(sev.label));
+                  }).toList(),
+                  selected: {_symptomSeverity},
+                  onSelectionChanged: (selected) {
+                    setState(() => _symptomSeverity = selected.first);
+                  },
+                ),
               ] else if (_selectedType == ManualEntryType.custom) ...[
                 TextFormField(
                   controller: _customNameController,
@@ -1265,6 +1351,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
               const SizedBox(height: 16),
               // Personal Notes Field
               TextFormField(
+                key: const ValueKey('manual-record-notes'),
                 controller: _notesController,
                 maxLines: 2,
                 decoration: const InputDecoration(
@@ -1284,6 +1371,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                       ? 'Save Medication to Vault'
                       : _selectedType == ManualEntryType.labResult
                       ? 'Save Lab Result to Vault'
+                      : _selectedType == ManualEntryType.symptom
+                      ? 'Save Symptom to Vault'
                       : 'Save Measurement to Vault',
                 ),
                 onPressed: _submit,

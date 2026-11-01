@@ -369,6 +369,9 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                               (r) => r.category == RecordCategory.medication,
                             )
                             .toList(),
+                        symptomRecords: widget.records
+                            .where((r) => r.category == RecordCategory.symptom)
+                            .toList(),
                         showMovingAverage: _showMovingAverage,
                         onMovingAverageChanged: (value) =>
                             setState(() => _showMovingAverage = value),

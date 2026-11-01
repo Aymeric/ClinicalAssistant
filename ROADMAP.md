@@ -127,10 +127,10 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - **SF-12 / HAQ**: Functional health status and quality-of-life questionnaires.
   - [ ] Ingest and export responses as standard FHIR `Questionnaire` and `QuestionnaireResponse` resources.
   - [ ] Longitudinal survey score tracking plotted directly alongside medications and biometric trends.
-- [ ] **Structured Symptoms Log & Timeline Overlays** ([#156](https://github.com/Aymeric/ClinicalAssistant/issues/156)):
-  - [ ] Ingest structured symptoms from Apple Health (`HKCategoryTypeIdentifier`) and Android Health Connect with recorded severity (Mild, Moderate, Severe).
-  - [ ] Add manual symptom logging for episodic cardiorespiratory, neurological, gastrointestinal, and pain events.
-  - [ ] Expose an opt-in timeline overlay on trend charts to correlate episodic symptoms chronologically alongside numeric vitals and medications while maintaining diagnostic neutrality.
+- [x] **Structured Symptoms Log & Timeline Overlays** ([#156](https://github.com/Aymeric/ClinicalAssistant/issues/156)):
+  - [x] Ingest structured symptoms from Apple Health (`HKCategoryTypeIdentifier`) and Android Health Connect with recorded severity (Mild, Moderate, Severe).
+  - [x] Add manual symptom logging for episodic cardiorespiratory, neurological, gastrointestinal, and pain events.
+  - [x] Expose an opt-in timeline overlay on trend charts to correlate episodic symptoms chronologically alongside numeric vitals and medications while maintaining diagnostic neutrality.
 - [ ] **Medication Management & Interaction Safety** ([#77](https://github.com/Aymeric/ClinicalAssistant/issues/77)):
   - [x] **Offline Drug-Drug & Food-Drug Interaction Checker**:
     - [x] Bundled offline open pharmacology interaction dataset (open FDA / RxNorm / open DrugBank data).

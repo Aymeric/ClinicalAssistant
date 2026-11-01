@@ -196,6 +196,7 @@ class HealthExportService {
         RecordCategory.immunization => 'Immunizations',
         RecordCategory.coverage => 'Insurance & Health Plan Coverage',
         RecordCategory.procedure => 'Procedures & Surgeries',
+        RecordCategory.symptom => 'Symptoms & Patient Observations',
       };
 
       buffer.writeln('--- $categoryTitle (${categoryRecords.length}) ---');
@@ -1464,6 +1465,7 @@ class HealthExportService {
             RecordCategory.immunization => 'Immunization',
             RecordCategory.coverage => 'Coverage',
             RecordCategory.procedure => 'Procedure',
+            RecordCategory.symptom => 'Symptom',
           },
         },
       ],
