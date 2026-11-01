@@ -84,7 +84,10 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Lisinopril'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('medication-title-Lisinopril')),
+        findsOneWidget,
+      );
 
       // Verify 'Mark Taken' button tooltip
       final markTakenTooltipFinder = find.byType(Tooltip);
@@ -124,7 +127,10 @@ void main() {
 
       // Medication should still exist
       expect(controller.activeMedications.length, equals(1));
-      expect(find.text('Lisinopril'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('medication-title-Lisinopril')),
+        findsOneWidget,
+      );
 
       // Open popup menu again and confirm delete
       await tester.tap(find.byIcon(Icons.more_vert));

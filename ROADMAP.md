@@ -132,11 +132,11 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
   - [ ] Add manual symptom logging for episodic cardiorespiratory, neurological, gastrointestinal, and pain events.
   - [ ] Expose an opt-in timeline overlay on trend charts to correlate episodic symptoms chronologically alongside numeric vitals and medications while maintaining diagnostic neutrality.
 - [ ] **Medication Management & Interaction Safety** ([#77](https://github.com/Aymeric/ClinicalAssistant/issues/77)):
-  - [ ] **Offline Drug-Drug & Food-Drug Interaction Checker**:
-    - Bundled offline open pharmacology interaction dataset (open FDA / RxNorm / open DrugBank data).
-    - Automatically flags known interactions between active logged medications (e.g., NSAIDs + ACE inhibitors; Potassium + Spironolactone).
-    - Highlights common dietary interactions (e.g., Grapefruit juice with Statins; high-Vitamin K foods with Warfarin).
-    - Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
+  - [x] **Offline Drug-Drug & Food-Drug Interaction Checker**:
+    - [x] Bundled offline open pharmacology interaction dataset (open FDA / RxNorm / open DrugBank data).
+    - [x] Automatically flags known interactions between active logged medications (e.g., NSAIDs + ACE inhibitors; Potassium + Spironolactone).
+    - [x] Highlights common dietary interactions (e.g., Grapefruit juice with Statins; high-Vitamin K foods with Warfarin).
+    - [x] Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
   - [ ] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
   - [ ] Log medication adherence history against prescribed regimens.
   - [x] Discontinue / archive medications with reason annotations and date effective.
