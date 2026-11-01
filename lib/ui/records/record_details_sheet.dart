@@ -7,6 +7,7 @@ import '../../data/synthetic_demonstration_data.dart';
 import '../../guidelines/clinical_guideline.dart';
 import '../../guidelines/related_guidelines_widget.dart';
 import '../../models/clinical_panel.dart';
+import '../../models/coverage_details.dart';
 import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
 import '../../safety/critical_safety_evaluator.dart';
@@ -148,6 +149,7 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
         record.isManual && record.category == RecordCategory.medication
         ? ManualMedicationDetails.fromRecord(record)
         : null;
+    final coverageDetails = CoverageDetails.fromRecord(record);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
@@ -520,6 +522,59 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
               label: 'Category',
               value: categoryLabel(record.category),
             ),
+            if (coverageDetails != null) ...[
+              if (coverageDetails.planName != null)
+                DetailLine(
+                  label: 'Plan name',
+                  value: coverageDetails.planName!,
+                ),
+              if (coverageDetails.groupNumber != null)
+                DetailLine(
+                  label: 'Group number',
+                  value: coverageDetails.groupNumber!,
+                ),
+              if (coverageDetails.groupName != null)
+                DetailLine(
+                  label: 'Group name',
+                  value: coverageDetails.groupName!,
+                ),
+              if (coverageDetails.subscriberId != null)
+                DetailLine(
+                  label: 'Subscriber ID',
+                  value: coverageDetails.subscriberId!,
+                ),
+              if (coverageDetails.beneficiaryName != null)
+                DetailLine(
+                  label: 'Beneficiary',
+                  value: coverageDetails.beneficiaryName!,
+                ),
+              if (coverageDetails.relationship != null)
+                DetailLine(
+                  label: 'Relationship',
+                  value: coverageDetails.relationship!,
+                ),
+              if (coverageDetails.periodStart != null ||
+                  coverageDetails.periodEnd != null)
+                DetailLine(
+                  label: 'Coverage period',
+                  value:
+                      '${coverageDetails.periodStart != null ? formatRecordDate(coverageDetails.periodStart!) : "Start"} – ${coverageDetails.periodEnd != null ? formatRecordDate(coverageDetails.periodEnd!) : "Active"}',
+                ),
+              if (coverageDetails.coverageType != null)
+                DetailLine(
+                  label: 'Coverage type',
+                  value: coverageDetails.coverageType!,
+                ),
+              if (coverageDetails.network != null)
+                DetailLine(label: 'Network', value: coverageDetails.network!),
+              if (coverageDetails.copays.isNotEmpty)
+                DetailLine(
+                  label: 'Copays & Cost sharing',
+                  value: coverageDetails.copays
+                      .map((c) => '${c.type}: ${c.amount}')
+                      .join(' · '),
+                ),
+            ],
             Builder(
               builder: (context) {
                 final panelInfo = extractRecordPanelInfo(record);

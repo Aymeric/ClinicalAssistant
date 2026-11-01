@@ -104,6 +104,7 @@ class FhirFilePreview {
               RecordCategory.condition => 'Condition',
               RecordCategory.allergy => 'AllergyIntolerance',
               RecordCategory.immunization => 'Immunization',
+              RecordCategory.coverage => 'Coverage',
               _ => 'Observation',
             };
         counts[resourceType] = (counts[resourceType] ?? 0) + 1;

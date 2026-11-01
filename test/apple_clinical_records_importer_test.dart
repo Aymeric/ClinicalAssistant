@@ -318,6 +318,29 @@ void main() {
                   'occurrenceDateTime': '2026-10-01T14:00:00Z',
                 },
               },
+              {
+                'sourceId': 'com.epic.mychart',
+                'sourceName': 'St. Jude Hospital',
+                'resource': {
+                  'resourceType': 'Coverage',
+                  'id': 'cov-apple-1',
+                  'status': 'active',
+                  'payor': [
+                    {'display': 'Anthem Blue Cross'},
+                  ],
+                  'subscriberId': 'XEJ998877',
+                  'class': [
+                    {
+                      'type': {
+                        'coding': [
+                          {'code': 'plan'},
+                        ],
+                      },
+                      'name': 'Gold PPO',
+                    },
+                  ],
+                },
+              },
             ];
           });
 
@@ -325,7 +348,7 @@ void main() {
         channel: channel,
       ).importLabRecords();
 
-      expect(records, hasLength(4));
+      expect(records, hasLength(5));
 
       final condition = records.firstWhere(
         (r) => r.name == 'Essential Hypertension',
@@ -345,6 +368,10 @@ void main() {
         (r) => r.name.contains('Influenza'),
       );
       expect(immunization.category, RecordCategory.immunization);
+
+      final coverage = records.firstWhere((r) => r.name == 'Anthem Blue Cross');
+      expect(coverage.category, RecordCategory.coverage);
+      expect(coverage.value, 'Active · Gold PPO · ID: XEJ998877');
     },
   );
 }

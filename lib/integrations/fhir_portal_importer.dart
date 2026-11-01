@@ -43,6 +43,7 @@ class FhirPortalImporter {
     'Condition',
     'AllergyIntolerance',
     'Immunization',
+    'Coverage',
   ];
 
   static const _baseScopes = [
@@ -55,6 +56,7 @@ class FhirPortalImporter {
     'patient/Condition.read',
     'patient/AllergyIntolerance.read',
     'patient/Immunization.read',
+    'patient/Coverage.read',
   ];
 
   final FlutterAppAuth _appAuth;

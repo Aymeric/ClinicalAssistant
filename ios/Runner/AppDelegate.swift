@@ -78,6 +78,9 @@ private final class AppleClinicalRecordsPlugin: NSObject, FlutterPlugin {
     if let immunizationType = HKObjectType.clinicalType(forIdentifier: .immunizationRecord) {
       clinicalTypes.append(immunizationType)
     }
+    if let coverageType = HKObjectType.clinicalType(forIdentifier: .coverageRecord) {
+      clinicalTypes.append(coverageType)
+    }
     if let vitalSignType = HKObjectType.clinicalType(forIdentifier: .vitalSignRecord) {
       clinicalTypes.append(vitalSignType)
     }

@@ -87,6 +87,9 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - Historical clinical procedures, surgical interventions, performed dates, and body sites.
   - [ ] **Diagnostic Reports & Clinical Documents (`DiagnosticReport`, `DocumentReference`)**:
     - Ingest diagnostic report summaries and embedded text notes (pathology summaries, radiology narrative impressions).
+  - [x] **Health Insurance & Coverage (`Coverage`)** ([#155](https://github.com/Aymeric/ClinicalAssistant/issues/155)):
+    - [x] Ingest coverage policies, payer names, subscriber identifiers, group numbers, copay structures, and coverage period dates from connected portals and Apple Health.
+    - [x] Provide an offline Insurance & Coverage summary card in records view and doctor visit exports without transmitting policy data off-device.
 - [x] **Direct FHIR JSON File Import** ([#118](https://github.com/Aymeric/ClinicalAssistant/issues/118)):
   - [x] Select a local FHIR JSON file and preview the supported resource count before importing, reusing the existing parser and record-merge path.
   - [x] Preserve original resource data and provenance; process files locally, validate before saving, and report malformed or unsupported input without a partial import.
@@ -124,6 +127,10 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - **SF-12 / HAQ**: Functional health status and quality-of-life questionnaires.
   - [ ] Ingest and export responses as standard FHIR `Questionnaire` and `QuestionnaireResponse` resources.
   - [ ] Longitudinal survey score tracking plotted directly alongside medications and biometric trends.
+- [ ] **Structured Symptoms Log & Timeline Overlays** ([#156](https://github.com/Aymeric/ClinicalAssistant/issues/156)):
+  - [ ] Ingest structured symptoms from Apple Health (`HKCategoryTypeIdentifier`) and Android Health Connect with recorded severity (Mild, Moderate, Severe).
+  - [ ] Add manual symptom logging for episodic cardiorespiratory, neurological, gastrointestinal, and pain events.
+  - [ ] Expose an opt-in timeline overlay on trend charts to correlate episodic symptoms chronologically alongside numeric vitals and medications while maintaining diagnostic neutrality.
 - [ ] **Medication Management & Interaction Safety** ([#77](https://github.com/Aymeric/ClinicalAssistant/issues/77)):
   - [ ] **Offline Drug-Drug & Food-Drug Interaction Checker**:
     - Bundled offline open pharmacology interaction dataset (open FDA / RxNorm / open DrugBank data).
@@ -190,11 +197,13 @@ Focus: Purpose-built longitudinal visualizations for high-impact chronic conditi
 - [ ] **Digital Biomarkers & Mobility** ([#85](https://github.com/Aymeric/ClinicalAssistant/issues/85)):
   - [ ] **Gait & Stability Metrics**:
     - Walking speed, step asymmetry percentage, and double-support time from HealthKit / Health Connect to display mobility stability trends over time (valuable for surgical recovery, elder care, and physical therapy).
+    - Import Apple Walking Steadiness notifications and classifications (OK, Low, Very Low) to highlight fall risk trends in doctor visit summaries without algorithmic medical claims.
 - [ ] **Environmental Trigger Overlays** ([#86](https://github.com/Aymeric/ClinicalAssistant/issues/86)):
   - [ ] Ephemeral download of regional Air Quality Index (AQI), pollen counts, and barometric pressure trends to allow patients to correlate environmental triggers with asthma flare-ups, migraines, or blood pressure swings without persisting location data.
 - [ ] **Pulmonary & Respiratory Health** ([#87](https://github.com/Aymeric/ClinicalAssistant/issues/87)):
   - [ ] Oxygen Saturation ($SpO_2$) daytime spot-checks vs. nocturnal nadir tracking.
   - [ ] Peak Expiratory Flow (PEF) and $FEV_1$ tracking for asthma and COPD patients.
+  - [ ] Ingest inhaler usage events (rescue vs. maintenance actuations) and correlate chronologically against peak flow trends.
 - [ ] **Women's Health & Cycle Tracking** ([#88](https://github.com/Aymeric/ClinicalAssistant/issues/88)):
   - [ ] Menstrual cycle length and period duration variability tracking.
   - [ ] Basal Body Temperature (BBT) biphasic temperature shift charting.

@@ -356,6 +356,13 @@ class FhirObservationParser {
           sourceId: sourceId,
           idPrefix: idPrefix,
         );
+      case 'Coverage':
+        return _parseCoverage(
+          resource,
+          source: source,
+          sourceId: sourceId,
+          idPrefix: idPrefix,
+        );
       default:
         return null;
     }
@@ -759,6 +766,132 @@ class FhirObservationParser {
       status: status ?? 'completed',
       notes: _notesText(immunization['note']),
       sourceData: Map<String, Object?>.from(immunization),
+    );
+  }
+
+  HealthRecord? _parseCoverage(
+    Map<String, dynamic> coverage, {
+    required String source,
+    required String sourceId,
+    required String idPrefix,
+  }) {
+    final status = coverage['status']?.toString();
+    if (status == 'entered-in-error') return null;
+
+    final id = coverage['id']?.toString();
+    if (id == null || id.isEmpty) return null;
+
+    // Extract payor organization/name
+    String payorName = '';
+    final payor = coverage['payor'];
+    if (payor is List && payor.isNotEmpty) {
+      final first = payor.first;
+      if (first is Map) {
+        payorName = (first['display'] ?? first['reference'] ?? '').toString();
+      }
+    } else if (payor is Map) {
+      payorName = (payor['display'] ?? payor['reference'] ?? '').toString();
+    }
+    if (payorName.isEmpty) {
+      final insurer = coverage['insurer'];
+      if (insurer is Map) {
+        payorName = (insurer['display'] ?? insurer['reference'] ?? '')
+            .toString();
+      }
+    }
+    if (payorName.isEmpty) {
+      payorName = 'Health Insurance Policy';
+    }
+
+    // Extract subscriber ID or policy identifier
+    String? subscriberId;
+    final rawSubId = coverage['subscriberId'];
+    if (rawSubId is String && rawSubId.isNotEmpty) {
+      subscriberId = rawSubId;
+    } else if (rawSubId is Map) {
+      subscriberId = rawSubId['value']?.toString();
+    } else if (rawSubId is List && rawSubId.isNotEmpty) {
+      final first = rawSubId.first;
+      if (first is Map) {
+        subscriberId = first['value']?.toString();
+      } else if (first is String) {
+        subscriberId = first;
+      }
+    }
+    if (subscriberId == null) {
+      final identifiers = coverage['identifier'];
+      if (identifiers is List) {
+        for (final item in identifiers) {
+          if (item is Map && item['value'] != null) {
+            subscriberId = item['value'].toString();
+            break;
+          }
+        }
+      }
+    }
+
+    // Extract group number or plan name from classes
+    String? groupNumber;
+    String? planName;
+    final classes = coverage['class'];
+    if (classes is List) {
+      for (final cls in classes) {
+        if (cls is! Map) continue;
+        final type = cls['type'];
+        String? code;
+        if (type is Map) {
+          final codings = type['coding'];
+          if (codings is List && codings.isNotEmpty && codings.first is Map) {
+            code = codings.first['code']?.toString().toLowerCase();
+          }
+          code ??= type['text']?.toString().toLowerCase();
+        }
+
+        final val = cls['value'] is Map
+            ? cls['value']['value']?.toString()
+            : cls['value']?.toString();
+        final name = cls['name']?.toString();
+
+        if (code == 'group') {
+          groupNumber = val ?? name;
+        } else if (code == 'plan') {
+          planName = name ?? val;
+        }
+      }
+    }
+
+    // Compose descriptive display value
+    final statusDisplay = status != null ? _capitalize(status) : 'Active';
+    final parts = <String>[statusDisplay];
+    if (planName != null && planName.isNotEmpty) {
+      parts.add(planName);
+    }
+    if (groupNumber != null && groupNumber.isNotEmpty) {
+      parts.add('Group: $groupNumber');
+    } else if (subscriberId != null && subscriberId.isNotEmpty) {
+      parts.add('ID: $subscriberId');
+    }
+    final value = parts.join(' · ');
+
+    final recordedAt =
+        _parseFhirDate((coverage['period'] as Map?)?['start']) ??
+        _parseFhirDate((coverage['period'] as Map?)?['end']) ??
+        _parseFhirDate((coverage['meta'] as Map?)?['lastUpdated']) ??
+        DateTime.now().toUtc();
+
+    return HealthRecord(
+      id: '$idPrefix:$sourceId:$id',
+      name: payorName,
+      value: value,
+      unit: '',
+      recordedAt: recordedAt,
+      category: RecordCategory.coverage,
+      source: source,
+      sourceId: sourceId,
+      code: _conceptCode(coverage['type']),
+      status: status ?? 'active',
+      notes: _notesText(coverage['note'] ?? coverage['text']),
+      sourceData: Map<String, Object?>.from(coverage),
     );
   }
 

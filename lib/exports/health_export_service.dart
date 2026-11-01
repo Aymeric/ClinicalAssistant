@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../models/clinical_panel.dart';
+import '../models/coverage_details.dart';
 import '../models/doctor_visit_preparation.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
@@ -193,6 +194,7 @@ class HealthExportService {
         RecordCategory.condition => 'Conditions & Diagnoses',
         RecordCategory.allergy => 'Allergies & Intolerances',
         RecordCategory.immunization => 'Immunizations',
+        RecordCategory.coverage => 'Insurance & Health Plan Coverage',
       };
 
       buffer.writeln('--- $categoryTitle (${categoryRecords.length}) ---');
@@ -440,6 +442,9 @@ class HealthExportService {
         .toList();
     final allergies = ordered
         .where((r) => r.category == RecordCategory.allergy)
+        .toList();
+    final coverages = ordered
+        .where((r) => r.category == RecordCategory.coverage)
         .toList();
 
     final summaryTitle = switch (effectiveSpecialty) {
@@ -888,6 +893,79 @@ class HealthExportService {
       );
     }
 
+    // Helper to render insurance coverage table
+    pw.Widget buildCoverageTable() {
+      if (coverages.isEmpty) return pw.SizedBox();
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Health Insurance & Coverage (${coverages.take(5).length})',
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+              color: specialtyHeaderColor,
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          pw.TableHelper.fromTextArray(
+            headers: const [
+              'Payer / Insurer',
+              'Plan & Group',
+              'Subscriber ID',
+              'Status',
+              'Copays / Cost Sharing',
+            ],
+            data: coverages.take(5).map((record) {
+              final cov = CoverageDetails.fromRecord(record);
+              final payer = cov?.payorName.isNotEmpty == true
+                  ? cov!.payorName
+                  : record.name;
+              final planGroup = [
+                if (cov?.planName != null) cov!.planName!,
+                if (cov?.groupNumber != null) 'Grp: ${cov!.groupNumber!}',
+              ].join('\n');
+              final subId = cov?.subscriberId ?? '-';
+              final status = cov?.status != null
+                  ? cov!.status!.toUpperCase()
+                  : (record.status ?? 'ACTIVE').toUpperCase();
+              final copayText = cov != null && cov.copays.isNotEmpty
+                  ? cov.copays.map((c) => '${c.type}: ${c.amount}').join(', ')
+                  : '-';
+
+              return [
+                payer,
+                planGroup.isNotEmpty ? planGroup : '-',
+                subId,
+                status,
+                copayText,
+              ];
+            }).toList(),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+              fontSize: 8,
+            ),
+            headerDecoration: const pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFF00695C),
+            ),
+            cellStyle: const pw.TextStyle(fontSize: 8),
+            cellPadding: const pw.EdgeInsets.symmetric(
+              horizontal: 5,
+              vertical: 4,
+            ),
+            border: pw.TableBorder(
+              horizontalInside: pw.BorderSide(
+                color: PdfColor.fromHex('#E0E0E0'),
+                width: 0.5,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 14),
+        ],
+      );
+    }
+
     // Helper to render patient discussion topics / agenda
     pw.Widget buildQuestionsSection() {
       final combinedAgenda = <String>[
@@ -1218,6 +1296,7 @@ class HealthExportService {
               buildConditionsTable(),
             if (effectiveIncludeAllergies && allergies.isNotEmpty)
               buildAllergiesTable(),
+            if (coverages.isNotEmpty) buildCoverageTable(),
             if (effectiveIncludeQuestions) buildQuestionsSection(),
           ] else if (effectiveSpecialty ==
               DoctorVisitSpecialty.endocrinology) ...[
@@ -1237,6 +1316,7 @@ class HealthExportService {
               buildConditionsTable(),
             if (effectiveIncludeAllergies && allergies.isNotEmpty)
               buildAllergiesTable(),
+            if (coverages.isNotEmpty) buildCoverageTable(),
             if (effectiveIncludeQuestions) buildQuestionsSection(),
           ] else ...[
             // Annual Wellness / General Template
@@ -1252,6 +1332,7 @@ class HealthExportService {
               buildConditionsTable(),
             if (effectiveIncludeAllergies && allergies.isNotEmpty)
               buildAllergiesTable(),
+            if (coverages.isNotEmpty) buildCoverageTable(),
             if (effectiveIncludeQuestions) buildQuestionsSection(),
           ],
         ],
@@ -1319,6 +1400,7 @@ class HealthExportService {
             RecordCategory.condition => 'Condition',
             RecordCategory.allergy => 'Allergy',
             RecordCategory.immunization => 'Immunization',
+            RecordCategory.coverage => 'Coverage',
           },
         },
       ],
