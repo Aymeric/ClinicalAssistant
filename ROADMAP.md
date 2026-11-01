@@ -140,12 +140,12 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
   - [ ] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
   - [ ] Log medication adherence history against prescribed regimens.
   - [x] Discontinue / archive medications with reason annotations and date effective.
-- [ ] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
-  - [ ] **Cross-Provider Record Reconciliation**:
-    - Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
-    - Groups equivalent readings into a unified longitudinal timeline while retaining all original source document links and provenance.
-  - [ ] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
-  - [ ] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
+  - [ ] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
+    - [ ] **Cross-Provider Record Reconciliation**:
+      - Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
+      - Groups equivalent readings into a unified longitudinal timeline while retaining all original source document links and provenance.
+    - [x] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
+    - [x] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
 - [x] **Clinical Safety & Critical Value Red-Flag Alerts** ([#79](https://github.com/Aymeric/ClinicalAssistant/issues/79)):
   - [x] High-visibility emergency caution banners when newly entered or imported vitals cross consensus critical red-flag thresholds:
     - *Hypertensive Crisis*: Systolic $\ge 180$ mmHg and/or Diastolic $\ge 120$ mmHg.

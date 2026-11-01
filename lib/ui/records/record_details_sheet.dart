@@ -12,6 +12,7 @@ import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
 import '../../models/procedure_details.dart';
 import '../../safety/critical_safety_evaluator.dart';
+import '../../terminology/loinc_dictionary.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
 
@@ -672,6 +673,41 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
               ),
             if (record.code != null)
               DetailLine(label: 'Code', value: record.code!),
+            Builder(
+              builder: (context) {
+                final loincConcept = LoincDictionary.lookup(record.code);
+                if (loincConcept == null) return const SizedBox.shrink();
+                final numericVal = parseHealthRecordValue(record.value);
+                final descriptiveUnit = numericVal != null
+                    ? LoincDictionary.computeDescriptiveEquivalent(
+                        value: numericVal,
+                        fromUnit: record.unit,
+                        code: record.code,
+                      )
+                    : null;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (loincConcept.patientFriendlyName.toLowerCase() !=
+                        record.name.toLowerCase())
+                      DetailLine(
+                        label: 'Standardized name',
+                        value: loincConcept.patientFriendlyName,
+                      ),
+                    DetailLine(
+                      label: 'About this test',
+                      value: loincConcept.description,
+                    ),
+                    if (descriptiveUnit != null)
+                      DetailLine(
+                        label: 'Unit equivalent',
+                        value: '$descriptiveUnit (calculated equivalent)',
+                      ),
+                  ],
+                );
+              },
+            ),
             if (record.sourceId != null)
               DetailLine(label: 'Source ID', value: record.sourceId!),
             const SizedBox(height: 16),
