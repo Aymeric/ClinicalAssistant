@@ -177,13 +177,22 @@ class CriticalSafetyEvaluator {
 
     // 5. Oxygen Saturation (SpO2)
     if (_isOxygen(lowerName, code)) {
-      final val = parseHealthRecordValue(record.value);
-      if (val != null && val > 0 && val < kOxygenCriticalPercent) {
-        return CriticalSafetyAlert(
-          type: CriticalSafetyType.severeHypoxemia,
-          record: record,
-          readingSummary: record.displayValue,
-        );
+      final rawVal = parseHealthRecordValue(record.value);
+      if (rawVal != null && rawVal > 0) {
+        // Defensively normalize fraction values in (0, 1] (common in raw health
+        // sources e.g. 0.98 for 98%) to standard 0–100 percentage.
+        final val = rawVal <= 1.0 ? rawVal * 100 : rawVal;
+        if (val < kOxygenCriticalPercent) {
+          final summary = rawVal <= 1.0
+              ? '${formatSensibleNumber(val)} ${record.unit.isEmpty ? '%' : record.unit}'
+                    .trim()
+              : record.displayValue;
+          return CriticalSafetyAlert(
+            type: CriticalSafetyType.severeHypoxemia,
+            record: record,
+            readingSummary: summary,
+          );
+        }
       }
       return null;
     }
@@ -291,7 +300,11 @@ class CriticalSafetyEvaluator {
   }
 
   static bool _isOxygen(String name, String? code) {
-    if (code == '59408-5' || code == '2708-6' || code == '2710-2') {
+    final lowerCode = code?.toLowerCase();
+    if (code == '59408-5' ||
+        code == '2708-6' ||
+        code == '2710-2' ||
+        lowerCode == 'blood_oxygen') {
       return true;
     }
     return name.contains('spo2') ||

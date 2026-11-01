@@ -418,6 +418,75 @@ void main() {
     expect(ecgRecord.value, 'Sinus rhythm · 72 bpm avg');
     expect(ecgRecord.category, RecordCategory.vital);
   });
+
+  group('HealthDataRecordMapper - Percentage Normalization', () {
+    test(
+      'converts raw decimal fraction blood oxygen (e.g. 0.98) to percentage (98%)',
+      () {
+        final record = mapper.mapPoint(
+          _point(
+            HealthDataType.BLOOD_OXYGEN,
+            NumericHealthValue(numericValue: 0.98),
+            unit: HealthDataUnit.PERCENT,
+          ),
+          fallbackSource: 'Apple Health',
+        );
+
+        expect(record.name, 'Blood oxygen');
+        expect(record.value, '98');
+        expect(record.unit, '%');
+        expect(record.displayValue, '98 %');
+        expect(record.code, 'BLOOD_OXYGEN');
+        expect(record.category, RecordCategory.vital);
+      },
+    );
+
+    test('converts full saturation raw fraction 1.0 to 100%', () {
+      final record = mapper.mapPoint(
+        _point(
+          HealthDataType.BLOOD_OXYGEN,
+          NumericHealthValue(numericValue: 1.0),
+          unit: HealthDataUnit.PERCENT,
+        ),
+        fallbackSource: 'Apple Health',
+      );
+
+      expect(record.value, '100');
+      expect(record.displayValue, '100 %');
+      expect(record.unit, '%');
+    });
+
+    test('preserves already-scaled percentage blood oxygen (e.g. 97.5)', () {
+      final record = mapper.mapPoint(
+        _point(
+          HealthDataType.BLOOD_OXYGEN,
+          NumericHealthValue(numericValue: 97.5),
+          unit: HealthDataUnit.PERCENT,
+        ),
+        fallbackSource: 'Health Connect',
+      );
+
+      expect(record.value, '97.5');
+      expect(record.displayValue, '97.5 %');
+      expect(record.unit, '%');
+    });
+
+    test('converts raw fraction body fat percentage to percentage scale', () {
+      final record = mapper.mapPoint(
+        _point(
+          HealthDataType.BODY_FAT_PERCENTAGE,
+          NumericHealthValue(numericValue: 0.22),
+          unit: HealthDataUnit.PERCENT,
+        ),
+        fallbackSource: 'Apple Health',
+      );
+
+      expect(record.name, 'Body fat');
+      expect(record.value, '22');
+      expect(record.unit, '%');
+      expect(record.displayValue, '22 %');
+    });
+  });
 }
 
 HealthDataPoint _point(

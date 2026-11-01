@@ -92,6 +92,7 @@ bool _matchesCardiology(HealthRecord record) {
           '2708-6',
           '29463-7',
           '39156-5',
+          'BLOOD_OXYGEN',
         }.contains(code);
   }
 

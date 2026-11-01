@@ -204,6 +204,45 @@ void main() {
 
       expect(CriticalSafetyEvaluator.evaluate(record), isNull);
     });
+
+    test(
+      'does not trigger false critical alert on raw decimal fraction SpO2 (e.g. 0.98)',
+      () {
+        final record = HealthRecord(
+          id: 'spo2-raw-fraction',
+          name: 'Blood oxygen',
+          value: '0.98',
+          unit: '%',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Apple Health',
+          code: 'BLOOD_OXYGEN',
+        );
+
+        expect(CriticalSafetyEvaluator.evaluate(record), isNull);
+      },
+    );
+
+    test(
+      'detects Severe Hypoxemia from raw decimal fraction SpO2 (e.g. 0.84)',
+      () {
+        final record = HealthRecord(
+          id: 'spo2-raw-critical',
+          name: 'Blood oxygen',
+          value: '0.84',
+          unit: '%',
+          recordedAt: now,
+          category: RecordCategory.vital,
+          source: 'Apple Health',
+          code: 'BLOOD_OXYGEN',
+        );
+
+        final alert = CriticalSafetyEvaluator.evaluate(record);
+        expect(alert, isNotNull);
+        expect(alert!.type, CriticalSafetyType.severeHypoxemia);
+        expect(alert.readingSummary, '84 %');
+      },
+    );
   });
 
   group('CriticalSafetyEvaluator - Heart Rate', () {

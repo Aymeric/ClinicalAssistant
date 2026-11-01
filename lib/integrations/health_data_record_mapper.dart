@@ -17,7 +17,7 @@ class HealthDataRecordMapper {
       id: 'health:${point.sourceId}:${point.uuid}',
       name: labelFor(point.type),
       value: _displayValue(point, value),
-      unit: _unitLabel(point.unit),
+      unit: _unitFor(point),
       recordedAt: point.dateTo.toUtc(),
       category: _categoryFor(point.type),
       source: source,
@@ -56,9 +56,20 @@ class HealthDataRecordMapper {
     _ => RecordCategory.vital,
   };
 
+  String _unitFor(HealthDataPoint point) {
+    if (point.type == HealthDataType.BLOOD_OXYGEN ||
+        point.type == HealthDataType.BODY_FAT_PERCENTAGE) {
+      return '%';
+    }
+    return _unitLabel(point.unit);
+  }
+
   String _displayValue(HealthDataPoint point, Map<String, dynamic> json) {
     final numericValue = json['numericValue'];
-    if (numericValue is num) return _formatNumber(numericValue);
+    if (numericValue is num) {
+      final normalized = _normalizeNumericValue(point.type, numericValue);
+      return _formatNumber(normalized);
+    }
 
     return switch (point.value) {
       WorkoutHealthValue value => _workoutSummary(value),
@@ -152,6 +163,19 @@ class HealthDataRecordMapper {
       if (value.isStartOfCycle == true) 'cycle start',
     ];
     return details.join(' · ');
+  }
+
+  num _normalizeNumericValue(HealthDataType type, num value) {
+    if (type == HealthDataType.BLOOD_OXYGEN ||
+        type == HealthDataType.BODY_FAT_PERCENTAGE) {
+      // In raw sources (e.g. Apple HealthKit HKUnit.percent()), percentages are
+      // reported as fractions in [0.0, 1.0] (e.g. 0.98 for 98% SpO2, 1.0 for 100%).
+      // If the value is within (0, 1], normalize it to standard 0–100 percentage.
+      if (value > 0 && value <= 1.0) {
+        return value * 100;
+      }
+    }
+    return value;
   }
 
   String _formatNumber(num value) => formatSensibleNumber(value);
