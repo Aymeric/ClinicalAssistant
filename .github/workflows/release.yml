@@ -172,6 +172,7 @@ jobs:
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           track: ${{ github.event.inputs.play_track || 'internal' }}
           status: 'completed'
+          changesNotSentForReview: true
           whatsNewDirectory: distribution/whatsnew
 
   build_and_deploy_ios:
