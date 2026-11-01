@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
+import '../models/prom_details.dart';
 
 class FhirObservationParser {
   const FhirObservationParser();
@@ -365,6 +366,13 @@ class FhirObservationParser {
         );
       case 'Procedure':
         return _parseProcedure(
+          resource,
+          source: source,
+          sourceId: sourceId,
+          idPrefix: idPrefix,
+        );
+      case 'QuestionnaireResponse':
+        return _parseQuestionnaireResponse(
           resource,
           source: source,
           sourceId: sourceId,
@@ -971,6 +979,80 @@ class FhirObservationParser {
       status: status ?? 'completed',
       notes: _notesText(procedure['note'] ?? procedure['text']),
       sourceData: Map<String, Object?>.from(procedure),
+    );
+  }
+
+  HealthRecord? _parseQuestionnaireResponse(
+    Map<String, dynamic> response, {
+    required String source,
+    required String sourceId,
+    required String idPrefix,
+  }) {
+    final status = response['status']?.toString();
+    if (status == 'entered-in-error') return null;
+
+    final id =
+        response['id']?.toString() ??
+        'qr-${response.hashCode.abs().toRadixString(16)}';
+    final questionnaireUri = response['questionnaire']?.toString() ?? '';
+    var instrumentName = 'Questionnaire';
+    for (final inst in PromInstrument.values) {
+      if (questionnaireUri.contains(inst.loincCode) ||
+          questionnaireUri.toLowerCase().contains(inst.name.toLowerCase())) {
+        instrumentName = inst.label;
+        break;
+      }
+    }
+
+    final answers = <int>[];
+    var totalScore = 0;
+    final items = response['item'];
+    if (items is List) {
+      for (final item in items) {
+        if (item is Map) {
+          final ansList = item['answer'];
+          if (ansList is List && ansList.isNotEmpty) {
+            final firstAns = ansList.first;
+            if (firstAns is Map) {
+              final valInt = firstAns['valueInteger'];
+              if (valInt is num) {
+                final score = valInt.toInt();
+                answers.add(score);
+                totalScore += score;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    final instrument = PromInstrument.fromString(instrumentName);
+    final recordedAt =
+        _parseFhirDate(response['authored']) ??
+        _parseFhirDate((response['meta'] as Map?)?['lastUpdated']) ??
+        DateTime.now().toUtc();
+
+    final details = PromResponseDetails(
+      instrument: instrument,
+      totalScore: totalScore,
+      answers: answers,
+      scoreSummary: instrument.scoreSummary(totalScore),
+      notes: _notesText(response['note']),
+    );
+
+    return HealthRecord(
+      id: '$idPrefix:$sourceId:$id',
+      name: instrument.label,
+      value: totalScore.toString(),
+      unit: 'pts',
+      recordedAt: recordedAt,
+      category: RecordCategory.questionnaire,
+      source: source,
+      sourceId: sourceId,
+      code: instrument.loincCode,
+      status: status ?? 'completed',
+      notes: _notesText(response['note']),
+      sourceData: details.withSourceData(Map<String, Object?>.from(response)),
     );
   }
 

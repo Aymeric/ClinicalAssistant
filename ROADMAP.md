@@ -119,14 +119,14 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - **Human-in-the-Loop Verification**: Side-by-side verification interface highlighting bounding boxes on the original scan against parsed fields before saving to the vault.
   - [ ] **Prescription Bottle Barcode & Label Scanner**:
     - Scan National Drug Code (NDC) barcodes or prescription bottle label text to auto-populate medication name, strength, formulation, and instructions using an offline, bundled RxNorm / FDA NDC lookup index.
-- [ ] **Patient-Reported Outcome Measures (PROMs) & Questionnaires** ([#76](https://github.com/Aymeric/ClinicalAssistant/issues/76)):
-  - [ ] Standardized clinical survey instruments:
+- [x] **Patient-Reported Outcome Measures (PROMs) & Questionnaires** ([#76](https://github.com/Aymeric/ClinicalAssistant/issues/76)):
+  - [x] Standardized clinical survey instruments:
     - **PHQ-9**: Patient Health Questionnaire for depression screening.
     - **GAD-7**: Generalized Anxiety Disorder assessment.
     - **CAT & mMRC**: COPD Assessment Test and Dyspnea scales.
     - **SF-12 / HAQ**: Functional health status and quality-of-life questionnaires.
-  - [ ] Ingest and export responses as standard FHIR `Questionnaire` and `QuestionnaireResponse` resources.
-  - [ ] Longitudinal survey score tracking plotted directly alongside medications and biometric trends.
+  - [x] Ingest and export responses as standard FHIR `Questionnaire` and `QuestionnaireResponse` resources.
+  - [x] Longitudinal survey score tracking plotted directly alongside medications and biometric trends.
 - [x] **Structured Symptoms Log & Timeline Overlays** ([#156](https://github.com/Aymeric/ClinicalAssistant/issues/156)):
   - [x] Ingest structured symptoms from Apple Health (`HKCategoryTypeIdentifier`) and Android Health Connect with recorded severity (Mild, Moderate, Severe).
   - [x] Add manual symptom logging for episodic cardiorespiratory, neurological, gastrointestinal, and pain events.

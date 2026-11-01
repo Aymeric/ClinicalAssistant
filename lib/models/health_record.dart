@@ -12,6 +12,7 @@ enum RecordCategory {
   coverage,
   procedure,
   symptom,
+  questionnaire,
 }
 
 /// Formats a numeric value with sensible rounding and decimal limits for health data.

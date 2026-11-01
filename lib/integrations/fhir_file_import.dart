@@ -106,6 +106,7 @@ class FhirFilePreview {
               RecordCategory.immunization => 'Immunization',
               RecordCategory.coverage => 'Coverage',
               RecordCategory.procedure => 'Procedure',
+              RecordCategory.questionnaire => 'QuestionnaireResponse',
               _ => 'Observation',
             };
         counts[resourceType] = (counts[resourceType] ?? 0) + 1;

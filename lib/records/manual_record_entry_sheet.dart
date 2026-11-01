@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
+import '../models/prom_details.dart';
 import '../models/symptom_details.dart';
 import '../safety/critical_safety_evaluator.dart';
 
@@ -16,6 +17,7 @@ enum ManualEntryType {
   labResult('Lab Result', Icons.science_outlined),
   medication('Medication', Icons.medication_outlined),
   symptom('Symptom', Icons.sick_outlined),
+  prom('PROM Survey', Icons.assignment_outlined),
   custom('Custom Measurement', Icons.tune_outlined);
 
   const ManualEntryType(this.label, this.icon);
@@ -137,6 +139,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   DateTime? _medicationEndDate;
   var _symptomSeverity = SymptomSeverity.moderate;
   var _symptomCategory = SymptomCategory.general;
+  var _selectedProm = PromInstrument.phq9;
+  var _promAnswers = <int>[];
 
   final _formKey = GlobalKey<FormState>();
 
@@ -216,6 +220,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         case ManualEntryType.medication:
           _medicationStatus = 'active';
           _medicationEndDate = null;
+          break;
+        case ManualEntryType.prom:
+          _promAnswers = List.filled(_selectedProm.questions.length, 0);
           break;
         default:
           break;
@@ -514,6 +521,32 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         );
         break;
 
+      case ManualEntryType.prom:
+        final totalScore = _promAnswers.fold<int>(0, (sum, val) => sum + val);
+        final details = PromResponseDetails(
+          instrument: _selectedProm,
+          totalScore: totalScore,
+          answers: _promAnswers,
+          scoreSummary: _selectedProm.scoreSummary(totalScore),
+          notes: userNote,
+        );
+        records.add(
+          HealthRecord(
+            id: 'manual:prom:$nowMs',
+            name: _selectedProm.label,
+            value: totalScore.toString(),
+            unit: 'pts',
+            recordedAt: timestamp,
+            category: RecordCategory.questionnaire,
+            source: 'Manual Entry',
+            code: _selectedProm.loincCode,
+            status: 'completed',
+            notes: userNote,
+            sourceData: details.withSourceData(null),
+          ),
+        );
+        break;
+
       case ManualEntryType.custom:
         final ref = _refRangeController.text.trim();
         records.add(
@@ -676,6 +709,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                         ? 'Log Lab Result'
                         : _selectedType == ManualEntryType.symptom
                         ? 'Log Symptom'
+                        : _selectedType == ManualEntryType.prom
+                        ? 'Complete Survey (PROM)'
                         : 'Log Health Measurement',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -1183,6 +1218,115 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     setState(() => _symptomSeverity = selected.first);
                   },
                 ),
+              ] else if (_selectedType == ManualEntryType.prom) ...[
+                DropdownButtonFormField<PromInstrument>(
+                  key: const ValueKey('manual-prom-instrument'),
+                  initialValue: _selectedProm,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Clinical Survey Instrument',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: PromInstrument.values.map((inst) {
+                    return DropdownMenuItem(
+                      value: inst,
+                      child: Text(
+                        '${inst.label} — ${inst.description}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _selectedProm = val;
+                        _promAnswers = List.filled(val.questions.length, 0);
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Instrument Questions (${_selectedProm.questions.length})',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                for (var i = 0; i < _selectedProm.questions.length; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${i + 1}. ${_selectedProm.questions[i]}',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 4),
+                        DropdownButtonFormField<int>(
+                          key: ValueKey('manual-prom-q$i'),
+                          initialValue: (_promAnswers.length > i)
+                              ? _promAnswers[i]
+                              : 0,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          items: _selectedProm.choices.map((c) {
+                            return DropdownMenuItem(
+                              value: c.score,
+                              child: Text('${c.text} (+${c.score})'),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                if (_promAnswers.length <= i) {
+                                  _promAnswers = List.filled(
+                                    _selectedProm.questions.length,
+                                    0,
+                                  );
+                                }
+                                _promAnswers[i] = val;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Calculated score: ${_promAnswers.fold<int>(0, (a, b) => a + b)} · ${_selectedProm.scoreSummary(_promAnswers.fold<int>(0, (a, b) => a + b))}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ] else if (_selectedType == ManualEntryType.custom) ...[
                 TextFormField(
                   controller: _customNameController,
@@ -1373,6 +1517,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                       ? 'Save Lab Result to Vault'
                       : _selectedType == ManualEntryType.symptom
                       ? 'Save Symptom to Vault'
+                      : _selectedType == ManualEntryType.prom
+                      ? 'Save Survey to Vault'
                       : 'Save Measurement to Vault',
                 ),
                 onPressed: _submit,

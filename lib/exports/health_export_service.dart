@@ -12,6 +12,7 @@ import '../models/coverage_details.dart';
 import '../models/doctor_visit_preparation.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
+import '../models/prom_details.dart';
 import '../safety/critical_safety_evaluator.dart';
 import '../trends/health_trend.dart';
 
@@ -197,6 +198,8 @@ class HealthExportService {
         RecordCategory.coverage => 'Insurance & Health Plan Coverage',
         RecordCategory.procedure => 'Procedures & Surgeries',
         RecordCategory.symptom => 'Symptoms & Patient Observations',
+        RecordCategory.questionnaire =>
+          'Patient-Reported Outcome Measures (PROMs)',
       };
 
       buffer.writeln('--- $categoryTitle (${categoryRecords.length}) ---');
@@ -1466,6 +1469,7 @@ class HealthExportService {
             RecordCategory.coverage => 'Coverage',
             RecordCategory.procedure => 'Procedure',
             RecordCategory.symptom => 'Symptom',
+            RecordCategory.questionnaire => 'Survey',
           },
         },
       ],
@@ -1517,6 +1521,10 @@ class HealthExportService {
   }) {
     if (record.isManual && record.category == RecordCategory.medication) {
       return _manualMedicationStatement(record, includeNotes: includeNotes);
+    }
+    if (record.category == RecordCategory.questionnaire) {
+      final prom = PromResponseDetails.fromRecord(record);
+      return prom.toFhirQuestionnaireResponse(record);
     }
     final resourceType = record.sourceData?['resourceType'];
     if (includeSourceData &&

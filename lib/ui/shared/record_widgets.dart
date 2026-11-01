@@ -21,6 +21,7 @@ String categoryLabel(RecordCategory category) => switch (category) {
   RecordCategory.coverage => 'Insurance & Coverage',
   RecordCategory.procedure => 'Procedures & Surgeries',
   RecordCategory.symptom => 'Symptoms',
+  RecordCategory.questionnaire => 'Questionnaires & Surveys',
 };
 
 String formatRecordDate(DateTime date) {
@@ -48,6 +49,7 @@ IconData categoryIcon(RecordCategory category) => switch (category) {
   RecordCategory.coverage => Icons.badge_outlined,
   RecordCategory.procedure => Icons.healing_outlined,
   RecordCategory.symptom => Icons.sick_outlined,
+  RecordCategory.questionnaire => Icons.assignment_outlined,
 };
 
 Color categoryColor(RecordCategory category, ColorScheme colors) {
@@ -65,6 +67,7 @@ Color categoryColor(RecordCategory category, ColorScheme colors) {
     RecordCategory.coverage => Colors.indigo.shade700,
     RecordCategory.procedure => Colors.teal.shade800,
     RecordCategory.symptom => Colors.deepOrange.shade700,
+    RecordCategory.questionnaire => Colors.blueGrey.shade700,
   };
 }
 
