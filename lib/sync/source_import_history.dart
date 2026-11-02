@@ -218,6 +218,18 @@ String sanitizeImportErrorSummary(Object error) {
   }
   // Redact any embedded URLs with query parameters or tokens.
   text = text.replaceAll(RegExp(r'https?://\S+'), '[endpoint]');
+  // Security: Redact Bearer tokens and sensitive OAuth credential parameters in error messages.
+  text = text.replaceAll(
+    RegExp(r'bearer\s+[a-zA-Z0-9._\-~+/=]+', caseSensitive: false),
+    'Bearer [redacted]',
+  );
+  text = text.replaceAllMapped(
+    RegExp(
+      r'(access_token|refresh_token|client_secret|code)=[^&\s]+',
+      caseSensitive: false,
+    ),
+    (match) => '${match[1]}=[redacted]',
+  );
   // Collapse whitespace.
   text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (text.isEmpty) {

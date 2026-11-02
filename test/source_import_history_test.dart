@@ -114,6 +114,27 @@ void main() {
     );
 
     test(
+      'sanitizeImportErrorSummary redacts Bearer tokens and credential params',
+      () {
+        final summaryWithBearer = sanitizeImportErrorSummary(
+          StateError(
+            'Failed with Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.testToken123',
+          ),
+        );
+        expect(summaryWithBearer, contains('Authorization: Bearer [redacted]'));
+        expect(summaryWithBearer, isNot(contains('testToken123')));
+
+        final summaryWithParams = sanitizeImportErrorSummary(
+          'OAuth failure: access_token=secret_12345&refresh_token=rt_67890&code=auth_code_abc',
+        );
+        expect(summaryWithParams, contains('access_token=[redacted]'));
+        expect(summaryWithParams, contains('refresh_token=[redacted]'));
+        expect(summaryWithParams, contains('code=[redacted]'));
+        expect(summaryWithParams, isNot(contains('secret_12345')));
+      },
+    );
+
+    test(
       'buildSourceCoverageSummaries computes per-source counts and date spans',
       () {
         final records = <HealthRecord>[
