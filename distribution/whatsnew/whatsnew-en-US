@@ -1,1 +1,7 @@
-Initial release of Clinical Assistant with private on-device health record aggregation and export.
+- Cardiovascular Health Module: ACC/AHA 2017 blood pressure clinical staging, diurnal comparison, and heart rhythm analysis
+- Medication reminders & safety: recurring schedules, offline drug/food interaction alerts, and discontinuation logs
+- Patient-Reported Outcomes (PROMs): PHQ-9, GAD-7, CAT, HAQ-DI surveys with longitudinal trend charts
+- Symptoms log with trend overlays
+- FHIR surgical history ingestion
+- Offline LOINC dictionary & deduplication
+- Bug fixes & performance optimizations

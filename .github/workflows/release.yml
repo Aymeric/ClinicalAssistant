@@ -147,6 +147,24 @@ jobs:
           mkdir -p distribution/whatsnew
           if [ -n "$USER_RELEASE_NOTES" ]; then
             echo "$USER_RELEASE_NOTES" > distribution/whatsnew/whatsnew-en-US
+          elif [ -f "CHANGELOG.md" ]; then
+            python3 -c "
+import re
+with open('CHANGELOG.md') as f:
+    content = f.read()
+match = re.search(r'##\s+\d+\.\d+\.\d+\s+-\s+\d{4}-\d{2}-\d{2}\s*\n(.*?)(?=\n##\s+\d+\.\d+\.\d+|$)', content, re.DOTALL)
+if match:
+    raw = match.group(1).strip()
+    cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', raw)
+    cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
+    cleaned = re.sub(r'[*_#`]', '', cleaned)
+    cleaned = re.sub(r'[ \t]+', ' ', cleaned)
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+    if len(cleaned) > 500:
+        cleaned = cleaned[:497] + '...'
+    with open('distribution/whatsnew/whatsnew-en-US', 'w') as out:
+        out.write(cleaned)
+"
           fi
           echo "Release notes:"
           cat distribution/whatsnew/whatsnew-en-US
@@ -284,12 +302,31 @@ jobs:
           if-no-files-found: warn
 
       - name: Prepare TestFlight What-To-Test Notes
+        id: testflight_notes
         env:
           USER_RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
         run: |
           mkdir -p ios/TestFlight
           if [ -n "$USER_RELEASE_NOTES" ]; then
             echo "$USER_RELEASE_NOTES" > ios/TestFlight/WhatToTest.en-US.txt
+          elif [ -f "CHANGELOG.md" ]; then
+            python3 -c "
+import re
+with open('CHANGELOG.md') as f:
+    content = f.read()
+match = re.search(r'##\s+\d+\.\d+\.\d+\s+-\s+\d{4}-\d{2}-\d{2}\s*\n(.*?)(?=\n##\s+\d+\.\d+\.\d+|$)', content, re.DOTALL)
+if match:
+    raw = match.group(1).strip()
+    cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', raw)
+    cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
+    cleaned = re.sub(r'[*_#`]', '', cleaned)
+    cleaned = re.sub(r'[ \t]+', ' ', cleaned)
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+    if len(cleaned) > 4000:
+        cleaned = cleaned[:3997] + '...'
+    with open('ios/TestFlight/WhatToTest.en-US.txt', 'w') as out:
+        out.write(cleaned)
+"
           elif [ -f "distribution/whatsnew/whatsnew-en-US" ]; then
             cp distribution/whatsnew/whatsnew-en-US ios/TestFlight/WhatToTest.en-US.txt
           else
@@ -297,6 +334,11 @@ jobs:
           fi
           echo "TestFlight notes:"
           cat ios/TestFlight/WhatToTest.en-US.txt
+          {
+            echo "notes<<EOF"
+            cat ios/TestFlight/WhatToTest.en-US.txt
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check Apple Deployment Credentials
         id: apple_creds
@@ -328,6 +370,7 @@ jobs:
           issuer-id: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           api-key-id: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           api-private-key: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+          release-notes: ${{ steps.testflight_notes.outputs.notes }}
 
       - name: Upload to Apple TestFlight (App-Specific Password Fallback)
         if: ${{ (steps.ios_signing.outputs.has_signing == 'true') && (github.event.inputs.deploy_apple != 'false') && (steps.apple_creds.outputs.has_api_key != 'true') && (steps.apple_creds.outputs.has_password == 'true') }}
