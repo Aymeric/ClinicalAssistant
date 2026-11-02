@@ -26,6 +26,12 @@ final _trailingDotPattern = RegExp(r'\.$');
 final _groupedNumberPattern = RegExp(
   r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
 );
+// Compiled statically to avoid RegExp recompilation during frequent property access
+// in trends filtering, summary builders, and record detail rendering.
+final _notesContextPattern = RegExp(
+  r'(?:^|·|\n)\s*Context:\s*([^·\n\r]+)',
+  caseSensitive: false,
+);
 
 /// - Floating-point noise like `98.60000000000001` or `72.00000000001` is eliminated.
 String formatSensibleNumber(num value, {int maxDecimals = 2}) {
@@ -154,13 +160,15 @@ class HealthRecord {
       }
     }
     if (notes != null && notes!.isNotEmpty) {
-      final match = RegExp(
-        r'(?:^|·|\n)\s*Context:\s*([^·\n\r]+)',
-        caseSensitive: false,
-      ).firstMatch(notes!);
-      if (match != null) {
-        final val = match.group(1)?.trim();
-        if (val != null && val.isNotEmpty) return val;
+      final notesText = notes!;
+      // Fast-path: only evaluate regex when notes actually contain "context:" (case-insensitive)
+      // to avoid regular expression overhead across chart rendering and context filtering.
+      if (notesText.toLowerCase().contains('context:')) {
+        final match = _notesContextPattern.firstMatch(notesText);
+        if (match != null) {
+          final val = match.group(1)?.trim();
+          if (val != null && val.isNotEmpty) return val;
+        }
       }
     }
     return 'Unspecified';
