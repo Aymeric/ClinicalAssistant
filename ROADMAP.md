@@ -153,6 +153,10 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
   - [ ] UCUM unit conversion logic for core clinical lab analytes (glucose, cholesterol, creatinine, bilirubin, electrolytes).
   - [ ] User preference for Preferred Unit System with secondary unit display on inspection sheets and trend charts.
   - [ ] Unify compatible UCUM unit series into a single longitudinal chart timeline without modifying raw underlying source record payloads.
+- [ ] **Demographic Lab Reference Range Baselines & Age/Sex Normalization** ([#166](https://github.com/Aymeric/ClinicalAssistant/issues/166)):
+  - [ ] Bundled offline demographic reference range catalog based on consensus clinical standards (IFCC, AACC/ADLM, CDC) for common routine analytes.
+  - [ ] Optional local profile fields (birth year/age, biological sex) stored in encrypted vault to display secondary demographic baselines when source bounds are missing.
+  - [ ] Non-diagnostic educational disclaimers clarifying that laboratory-specific instrument intervals always take legal precedence over population norms.
 - [x] **Clinical Safety & Critical Value Red-Flag Alerts** ([#79](https://github.com/Aymeric/ClinicalAssistant/issues/79)):
   - [x] High-visibility emergency caution banners when newly entered or imported vitals cross consensus critical red-flag thresholds:
     - *Hypertensive Crisis*: Systolic $\ge 180$ mmHg and/or Diastolic $\ge 120$ mmHg.
@@ -170,6 +174,11 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
   - [ ] Chronological clinical journal for capturing doctor instructions, encounter notes, and recovery diaries.
   - [ ] Follow-up task checklist with completion checkboxes and local device reminder notifications.
   - [ ] Seamless inclusion into Doctor Visit consultation PDF agendas.
+- [ ] **Encrypted In-Consultation Audio Memo & Bookmark Synchronizer** ([#167](https://github.com/Aymeric/ClinicalAssistant/issues/167)):
+  - [ ] On-device AAC audio recorder encrypted into local vault storage with zero external network streaming.
+  - [ ] One-tap chronological bookmark buttons during recording (Medication Change, Follow-up Test, Warning Sign, Question Answered).
+  - [ ] Synchronized playback scrubber integrated into Doctor Visit Preparation summaries and Personal Clinical Journal.
+  - [ ] Prominent legal consent reminder banner regarding two-party consent recording regulations.
 - [ ] **Generic FHIR Questionnaire Builder & Custom Clinic Intake** ([#165](https://github.com/Aymeric/ClinicalAssistant/issues/165)):
   - [ ] Generic FHIR R4 `Questionnaire` renderer supporting text, choice, integer, decimal, boolean, and date question item types.
   - [ ] Input validation, progress tracking, and persistence as `QuestionnaireResponse` resources in the local vault.
@@ -177,6 +186,11 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
 - [x] **Doctor Visit Preparation Wizard** ([#81](https://github.com/Aymeric/ClinicalAssistant/issues/81)):
   - [x] Step-by-step visit preparation flow: select recent out-of-range lab results, recent blood pressure/glucose trends, active medication questions, and personal agenda items.
   - [x] Specialty-tailored PDF export templates (e.g., Cardiology, Endocrinology, Annual Wellness Examination).
+- [ ] **Pre-Operative Procedural Clearance & Fasting / Medication Hold Protocol** ([#170](https://github.com/Aymeric/ClinicalAssistant/issues/170)):
+  - [ ] Procedure entry form capturing date, arrival time, procedure type, and planned anesthesia modality.
+  - [ ] Fasting (NPO) milestone calculator with countdown banner and local device reminder notifications.
+  - [ ] Medication hold schedule manager allowing patients to record doctor-instructed stop/resume times with alerts.
+  - [ ] Printable Pre-Op Day Checklist and emergency contact card for surgical check-in.
 
 ---
 
@@ -204,6 +218,10 @@ Focus: Purpose-built longitudinal visualizations for high-impact chronic conditi
   - [ ] **Body Composition Trends**:
     - Longitudinal charting of Weight, BMI, Body Fat %, Lean Body Mass, and Waist Circumference.
     - Correlation overlays: Weight vs. Blood Pressure, Steps vs. Resting Heart Rate.
+  - [ ] **Dietary Sodium, Fluid & Micronutrient Balance Tracker** ([#169](https://github.com/Aymeric/ClinicalAssistant/issues/169)):
+    - Fast offline meal logging interface for clinically actionable dietary inputs: Sodium (mg), Fluids (mL/oz), Potassium (mg), and Carbohydrates (g).
+    - Daily target threshold indicators matching physician-prescribed dietary restrictions (e.g., CHF/hypertension sodium ceilings).
+    - Visual correlation chart overlaying dietary sodium/fluid intake against blood pressure spikes and daily weight fluctuations.
 - [ ] **Renal, Hepatic & Hematology Modules** ([#84](https://github.com/Aymeric/ClinicalAssistant/issues/84)):
   - [ ] **Kidney Health Tracking**:
     - eGFR trend tracking using the race-free CKD-EPI 2021 equation.
@@ -213,6 +231,11 @@ Focus: Purpose-built longitudinal visualizations for high-impact chronic conditi
     - FIB-4 (Fibrosis-4) index calculation for non-invasive liver health exploration.
   - [ ] **Anemia & Iron Studies**:
     - Longitudinal iron panel tracking: Serum Iron, Total Iron Binding Capacity (TIBC), Transferrin Saturation %, and Ferritin.
+- [ ] **Cumulative Medical Radiation & Contrast Exposure Ledger** ([#168](https://github.com/Aymeric/ClinicalAssistant/issues/168)):
+  - [ ] Extract modality, anatomical region, and iodinated/gadolinium contrast use from FHIR diagnostic reports and manual entries.
+  - [ ] Bundled standard reference dose lookup table (AAPM / ACR diagnostic reference levels) estimating radiation exposure in millisieverts (mSv).
+  - [ ] Cumulative ionizing radiation timeline with non-alarmist educational benchmarks (comparing against natural annual background radiation).
+  - [ ] Exportable one-page Imaging & Contrast History summary sheet for radiology pre-screening.
 - [ ] **Digital Biomarkers & Mobility** ([#85](https://github.com/Aymeric/ClinicalAssistant/issues/85)):
   - [ ] **Gait & Stability Metrics**:
     - Walking speed, step asymmetry percentage, and double-support time from HealthKit / Health Connect to display mobility stability trends over time (valuable for surgical recovery, elder care, and physical therapy).
