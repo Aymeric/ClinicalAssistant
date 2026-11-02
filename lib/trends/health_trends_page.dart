@@ -5,6 +5,7 @@ import '../guidelines/related_guidelines_widget.dart';
 import '../models/doctor_visit_preparation.dart';
 import '../models/health_record.dart';
 import '../ui/shared/record_widgets.dart';
+import 'blood_pressure_context_card.dart';
 import 'health_trend.dart';
 import 'measurement_picker_sheet.dart';
 import 'trend_chart_panel.dart';
@@ -389,6 +390,18 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                         secondaryName: selectedSeries.secondaryName,
                         onRecordTap: widget.onRecordTap,
                       ),
+                      if (selectedSeries.id == 'combined_blood_pressure')
+                        BloodPressureContextCard(
+                          systolicPoints: orderedPoints,
+                          diastolicPoints: selectedSeries.hasSecondarySeries
+                              ? pointsWithinRange(
+                                  secondarySeriesPoints,
+                                  now: DateTime.now(),
+                                  days: _range.days,
+                                )
+                              : const [],
+                          onRecordTap: widget.onRecordTap,
+                        ),
                       const SizedBox(height: 16),
                       TrendIndicators(
                         summary: summary,

@@ -28,7 +28,7 @@ void main() {
 
     // Enter personal note
     await tester.enterText(
-      find.byType(TextFormField).at(2), // notes controller
+      find.byKey(const ValueKey('manual-record-notes')),
       'Morning resting measurement',
     );
 

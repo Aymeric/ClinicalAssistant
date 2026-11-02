@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/cardiovascular_context.dart';
 import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
@@ -130,6 +131,12 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
     text: kStandardClinicalPanels.first.name,
   );
   var _panelAnalytes = <_PanelAnalyteInput>[];
+
+  // Blood pressure context state
+  var _bpPosture = BloodPressurePosture.sitting;
+  var _bpArm = BloodPressureArm.left;
+  var _bpCuff = BloodPressureCuff.regularAdult;
+  final _bpRestingMinutesController = TextEditingController(text: '5');
 
   var _customCategory = RecordCategory.vital;
   var _glucoseContext = 'Fasting';
@@ -284,6 +291,16 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
       case ManualEntryType.bloodPressure:
         final sysVal = _systolicController.text.trim();
         final diaVal = _diastolicController.text.trim();
+        final restMins = int.tryParse(_bpRestingMinutesController.text.trim());
+        final bpContext = BloodPressureContext(
+          posture: _bpPosture,
+          arm: _bpArm,
+          cuff: _bpCuff,
+          restingMinutes: restMins,
+        );
+        final sourceMap = bpContext.withSourceData(null);
+        final fullBpNote = userNote;
+
         records.add(
           HealthRecord(
             id: 'manual:sys:$nowMs',
@@ -294,7 +311,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
             category: RecordCategory.vital,
             source: 'Manual Entry',
             referenceRange: '< 120 mmHg',
-            notes: userNote,
+            sourceData: sourceMap,
+            notes: fullBpNote?.isNotEmpty == true ? fullBpNote : null,
           ),
         );
         records.add(
@@ -307,7 +325,8 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
             category: RecordCategory.vital,
             source: 'Manual Entry',
             referenceRange: '< 80 mmHg',
-            notes: userNote,
+            sourceData: sourceMap,
+            notes: fullBpNote?.isNotEmpty == true ? fullBpNote : null,
           ),
         );
         break;
@@ -830,6 +849,121 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           }
                           return null;
                         },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Measurement Context & Protocol',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<BloodPressurePosture>(
+                        initialValue: _bpPosture,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Posture',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                        ),
+                        items: BloodPressurePosture.values.map((p) {
+                          return DropdownMenuItem(
+                            value: p,
+                            child: Text(
+                              p.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _bpPosture = val);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<BloodPressureArm>(
+                        initialValue: _bpArm,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Arm',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                        ),
+                        items: BloodPressureArm.values.map((a) {
+                          return DropdownMenuItem(
+                            value: a,
+                            child: Text(
+                              a.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _bpArm = val);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: DropdownButtonFormField<BloodPressureCuff>(
+                        initialValue: _bpCuff,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Cuff type',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                        ),
+                        items: BloodPressureCuff.values.map((c) {
+                          return DropdownMenuItem(
+                            value: c,
+                            child: Text(
+                              c.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _bpCuff = val);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _bpRestingMinutesController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Rest (mins)',
+                          hintText: '5',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                        ),
                       ),
                     ),
                   ],

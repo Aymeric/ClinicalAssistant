@@ -166,10 +166,10 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
 Focus: Purpose-built longitudinal visualizations for high-impact chronic conditions, mobility biomarkers, and environmental trigger correlation.
 
 - [ ] **Cardiovascular Health Module** ([#82](https://github.com/Aymeric/ClinicalAssistant/issues/82)):
-  - [ ] **Blood Pressure Staging Visualization**:
-    - Descriptive classification matching AHA/ACC 2017 clinical guidelines (Normal, Elevated, Stage 1, Stage 2, Hypertensive Crisis) as visual context only.
-    - Contextual metadata tracking: measurement posture (sitting, standing, supine), arm (left vs. right), cuff type, and resting period.
-    - Morning vs. Evening blood pressure surge comparison charts.
+  - [x] **Blood Pressure Staging Visualization**:
+    - [x] Descriptive classification matching AHA/ACC 2017 clinical guidelines (Normal, Elevated, Stage 1, Stage 2, Hypertensive Crisis) as visual context only.
+    - [x] Contextual metadata tracking: measurement posture (sitting, standing, supine), arm (left vs. right), cuff type, and resting period.
+    - [x] Morning vs. Evening blood pressure surge comparison charts.
   - [ ] **Heart Rhythm & Rate Longitudinal Analysis**:
     - Resting heart rate vs. walking average vs. workout peaks.
     - Heart Rate Variability (HRV / SDNN / rMSSD) longitudinal trends.
