@@ -221,6 +221,9 @@ class HealthDataRecordMapper {
     HealthDataType.HEART_RATE_VARIABILITY_SDNN =>
       'Heart rate variability (SDNN)',
     HealthDataType.ELECTROCARDIOGRAM => 'Electrocardiogram (ECG)',
+    HealthDataType.WALKING_HEART_RATE => 'Walking heart rate average',
+    HealthDataType.IRREGULAR_HEART_RATE_EVENT =>
+      'Irregular heart rhythm notification',
     _ => type.name.replaceAll('_', ' ').toLowerCase(),
   };
 

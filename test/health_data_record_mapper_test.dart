@@ -10,7 +10,7 @@ void main() {
   const mapper = HealthDataRecordMapper();
 
   test('requests the complete shared set of platform health types', () {
-    expect(HealthPlatformImporter.sharedDataTypes, hasLength(33));
+    expect(HealthPlatformImporter.sharedDataTypes, hasLength(35));
     expect(HealthPlatformImporter.sharedDataTypes.toSet(), {
       HealthDataType.ACTIVE_ENERGY_BURNED,
       HealthDataType.BASAL_ENERGY_BURNED,
@@ -43,8 +43,10 @@ void main() {
       HealthDataType.WEIGHT,
       HealthDataType.WORKOUT,
       HealthDataType.WORKOUT_ROUTE,
+      HealthDataType.WALKING_HEART_RATE,
       HealthDataType.HEART_RATE_VARIABILITY_SDNN,
       HealthDataType.ELECTROCARDIOGRAM,
+      HealthDataType.IRREGULAR_HEART_RATE_EVENT,
     });
   });
 

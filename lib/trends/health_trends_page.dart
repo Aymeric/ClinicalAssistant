@@ -7,6 +7,7 @@ import '../models/health_record.dart';
 import '../ui/shared/record_widgets.dart';
 import 'blood_pressure_context_card.dart';
 import 'health_trend.dart';
+import 'heart_rhythm_analysis_card.dart';
 import 'measurement_picker_sheet.dart';
 import 'trend_chart_panel.dart';
 import 'trend_indicators.dart';
@@ -400,6 +401,19 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                                   days: _range.days,
                                 )
                               : const [],
+                          onRecordTap: widget.onRecordTap,
+                        ),
+                      if (selectedSeries.category == RecordCategory.vital &&
+                          (selectedSeries.name.toLowerCase().contains(
+                                'heart rate',
+                              ) ||
+                              selectedSeries.name.toLowerCase().contains(
+                                'pulse',
+                              ) ||
+                              selectedSeries.id.contains('heart_rate')))
+                        HeartRhythmAnalysisCard(
+                          allRecords: widget.records,
+                          selectedSeries: selectedSeries,
                           onRecordTap: widget.onRecordTap,
                         ),
                       const SizedBox(height: 16),

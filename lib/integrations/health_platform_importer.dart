@@ -61,8 +61,10 @@ class HealthPlatformImporter {
     HealthDataType.WEIGHT,
     HealthDataType.WORKOUT,
     HealthDataType.WORKOUT_ROUTE,
+    HealthDataType.WALKING_HEART_RATE,
     HealthDataType.HEART_RATE_VARIABILITY_SDNN,
     HealthDataType.ELECTROCARDIOGRAM,
+    HealthDataType.IRREGULAR_HEART_RATE_EVENT,
   ];
 
   /// Check whether a data type is supported on the current device/platform.
@@ -79,7 +81,9 @@ class HealthPlatformImporter {
     // Apple Watch-specific cardiac metrics not supported on Android Health Connect
     if (!onIos &&
         (type == HealthDataType.HEART_RATE_VARIABILITY_SDNN ||
-            type == HealthDataType.ELECTROCARDIOGRAM)) {
+            type == HealthDataType.ELECTROCARDIOGRAM ||
+            type == HealthDataType.WALKING_HEART_RATE ||
+            type == HealthDataType.IRREGULAR_HEART_RATE_EVENT)) {
       return false;
     }
     return _health.isDataTypeAvailable(type);
