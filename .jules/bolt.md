@@ -26,6 +26,10 @@
 **Learning:** During health data imports, associating activity samples with workouts executed `workouts.where().toList()` and recalculated workout start/end `DateTime`s in UTC and max duration bounds on every activity sample point. With thousands of activity samples, this incurred O(N * M) redundant `DateTime` conversions and array allocations.
 **Action:** Pre-compute workout window boundaries (`_WorkoutWindow`) and map workouts by UUID once prior to the activity sample iteration loop.
 
+## 2026-10-24 - Pre-filter target series keys during health import signal analysis
+**Learning:** Signal analysis evaluates whether imported readings trigger trend threshold changes or multi-reading directional patterns across historical health records. Parsing numbers, allocating reading wrappers, grouping, and sorting every metric series in `allRecords` incurs significant CPU and heap allocation overhead, even though only series containing at least one newly imported record can ever produce a signal.
+**Action:** Single-pass `newlyImported` records to collect category counts and relevant series keys, and use `relevantKeys.contains(key)` to skip non-matching records when processing `allRecords`.
+
 ## 2026-10-24 - Streaming selection for top-K recent health records
 **Learning:** Copying and sorting the entire `records` collection using `[...records]..sort(...)` to pick only the top 4 recent entries during `OverviewPage` widget builds allocates full array copies on the heap and incurs O(N log N) sorting overhead on every UI render frame.
 **Action:** Use a streaming single-pass insertion array (`selectLatestRecords`) to track top-K elements in O(N) time with minimal allocations.
