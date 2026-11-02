@@ -1,3 +1,7 @@
+## 2026-10-26 - Index-based string trimming instead of regexes for number formatting
+**Learning:** `formatSensibleNumber` is executed hundreds of times across chart painters, list row renderings, aggregations, and export generation. Using sequential `RegExp` replacements (`replaceFirst(RegExp(r'0+$'))` and `replaceFirst(RegExp(r'\.$'))`) for every formatted floating-point number triggered repeated regex pattern matching and intermediate string allocations in the hot rendering path.
+**Action:** Fast-path `value is int` directly to `.toString()` and perform backward index-based trimming with `fixed.codeUnitAt` rather than evaluating regular expressions on formatted decimal strings.
+
 ## 2026-10-24 - Fast-path direct numeric parsing before regex evaluation
 **Learning:** In Flutter/Dart apps processing large collections of health metrics, running `RegExp.hasMatch` on every record value before attempting `double.tryParse` creates regex execution overhead across rendering, signal analysis, and trend calculation hot loops.
 **Action:** Always attempt `double.tryParse` first for standard numeric values, and reserve grouped number regex pattern matching for inputs that actually contain commas.
