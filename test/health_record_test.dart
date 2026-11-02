@@ -96,4 +96,49 @@ void main() {
       expect(restored.category, cat);
     }
   });
+
+  group('measurementContext optimization and resolution edge cases', () {
+    test('extracts context accurately when notes contain context: tag', () {
+      final record1 = HealthRecord(
+        id: 'ctx-1',
+        name: 'Glucose',
+        value: '95',
+        unit: 'mg/dL',
+        recordedAt: DateTime.utc(2026, 9, 28),
+        category: RecordCategory.lab,
+        source: 'Manual Entry',
+        notes: 'context: Fasting',
+      );
+      expect(record1.measurementContext, 'Fasting');
+      expect(record1.hasExplicitMeasurementContext, isTrue);
+
+      final record2 = HealthRecord(
+        id: 'ctx-2',
+        name: 'Glucose',
+        value: '135',
+        unit: 'mg/dL',
+        recordedAt: DateTime.utc(2026, 9, 28),
+        category: RecordCategory.lab,
+        source: 'Manual Entry',
+        notes: 'Pre-check\nContext: Post-meal (2 hr)\nNote: Feeling good',
+      );
+      expect(record2.measurementContext, 'Post-meal (2 hr)');
+      expect(record2.hasExplicitMeasurementContext, isTrue);
+    });
+
+    test('defaults to Unspecified when notes do not contain context tag', () {
+      final record = HealthRecord(
+        id: 'ctx-3',
+        name: 'Blood Pressure',
+        value: '120/80',
+        unit: 'mmHg',
+        recordedAt: DateTime.utc(2026, 9, 28),
+        category: RecordCategory.vital,
+        source: 'Manual Entry',
+        notes: 'Routine evening checkup after walk',
+      );
+      expect(record.measurementContext, 'Unspecified');
+      expect(record.hasExplicitMeasurementContext, isFalse);
+    });
+  });
 }

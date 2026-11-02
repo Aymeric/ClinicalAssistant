@@ -283,6 +283,8 @@ void main() {
         );
         expect(chipFinder, findsOneWidget);
 
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, -200));
+        await tester.pumpAndSettle();
         await tester.tap(chipFinder);
         await tester.pumpAndSettle();
 

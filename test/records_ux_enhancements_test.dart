@@ -346,12 +346,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final expectedDate = formatRecordDate(record.recordedAt);
     final semanticsFinder = find.byWidgetPredicate(
       (w) =>
           w is Semantics &&
           w.properties.button == true &&
           (w.properties.label?.contains(
-                'Total Cholesterol, 240 mg/dL, Out of range: High, Labs, Recorded 2025-05-10, Source LabCorp',
+                'Total Cholesterol, 240 mg/dL, Out of range: High, Labs, Recorded $expectedDate, Source LabCorp',
               ) ??
               false),
     );

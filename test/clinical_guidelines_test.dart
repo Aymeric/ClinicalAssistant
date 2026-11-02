@@ -494,6 +494,36 @@ void main() {
         }
       },
     );
+
+    test(
+      'restricts PDF export directory permissions to 700 on POSIX systems when defaulting directory',
+      () async {
+        const exporter = GuidelinePdfExportService();
+        final guideline = ClinicalGuidelineCatalog.guidelines.first;
+        final file = await exporter.generateGuidelinePdf(guideline: guideline);
+
+        expect(file.existsSync(), isTrue);
+        final parentDir = file.parent;
+        expect(parentDir.existsSync(), isTrue);
+
+        if (!Platform.isWindows) {
+          final stat = parentDir.statSync();
+          final modeString = stat.mode.toRadixString(8);
+          expect(modeString.endsWith('700'), isTrue);
+        }
+
+        // Cleanup generated test PDF and directory
+        if (file.existsSync()) {
+          file.deleteSync();
+        }
+        if (parentDir.existsSync() &&
+            parentDir.path.contains('guideline_exports')) {
+          try {
+            parentDir.deleteSync(recursive: true);
+          } catch (_) {}
+        }
+      },
+    );
   });
 
   group('Guideline UI & Viewer Integration', () {
@@ -661,8 +691,17 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Lifestyle advice across all stages'), findsOneWidget);
 
+        // Verify search clear button tooltip
+        final clearSearchButton = tester.widget<IconButton>(
+          find.descendant(
+            of: find.byKey(const ValueKey('guideline-viewer-search')),
+            matching: find.byType(IconButton),
+          ),
+        );
+        expect(clearSearchButton.tooltip, equals('Clear search'));
+
         // Clear search
-        await tester.tap(find.byIcon(Icons.close));
+        await tester.tap(find.byTooltip('Clear search'));
         await tester.pumpAndSettle();
 
         // Download from viewer
@@ -727,6 +766,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Understanding Evidence Grades'), findsOneWidget);
         expect(find.textContaining('USPSTF Letter Grades'), findsOneWidget);
+        final closeEvidenceButton = tester.widget<IconButton>(
+          find.byKey(const ValueKey('close-evidence-guide-button')),
+        );
+        expect(closeEvidenceButton.tooltip, equals('Close'));
         await tester.tap(
           find.byKey(const ValueKey('close-evidence-guide-button')),
         );

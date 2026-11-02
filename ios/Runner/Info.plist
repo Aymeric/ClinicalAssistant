@@ -38,7 +38,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthClinicalHealthRecordsShareUsageDescription</key>
-	<string>Clinical Assistant reads the lab records you approve from Apple Health so you can collect and export your health history.</string>
+	<string>Clinical Assistant reads the lab records, diagnostic reports, conditions, medications, allergies, and clinical documents you approve from Apple Health so you can collect and export your health history.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Clinical Assistant reads the health data types you approve so you can collect and export your health history.</string>
 	<key>NSHealthUpdateUsageDescription</key>

@@ -13,6 +13,7 @@ import 'guidelines/clinical_guideline.dart';
 import 'guidelines/guideline_viewer_page.dart';
 import 'guidelines/guidelines_library_page.dart';
 import 'integrations/fhir_file_import.dart';
+import 'models/doctor_visit_preparation.dart';
 import 'models/health_record.dart';
 import 'notifications/result_notification_manager.dart';
 import 'records/manual_record_edit_sheet.dart';
@@ -22,6 +23,7 @@ import 'sync/import_progress.dart';
 import 'trends/health_trend.dart';
 import 'trends/health_trends_page.dart';
 import 'ui/connections/connections_page.dart';
+import 'ui/export/doctor_visit_wizard_sheet.dart';
 import 'ui/export/export_page.dart';
 import 'ui/medications/medications_page.dart';
 import 'ui/overview/overview_page.dart';
@@ -144,6 +146,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
   var _initialLoadFinished = false;
   var _isVaultLocked = false;
   RecordCategory? _preselectedCategoryFilter;
+  DoctorVisitSpecialty? _preselectedSpecialtyFilter;
   bool _recordsPageInitialOutOfRange = false;
   String? _trendInitialSeriesId;
   ForegroundSyncState? _syncState;
@@ -247,6 +250,18 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         _preselectedCategoryFilter = category;
+        _preselectedSpecialtyFilter = null;
+        _recordsPageInitialOutOfRange = false;
+        _selectedIndex = 2;
+      });
+    }
+  }
+
+  void _openRecordsWithSpecialty(DoctorVisitSpecialty specialty) {
+    if (mounted) {
+      setState(() {
+        _preselectedCategoryFilter = null;
+        _preselectedSpecialtyFilter = specialty;
         _recordsPageInitialOutOfRange = false;
         _selectedIndex = 2;
       });
@@ -257,6 +272,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         _preselectedCategoryFilter = null;
+        _preselectedSpecialtyFilter = null;
         _recordsPageInitialOutOfRange = true;
         _selectedIndex = 2;
       });
@@ -331,6 +347,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         record: record,
         isNumeric: isNumeric,
         isPinned: isPinned,
+        restingHeartRateCriticalLow: _controller.restingHeartRateCriticalLow,
         onOpenGuideline: _openGuideline,
         onTogglePin: () async {
           final newState = await _controller.pinnedPreferences.togglePin(
@@ -925,6 +942,23 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _launchDoctorVisitWizard() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => DoctorVisitWizardSheet(
+        records: _controller.records,
+        onGenerate: (config) => _shareExport(
+          () => _exporter.createDoctorVisitSummaryPdf(
+            _controller.records,
+            config: config,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isVaultLocked) {
@@ -942,9 +976,11 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         syncState: _syncState,
         syncing: _syncing,
         pinnedSeries: _pinnedSeries,
+        restingHeartRateCriticalLow: _controller.restingHeartRateCriticalLow,
         onConnect: () => setState(() => _selectedIndex = 3),
         onSeeAll: () => setState(() => _selectedIndex = 2),
         onSelectCategory: _openRecordsWithCategory,
+        onSelectSpecialty: _openRecordsWithSpecialty,
         onViewOutOfRangeLabs: _openRecordsWithOutOfRange,
         onRecordTap: _showRecordDetails,
         onSyncNow: _syncNow,
@@ -956,6 +992,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         onOpenGuidelines: _openGuidelines,
         onLogMeasurement: _openManualRecordEntry,
         onOpenMedications: _openMedications,
+        onPrepareDoctorVisit: _launchDoctorVisitWizard,
       ),
       HealthTrendsPage(
         records: _controller.records,
@@ -967,6 +1004,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
       RecordsPage(
         records: _controller.records,
         initialCategory: _preselectedCategoryFilter,
+        initialSpecialty: _preselectedSpecialtyFilter,
         initialOutOfRangeOnly: _recordsPageInitialOutOfRange,
         onViewInTrends: _onViewInTrends,
         onRecordTap: _showRecordDetails,
@@ -1007,11 +1045,20 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
           _isVaultLocked = true;
         }),
         onOpenGuidelines: _openGuidelines,
+        restingHeartRateProfile: _controller.restingHeartRateProfile,
+        onRestingHeartRateProfileChanged:
+            _controller.setRestingHeartRateProfile,
       ),
       ExportPage(
         records: _controller.records,
         exporting: _exporting,
         onPdf: (records) => _shareExport(() => _exporter.createPdf(records)),
+        onDoctorVisitWizard: (config) => _shareExport(
+          () => _exporter.createDoctorVisitSummaryPdf(
+            _controller.records,
+            config: config,
+          ),
+        ),
         onDoctorVisitPdf:
             (
               records,
@@ -1024,6 +1071,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
               includeAllergies = true,
               includeQuestions = true,
               includeNotes = true,
+              config,
             }) => _shareExport(
               () => _exporter.createDoctorVisitSummaryPdf(
                 records,
@@ -1035,6 +1083,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
                 includeConditions: includeConditions,
                 includeAllergies: includeAllergies,
                 includeQuestions: includeQuestions,
+                config: config,
               ),
             ),
         onFhir: (records) =>

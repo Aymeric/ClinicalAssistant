@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/health_record.dart';
+import '../models/symptom_details.dart';
 import 'health_trend.dart';
 import 'medication_chart_event.dart';
 import 'trend_chart_painter.dart';
@@ -14,6 +15,7 @@ class TrendChartPanel extends StatefulWidget {
     required this.showMovingAverage,
     required this.onMovingAverageChanged,
     this.medicationRecords = const [],
+    this.symptomRecords = const [],
     this.referenceBand,
     this.secondaryPoints = const [],
     this.primaryName,
@@ -25,6 +27,7 @@ class TrendChartPanel extends StatefulWidget {
   final bool showMovingAverage;
   final ValueChanged<bool> onMovingAverageChanged;
   final List<HealthRecord> medicationRecords;
+  final List<HealthRecord> symptomRecords;
   final HealthReferenceRange? referenceBand;
   final List<HealthTrendPoint> secondaryPoints;
   final String? primaryName;
@@ -38,6 +41,7 @@ class TrendChartPanel extends StatefulWidget {
 class _TrendChartPanelState extends State<TrendChartPanel> {
   int? _inspectedIndex;
   bool _showMedicationMarkers = false;
+  bool _showSymptomMarkers = false;
 
   @override
   void didUpdateWidget(covariant TrendChartPanel oldWidget) {
@@ -102,6 +106,14 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
             end: points.last.record.recordedAt,
           );
 
+    final symptomEvents = points.isEmpty
+        ? const <SymptomChartEvent>[]
+        : SymptomChartEvent.extractEvents(
+            widget.symptomRecords,
+            start: points.first.record.recordedAt,
+            end: points.last.record.recordedAt,
+          );
+
     final inspectedPoint =
         _inspectedIndex != null && _inspectedIndex! < points.length
         ? points[_inspectedIndex!]
@@ -160,6 +172,26 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                           setState(() => _showMedicationMarkers = val),
                     ),
                   ),
+                if (symptomEvents.isNotEmpty)
+                  Tooltip(
+                    message: _showSymptomMarkers
+                        ? 'Hide symptom markers'
+                        : 'Show symptom markers',
+                    child: FilterChip(
+                      key: const ValueKey('trend-symptom-markers'),
+                      avatar: Icon(
+                        Icons.sick_outlined,
+                        size: 16,
+                        color: _showSymptomMarkers
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                      label: Text('Symptoms (${symptomEvents.length})'),
+                      selected: _showSymptomMarkers,
+                      onSelected: (val) =>
+                          setState(() => _showSymptomMarkers = val),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
@@ -214,6 +246,9 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                             inspectedPoint: inspectedPoint,
                             medicationEvents: _showMedicationMarkers
                                 ? medicationEvents
+                                : const [],
+                            symptomEvents: _showSymptomMarkers
+                                ? symptomEvents
                                 : const [],
                             color: Theme.of(context).colorScheme.primary,
                             averageColor: Theme.of(
@@ -365,8 +400,94 @@ class _TrendChartPanelState extends State<TrendChartPanel> {
                     ),
                     const SizedBox(width: 8),
                   ],
+                  if (_showSymptomMarkers && symptomEvents.isNotEmpty) ...[
+                    const LegendDot(color: Color(0xFFDC2626)),
+                    Text(
+                      'Symptoms',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                 ],
               ),
+            ],
+            if (_showSymptomMarkers && symptomEvents.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+              Row(
+                key: const ValueKey('trend-symptom-timeline-heading'),
+                children: [
+                  Icon(
+                    Icons.sick_outlined,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Symptoms in this timeframe',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Patient-reported symptoms are displayed chronologically for descriptive recall. This does not perform diagnostic scoring or clinical triage.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final event in symptomEvents) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 5),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: event.severity.color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${event.name} (${event.severity.label})',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              '${MaterialLocalizations.of(context).formatShortDate(event.date.toLocal())} · Source: ${event.record.source}${event.notes != null ? " · Note: ${event.notes}" : ""}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (widget.onRecordTap != null)
+                        IconButton(
+                          tooltip: 'View symptom details',
+                          icon: const Icon(Icons.chevron_right, size: 18),
+                          onPressed: () => widget.onRecordTap!(event.record),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ],
             if (_showMedicationMarkers && medicationEvents.isNotEmpty) ...[
               const SizedBox(height: 12),

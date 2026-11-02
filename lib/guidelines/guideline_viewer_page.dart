@@ -362,6 +362,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                     ),
                     IconButton(
                       key: const ValueKey('close-evidence-guide-button'),
+                      tooltip: 'Close',
                       icon: const Icon(Icons.close),
                       onPressed: () => Navigator.of(ctx).pop(),
                     ),
@@ -968,6 +969,7 @@ class _GuidelineViewerPageState extends State<GuidelineViewerPage> {
                     suffixIcon: _filterQuery.isEmpty
                         ? null
                         : IconButton(
+                            tooltip: 'Clear search',
                             icon: const Icon(Icons.close, size: 18),
                             onPressed: () {
                               _searchController.clear();
