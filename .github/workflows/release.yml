@@ -148,23 +148,23 @@ jobs:
           if [ -n "$USER_RELEASE_NOTES" ]; then
             echo "$USER_RELEASE_NOTES" > distribution/whatsnew/whatsnew-en-US
           elif [ -f "CHANGELOG.md" ]; then
-            python3 -c "
-import re
-with open('CHANGELOG.md') as f:
-    content = f.read()
-match = re.search(r'##\s+\d+\.\d+\.\d+\s+-\s+\d{4}-\d{2}-\d{2}\s*\n(.*?)(?=\n##\s+\d+\.\d+\.\d+|$)', content, re.DOTALL)
-if match:
-    raw = match.group(1).strip()
-    cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', raw)
-    cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
-    cleaned = re.sub(r'[*_#`]', '', cleaned)
-    cleaned = re.sub(r'[ \t]+', ' ', cleaned)
-    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
-    if len(cleaned) > 500:
-        cleaned = cleaned[:497] + '...'
-    with open('distribution/whatsnew/whatsnew-en-US', 'w') as out:
-        out.write(cleaned)
-"
+            python3 - << 'PYEOF'
+          import re
+          with open('CHANGELOG.md') as f:
+              content = f.read()
+          match = re.search(r'##\s+\d+\.\d+\.\d+\s+-\s+\d{4}-\d{2}-\d{2}\s*\n(.*?)(?=\n##\s+\d+\.\d+\.\d+|$)', content, re.DOTALL)
+          if match:
+              raw = match.group(1).strip()
+              cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', raw)
+              cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
+              cleaned = re.sub(r'[*_#`]', '', cleaned)
+              cleaned = re.sub(r'[ \t]+', ' ', cleaned)
+              cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+              if len(cleaned) > 500:
+                  cleaned = cleaned[:497] + '...'
+              with open('distribution/whatsnew/whatsnew-en-US', 'w') as out:
+                  out.write(cleaned)
+          PYEOF
           fi
           echo "Release notes:"
           cat distribution/whatsnew/whatsnew-en-US
@@ -310,23 +310,23 @@ if match:
           if [ -n "$USER_RELEASE_NOTES" ]; then
             echo "$USER_RELEASE_NOTES" > ios/TestFlight/WhatToTest.en-US.txt
           elif [ -f "CHANGELOG.md" ]; then
-            python3 -c "
-import re
-with open('CHANGELOG.md') as f:
-    content = f.read()
-match = re.search(r'##\s+\d+\.\d+\.\d+\s+-\s+\d{4}-\d{2}-\d{2}\s*\n(.*?)(?=\n##\s+\d+\.\d+\.\d+|$)', content, re.DOTALL)
-if match:
-    raw = match.group(1).strip()
-    cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', raw)
-    cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
-    cleaned = re.sub(r'[*_#`]', '', cleaned)
-    cleaned = re.sub(r'[ \t]+', ' ', cleaned)
-    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
-    if len(cleaned) > 4000:
-        cleaned = cleaned[:3997] + '...'
-    with open('ios/TestFlight/WhatToTest.en-US.txt', 'w') as out:
-        out.write(cleaned)
-"
+            python3 - << 'PYEOF'
+          import re
+          with open('CHANGELOG.md') as f:
+              content = f.read()
+          match = re.search(r'##\s+\d+\.\d+\.\d+\s+-\s+\d{4}-\d{2}-\d{2}\s*\n(.*?)(?=\n##\s+\d+\.\d+\.\d+|$)', content, re.DOTALL)
+          if match:
+              raw = match.group(1).strip()
+              cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', raw)
+              cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
+              cleaned = re.sub(r'[*_#`]', '', cleaned)
+              cleaned = re.sub(r'[ \t]+', ' ', cleaned)
+              cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+              if len(cleaned) > 4000:
+                  cleaned = cleaned[:3997] + '...'
+              with open('ios/TestFlight/WhatToTest.en-US.txt', 'w') as out:
+                  out.write(cleaned)
+          PYEOF
           elif [ -f "distribution/whatsnew/whatsnew-en-US" ]; then
             cp distribution/whatsnew/whatsnew-en-US ios/TestFlight/WhatToTest.en-US.txt
           else
