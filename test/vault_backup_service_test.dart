@@ -197,6 +197,42 @@ void main() {
               service.restoreEncryptedBackup(jsonEncode(shortNonce), password),
           throwsFormatException,
         );
+
+        // Test short MAC tag (must be at least 16 bytes for AES-256-GCM)
+        final shortMac = Map<String, dynamic>.from(decoded);
+        shortMac['cipher'] = Map<String, dynamic>.from(decoded['cipher'] as Map)
+          ..['mac'] = base64Encode([1, 2, 3, 4, 5, 6, 7, 8]);
+        expect(
+          () => service.restoreEncryptedBackup(jsonEncode(shortMac), password),
+          throwsFormatException,
+        );
+
+        // Test empty ciphertext
+        final emptyCipher = Map<String, dynamic>.from(decoded);
+        emptyCipher['cipher'] = Map<String, dynamic>.from(
+          decoded['cipher'] as Map,
+        )..['ciphertext'] = '';
+        expect(
+          () =>
+              service.restoreEncryptedBackup(jsonEncode(emptyCipher), password),
+          throwsFormatException,
+        );
+      },
+    );
+
+    test(
+      'rejects passphrases exceeding maximum length on export and restore',
+      () async {
+        final overlyLongPass = 'a' * 513;
+        expect(
+          () => service.exportEncryptedBackup(sampleRecords, overlyLongPass),
+          throwsArgumentError,
+        );
+
+        expect(
+          () => service.restoreEncryptedBackup('{}', overlyLongPass),
+          throwsArgumentError,
+        );
       },
     );
 
