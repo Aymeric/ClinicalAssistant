@@ -138,14 +138,21 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - [x] Highlights common dietary interactions (e.g., Grapefruit juice with Statins; high-Vitamin K foods with Warfarin).
     - [x] Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
   - [x] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
-  - [x] Log medication adherence history against prescribed regimens.
   - [x] Discontinue / archive medications with reason annotations and date effective.
-  - [x] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
-    - [x] **Cross-Provider Record Reconciliation**:
-      - [x] Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
-      - [x] Groups equivalent readings into a unified longitudinal timeline while retaining all original source document links and provenance.
-    - [x] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
-    - [x] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
+- [ ] **Medication Adherence Tracking & Proportion of Days Covered (PDC)** ([#161](https://github.com/Aymeric/ClinicalAssistant/issues/161)):
+  - [ ] Actionable 'Taken' / 'Skipped' logging integrated with scheduled dose notifications and dose cards.
+  - [ ] Monthly visual adherence calendars and clinical Proportion of Days Covered (PDC) score computation (benchmark $\ge 80\%$).
+  - [ ] Adherence reporting incorporated into Doctor Visit consultation summaries.
+- [x] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
+  - [x] **Cross-Provider Record Reconciliation**:
+    - [x] Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
+    - [x] Groups equivalent readings into a unified longitudinal timeline while retaining all original source document links and provenance.
+  - [x] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
+  - [x] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
+- [ ] **Dual-Unit Lab Normalization (US Conventional vs. International SI Units)** ([#160](https://github.com/Aymeric/ClinicalAssistant/issues/160)):
+  - [ ] UCUM unit conversion logic for core clinical lab analytes (glucose, cholesterol, creatinine, bilirubin, electrolytes).
+  - [ ] User preference for Preferred Unit System with secondary unit display on inspection sheets and trend charts.
+  - [ ] Unify compatible UCUM unit series into a single longitudinal chart timeline without modifying raw underlying source record payloads.
 - [x] **Clinical Safety & Critical Value Red-Flag Alerts** ([#79](https://github.com/Aymeric/ClinicalAssistant/issues/79)):
   - [x] High-visibility emergency caution banners when newly entered or imported vitals cross consensus critical red-flag thresholds:
     - *Hypertensive Crisis*: Systolic $\ge 180$ mmHg and/or Diastolic $\ge 120$ mmHg.
@@ -155,6 +162,18 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
 - [ ] **Multi-Modal Hands-Free Input** ([#80](https://github.com/Aymeric/ClinicalAssistant/issues/80)):
   - [ ] **Offline Voice Logging**:
     - On-device speech recognition (Apple Speech framework / Android On-Device Speech Recognizer) for voice logging vitals: *"Blood pressure 128 over 82, pulse 70"* parsed into structured paired records.
+- [ ] **Preventive Immunization Forecast & Booster Schedule** ([#162](https://github.com/Aymeric/ClinicalAssistant/issues/162)):
+  - [ ] On-device vaccine schedule evaluation matching CDC / ACIP adult immunization intervals.
+  - [ ] Due-date and overdue status badges (Up to date, Due soon, Overdue, Recommended by age) on immunization records.
+  - [ ] Option to attach an immunization forecast checklist to Doctor Visit Preparation summaries.
+- [ ] **Personal Clinical Journal & Post-Encounter Action Tracker** ([#163](https://github.com/Aymeric/ClinicalAssistant/issues/163)):
+  - [ ] Chronological clinical journal for capturing doctor instructions, encounter notes, and recovery diaries.
+  - [ ] Follow-up task checklist with completion checkboxes and local device reminder notifications.
+  - [ ] Seamless inclusion into Doctor Visit consultation PDF agendas.
+- [ ] **Generic FHIR Questionnaire Builder & Custom Clinic Intake** ([#165](https://github.com/Aymeric/ClinicalAssistant/issues/165)):
+  - [ ] Generic FHIR R4 `Questionnaire` renderer supporting text, choice, integer, decimal, boolean, and date question item types.
+  - [ ] Input validation, progress tracking, and persistence as `QuestionnaireResponse` resources in the local vault.
+  - [ ] Formatted PDF export and portable FHIR JSON export for submission to outpatient clinics.
 - [x] **Doctor Visit Preparation Wizard** ([#81](https://github.com/Aymeric/ClinicalAssistant/issues/81)):
   - [x] Step-by-step visit preparation flow: select recent out-of-range lab results, recent blood pressure/glucose trends, active medication questions, and personal agenda items.
   - [x] Specialty-tailored PDF export templates (e.g., Cardiology, Endocrinology, Annual Wellness Examination).
@@ -200,6 +219,10 @@ Focus: Purpose-built longitudinal visualizations for high-impact chronic conditi
     - Import Apple Walking Steadiness notifications and classifications (OK, Low, Very Low) to highlight fall risk trends in doctor visit summaries without algorithmic medical claims.
 - [ ] **Environmental Trigger Overlays** ([#86](https://github.com/Aymeric/ClinicalAssistant/issues/86)):
   - [ ] Ephemeral download of regional Air Quality Index (AQI), pollen counts, and barometric pressure trends to allow patients to correlate environmental triggers with asthma flare-ups, migraines, or blood pressure swings without persisting location data.
+- [ ] **Bivariate Trend Correlation Canvas** ([#164](https://github.com/Aymeric/ClinicalAssistant/issues/164)):
+  - [ ] Multi-series pairing selector to analyze lifestyle interactions (e.g., Steps vs. Resting Heart Rate, Weight vs. Blood Pressure).
+  - [ ] Dual-axis chronological overlay and X-vs-Y scatter plot with linear trendlines.
+  - [ ] Descriptive Pearson correlation coefficient ($r$) calculations accompanied by clinical non-causation disclosures.
 - [ ] **Pulmonary & Respiratory Health** ([#87](https://github.com/Aymeric/ClinicalAssistant/issues/87)):
   - [ ] Oxygen Saturation ($SpO_2$) daytime spot-checks vs. nocturnal nadir tracking.
   - [ ] Peak Expiratory Flow (PEF) and $FEV_1$ tracking for asthma and COPD patients.

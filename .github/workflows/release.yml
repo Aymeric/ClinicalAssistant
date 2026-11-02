@@ -155,15 +155,26 @@ jobs:
           match = re.search(r'##\s+\d+\.\d+\.\d+\s+-\s+\d{4}-\d{2}-\d{2}\s*\n(.*?)(?=\n##\s+\d+\.\d+\.\d+|$)', content, re.DOTALL)
           if match:
               raw = match.group(1).strip()
-              cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', raw)
+              cleaned = re.sub(r'\s*\(\s*(?:\[#\d+\]\([^)]+\)\s*,?\s*)+\)', '', raw)
+              cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', cleaned)
+              cleaned = re.sub(r'\s*\(\s*,*[\s,]*\)', '', cleaned)
               cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
               cleaned = re.sub(r'[*_#`]', '', cleaned)
               cleaned = re.sub(r'[ \t]+', ' ', cleaned)
+              cleaned = re.sub(r' +\n', '\n', cleaned)
               cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
               if len(cleaned) > 500:
-                  cleaned = cleaned[:497] + '...'
+                  cut = cleaned[:496].rfind('\n')
+                  if cut == -1 or cut < 250:
+                      cut = cleaned[:496].rfind('. ')
+                      if cut != -1:
+                          cut += 1
+                  if cut != -1 and cut >= 250:
+                      cleaned = cleaned[:cut].strip()
+                  else:
+                      cleaned = cleaned[:497] + '...'
               with open('distribution/whatsnew/whatsnew-en-US', 'w') as out:
-                  out.write(cleaned)
+                  out.write(cleaned + '\n')
           PYEOF
           fi
           echo "Release notes:"
@@ -317,15 +328,26 @@ jobs:
           match = re.search(r'##\s+\d+\.\d+\.\d+\s+-\s+\d{4}-\d{2}-\d{2}\s*\n(.*?)(?=\n##\s+\d+\.\d+\.\d+|$)', content, re.DOTALL)
           if match:
               raw = match.group(1).strip()
-              cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', raw)
+              cleaned = re.sub(r'\s*\(\s*(?:\[#\d+\]\([^)]+\)\s*,?\s*)+\)', '', raw)
+              cleaned = re.sub(r'\[#\d+\]\([^)]+\)', '', cleaned)
+              cleaned = re.sub(r'\s*\(\s*,*[\s,]*\)', '', cleaned)
               cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', cleaned)
               cleaned = re.sub(r'[*_#`]', '', cleaned)
               cleaned = re.sub(r'[ \t]+', ' ', cleaned)
+              cleaned = re.sub(r' +\n', '\n', cleaned)
               cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
               if len(cleaned) > 4000:
-                  cleaned = cleaned[:3997] + '...'
+                  cut = cleaned[:3996].rfind('\n')
+                  if cut == -1 or cut < 3000:
+                      cut = cleaned[:3996].rfind('. ')
+                      if cut != -1:
+                          cut += 1
+                  if cut != -1 and cut >= 3000:
+                      cleaned = cleaned[:cut].strip()
+                  else:
+                      cleaned = cleaned[:3997] + '...'
               with open('ios/TestFlight/WhatToTest.en-US.txt', 'w') as out:
-                  out.write(cleaned)
+                  out.write(cleaned + '\n')
           PYEOF
           elif [ -f "distribution/whatsnew/whatsnew-en-US" ]; then
             cp distribution/whatsnew/whatsnew-en-US ios/TestFlight/WhatToTest.en-US.txt
@@ -334,10 +356,12 @@ jobs:
           fi
           echo "TestFlight notes:"
           cat ios/TestFlight/WhatToTest.en-US.txt
+          EOF_DELIMITER="EOF_TF_$(openssl rand -hex 8)"
           {
-            echo "notes<<EOF"
+            echo "notes<<${EOF_DELIMITER}"
             cat ios/TestFlight/WhatToTest.en-US.txt
-            echo "EOF"
+            echo ""
+            echo "${EOF_DELIMITER}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Check Apple Deployment Credentials
