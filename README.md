@@ -13,15 +13,27 @@ or CSV.
   encrypted on-device vault. Apple-only clinical lab imports remain supported.
 - Connects to a patient portal that exposes a SMART-on-FHIR endpoint and imports
   laboratory observations, diagnostic reports, conditions, medications, allergies,
-  immunizations, and health insurance coverage policies. Users can also directly
+  immunizations, health insurance coverage policies, and surgical procedures. Users can also directly
   import local FHIR JSON files (single or multiple) with live resource count previews
   and atomic pre-validation.
 - Groups clinical lab panels (such as CBC, CMP, BMP, Lipid, and Thyroid panels) preserving
   analyte relationships, reference ranges, and diagnostic performer details, while supporting
-  rapid multi-analyte entry.
+  rapid multi-analyte entry. Bundles an offline LOINC dictionary with UCUM conversion and
+  cross-provider record deduplication.
+- Visualizes cardiovascular health trends with ACC/AHA 2017 blood pressure clinical staging
+  (Normal, Elevated, Stage 1, Stage 2, Hypertensive Crisis) and contextual protocol tracking
+  (posture, arm, cuff, resting interval), diurnal morning vs. evening surge comparisons,
+  and longitudinal heart rhythm analysis (resting, walking, workout peak, HRV / SDNN, and irregular
+  rhythm history).
+- Offers comprehensive medication management with customizable recurring local dose reminders,
+  an offline drug-drug and food-drug interaction checker, and support for recording discontinuations
+  with clinical reasons.
+- Captures Patient-Reported Outcome Measures (PROMs) including validated clinical survey instruments
+  (PHQ-9, GAD-7, CAT COPD, HAQ-DI) and a structured symptom log with interactive timeline overlays
+  on measurement trend charts.
 - Provides a Doctor Visit Preparation Wizard and tailored consultation summaries (Cardiology,
   Endocrinology, Annual Wellness) complete with discussion agendas, out-of-range highlights,
-  and offline insurance policy cards.
+  surgical history, and offline insurance policy cards.
 - Evaluates critical safety indicators on vital and lab readings using recognized clinical thresholds,
   providing clear, non-diagnostic visual badges for readings requiring urgent medical attention.
 - Tracks per-source import history and coverage, displaying local sync outcomes, last-checked

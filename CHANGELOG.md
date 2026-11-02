@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.5.0 - 2026-11-01
+
+### Added
+
+- **Cardiovascular Health Module**:
+  - ACC/AHA 2017 blood pressure clinical staging (Normal, Elevated, Stage 1, Stage 2, Hypertensive Crisis) with non-diagnostic observational context chips ([#82](https://github.com/Aymeric/ClinicalAssistant/issues/82)).
+  - Blood pressure measurement context tracking: posture (sitting, standing, supine), arm (left vs. right), cuff type, and resting minutes persisted in vault entries ([#82](https://github.com/Aymeric/ClinicalAssistant/issues/82)).
+  - Diurnal blood pressure surge comparison (morning vs. evening averages) on combined blood pressure trend views ([#82](https://github.com/Aymeric/ClinicalAssistant/issues/82)).
+  - Longitudinal Heart Rhythm & Rate analysis card comparing resting heart rate, walking average, and workout peak rates with Heart Rate Variability (HRV / SDNN) metrics ([#82](https://github.com/Aymeric/ClinicalAssistant/issues/82)).
+  - Irregular rhythm notification history log and walking heart rate ingestion from Apple Health and Health Connect ([#82](https://github.com/Aymeric/ClinicalAssistant/issues/82)).
+- **Medication Management & Interaction Safety**:
+  - Recurring local medication reminders with customizable interval and daily time schedules ([#77](https://github.com/Aymeric/ClinicalAssistant/issues/77)).
+  - Offline drug-drug and food-drug interaction safety checker with severity alerts and clinical interaction mechanisms ([#77](https://github.com/Aymeric/ClinicalAssistant/issues/77)).
+  - Support for medication discontinuation tracking with structured reasons and effective cessation dates ([#77](https://github.com/Aymeric/ClinicalAssistant/issues/77)).
+- **Patient-Reported Outcome Measures (PROMs)**:
+  - Standardized validated health questionnaires (PHQ-9 depression screening, GAD-7 anxiety screening, CAT COPD assessment, and HAQ-DI functional disability) with automated severity scoring, question drilldowns, and longitudinal trend charting ([#76](https://github.com/Aymeric/ClinicalAssistant/issues/76)).
+- **Structured Symptoms Log & Timeline Overlays**:
+  - Dedicated symptom logging with severity scale (Mild, Moderate, Severe), body system categorization, and contextual notes ([#156](https://github.com/Aymeric/ClinicalAssistant/issues/156)).
+  - Interactive symptom timeline overlays on numeric trend charts for visual correlation against lab and vital measurements ([#156](https://github.com/Aymeric/ClinicalAssistant/issues/156)).
+- **Terminology Mapping & Cross-Provider Deduplication**:
+  - Bundled offline LOINC dictionary with descriptive UCUM unit conversion and canonical terminology mappings ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)).
+  - Intelligent cross-provider record reconciliation and duplicate detection for identical observations from multiple sources ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)).
+- **FHIR Surgical & Clinical Procedure Ingestion**:
+  - Ingestion of past surgical procedures and interventions (`Procedure`) from SMART-on-FHIR endpoints and FHIR JSON files into the encrypted vault, complete with SNOMED CT / CPT coding and consultation summary inclusions ([#74](https://github.com/Aymeric/ClinicalAssistant/issues/74)).
+
+### Changed
+
+- Expanded manual record entry dropdown menus with full width and ellipsis handling to prevent layout clipping on compact mobile screens.
+- Enforced a 30-second network timeout on external SMART-on-FHIR portal requests to prevent unresponsive endpoints from hanging sync ([#159](https://github.com/Aymeric/ClinicalAssistant/issues/159)).
+
+### Security and reliability
+
+- Enforced AES-GCM MAC tag validation and fail-fast backup verification during vault restoration ([#153](https://github.com/Aymeric/ClinicalAssistant/issues/153)).
+- Restricted file permissions on exported consultation PDF directories (`chmod 0700`) and recovered vault files on POSIX systems ([#144](https://github.com/Aymeric/ClinicalAssistant/issues/144), [#149](https://github.com/Aymeric/ClinicalAssistant/issues/149)).
+- Redacted Bearer tokens and authorization credentials from import failure summaries ([#146](https://github.com/Aymeric/ClinicalAssistant/issues/146)).
+- Early bounds validation in PIN verification preventing CPU exhaustion ([#141](https://github.com/Aymeric/ClinicalAssistant/issues/141)).
+- Optimized lab result summarization with single-pass latest record tracking and pre-filtered signal keys ([#124](https://github.com/Aymeric/ClinicalAssistant/issues/124), [#143](https://github.com/Aymeric/ClinicalAssistant/issues/143)).
+
+### Usability and accessibility
+
+- Added accessible tooltips and radio semantics to Doctor Visit specialty tiles, medication log count chips, guideline viewer controls, and export date presets ([#148](https://github.com/Aymeric/ClinicalAssistant/issues/148), [#151](https://github.com/Aymeric/ClinicalAssistant/issues/151), [#154](https://github.com/Aymeric/ClinicalAssistant/issues/154), [#158](https://github.com/Aymeric/ClinicalAssistant/issues/158)).
+
 ## 0.4.0 - 2026-11-01
 
 ### Added
