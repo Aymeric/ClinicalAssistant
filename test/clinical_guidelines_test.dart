@@ -494,6 +494,36 @@ void main() {
         }
       },
     );
+
+    test(
+      'restricts PDF export directory permissions to 700 on POSIX systems when defaulting directory',
+      () async {
+        const exporter = GuidelinePdfExportService();
+        final guideline = ClinicalGuidelineCatalog.guidelines.first;
+        final file = await exporter.generateGuidelinePdf(guideline: guideline);
+
+        expect(file.existsSync(), isTrue);
+        final parentDir = file.parent;
+        expect(parentDir.existsSync(), isTrue);
+
+        if (!Platform.isWindows) {
+          final stat = parentDir.statSync();
+          final modeString = stat.mode.toRadixString(8);
+          expect(modeString.endsWith('700'), isTrue);
+        }
+
+        // Cleanup generated test PDF and directory
+        if (file.existsSync()) {
+          file.deleteSync();
+        }
+        if (parentDir.existsSync() &&
+            parentDir.path.contains('guideline_exports')) {
+          try {
+            parentDir.deleteSync(recursive: true);
+          } catch (_) {}
+        }
+      },
+    );
   });
 
   group('Guideline UI & Viewer Integration', () {
