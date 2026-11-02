@@ -1081,6 +1081,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                   DropdownButtonFormField<ClinicalPanelPreset?>(
                     key: const ValueKey('manual-lab-panel-preset-dropdown'),
                     initialValue: _selectedPanelPreset,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Select Panel Preset',
                       border: OutlineInputBorder(),
@@ -1089,7 +1090,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                       for (final preset in kStandardClinicalPanels)
                         DropdownMenuItem(
                           value: preset,
-                          child: Text(preset.name),
+                          child: Text(
+                            preset.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                     ],
                     onChanged: (preset) {
@@ -1313,6 +1317,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                 DropdownButtonFormField<SymptomCategory>(
                   key: const ValueKey('manual-symptom-category'),
                   initialValue: _symptomCategory,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'System Category',
                     border: OutlineInputBorder(),
@@ -1324,7 +1329,12 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                         children: [
                           Icon(cat.icon, size: 18),
                           const SizedBox(width: 8),
-                          Text(cat.label),
+                          Expanded(
+                            child: Text(
+                              cat.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -1404,6 +1414,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           initialValue: (_promAnswers.length > i)
                               ? _promAnswers[i]
                               : 0,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(
@@ -1414,7 +1425,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                           items: _selectedProm.choices.map((c) {
                             return DropdownMenuItem(
                               value: c.score,
-                              child: Text('${c.text} (+${c.score})'),
+                              child: Text(
+                                '${c.text} (+${c.score})',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             );
                           }).toList(),
                           onChanged: (val) {
