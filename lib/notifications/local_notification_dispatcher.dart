@@ -13,6 +13,8 @@ abstract interface class LocalNotificationDispatcher {
     required String title,
     required String body,
   });
+
+  Future<void> cancel({required int id});
 }
 
 class FlutterLocalNotificationDispatcher
@@ -111,5 +113,10 @@ class FlutterLocalNotificationDispatcher
         ),
       ),
     );
+  }
+
+  @override
+  Future<void> cancel({required int id}) async {
+    await _plugin.cancel(id: id);
   }
 }

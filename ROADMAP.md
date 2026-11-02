@@ -131,14 +131,14 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
   - [x] Ingest structured symptoms from Apple Health (`HKCategoryTypeIdentifier`) and Android Health Connect with recorded severity (Mild, Moderate, Severe).
   - [x] Add manual symptom logging for episodic cardiorespiratory, neurological, gastrointestinal, and pain events.
   - [x] Expose an opt-in timeline overlay on trend charts to correlate episodic symptoms chronologically alongside numeric vitals and medications while maintaining diagnostic neutrality.
-- [ ] **Medication Management & Interaction Safety** ([#77](https://github.com/Aymeric/ClinicalAssistant/issues/77)):
+- [x] **Medication Management & Interaction Safety** ([#77](https://github.com/Aymeric/ClinicalAssistant/issues/77)):
   - [x] **Offline Drug-Drug & Food-Drug Interaction Checker**:
     - [x] Bundled offline open pharmacology interaction dataset (open FDA / RxNorm / open DrugBank data).
     - [x] Automatically flags known interactions between active logged medications (e.g., NSAIDs + ACE inhibitors; Potassium + Spironolactone).
     - [x] Highlights common dietary interactions (e.g., Grapefruit juice with Statins; high-Vitamin K foods with Warfarin).
     - [x] Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
-  - [ ] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
-  - [ ] Log medication adherence history against prescribed regimens.
+  - [x] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
+  - [x] Log medication adherence history against prescribed regimens.
   - [x] Discontinue / archive medications with reason annotations and date effective.
   - [x] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
     - [x] **Cross-Provider Record Reconciliation**:

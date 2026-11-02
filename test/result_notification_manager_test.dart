@@ -144,6 +144,11 @@ class _FakeNotificationDispatcher implements LocalNotificationDispatcher {
   }) async {
     notifications.add(_ShownNotification(id, title, body));
   }
+
+  @override
+  Future<void> cancel({required int id}) async {
+    notifications.removeWhere((n) => n.id == id);
+  }
 }
 
 class _ShownNotification {

@@ -15,6 +15,8 @@ import 'guidelines/guidelines_library_page.dart';
 import 'integrations/fhir_file_import.dart';
 import 'models/doctor_visit_preparation.dart';
 import 'models/health_record.dart';
+import 'notifications/local_notification_dispatcher.dart';
+import 'notifications/medication_reminder_service.dart';
 import 'notifications/result_notification_manager.dart';
 import 'records/manual_record_edit_sheet.dart';
 import 'records/manual_record_entry_sheet.dart';
@@ -137,6 +139,10 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
   late final _vaultSecurityService =
       widget.vaultSecurityService ??
       VaultSecurityService(storage: widget.controller?.syncValueStore);
+  late final _medicationReminderService = MedicationReminderService(
+    dispatcher: FlutterLocalNotificationDispatcher(),
+    syncValueStore: _controller.syncValueStore,
+  );
   final _exporter = HealthExportService();
   var _selectedIndex = 0;
   static final _since = DateTime(1900);
@@ -308,6 +314,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
       MaterialPageRoute<void>(
         builder: (_) => MedicationsPage(
           controller: _controller,
+          reminderService: _medicationReminderService,
           onRecordTap: _showRecordDetails,
         ),
       ),

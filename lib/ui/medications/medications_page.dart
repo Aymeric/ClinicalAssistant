@@ -4,6 +4,8 @@ import '../../controllers/health_data_controller.dart';
 import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
 import '../../models/medication_adherence_log.dart';
+import '../../models/medication_reminder.dart';
+import '../../notifications/medication_reminder_service.dart';
 import '../../records/manual_record_entry_sheet.dart';
 import '../../safety/drug_interaction_database.dart';
 
@@ -11,10 +13,12 @@ class MedicationsPage extends StatefulWidget {
   const MedicationsPage({
     super.key,
     required this.controller,
+    this.reminderService,
     this.onRecordTap,
   });
 
   final HealthDataController controller;
+  final MedicationReminderService? reminderService;
   final ValueChanged<HealthRecord>? onRecordTap;
 
   @override
@@ -68,6 +72,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
     );
 
     if (confirmed == true && mounted) {
+      await widget.reminderService?.removeReminder(med.id);
       await widget.controller.deleteRecord(med.id);
       if (mounted) {
         ScaffoldMessenger.of(
@@ -297,6 +302,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
           ? customReasonController.text.trim()
           : selectedReason;
 
+      await widget.reminderService?.cancelReminder(med.id);
       await widget.controller.updateMedicationStatus(
         med,
         'discontinued',
@@ -308,6 +314,193 @@ class _MedicationsPageState extends State<MedicationsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${med.name} marked discontinued ($effectiveReason)'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showReminderConfigDialog(HealthRecord med) async {
+    final details = ManualMedicationDetails.fromRecord(med);
+    final initialReminder =
+        details.reminder ??
+        MedicationReminder(
+          medicationId: med.id,
+          medicationName: med.name,
+          schedule: MedicationReminderSchedule.fromString(details.frequency),
+          times: MedicationReminderSchedule.fromString(
+            details.frequency,
+          ).defaultTimes,
+          isEnabled: true,
+        );
+
+    var isEnabled = initialReminder.isEnabled;
+    var selectedSchedule = initialReminder.schedule;
+    var customTimes = List<TimeOfDay>.from(initialReminder.effectiveTimes);
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final theme = Theme.of(ctx);
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.alarm, size: 24),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Reminder: ${med.name}')),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Enable reminders'),
+                    subtitle: Text(
+                      isEnabled
+                          ? 'Receive local notifications on schedule'
+                          : 'Reminders disabled for this medication',
+                    ),
+                    value: isEnabled,
+                    onChanged: (val) {
+                      setDialogState(() => isEnabled = val);
+                    },
+                  ),
+                  const Divider(height: 20),
+                  Text(
+                    'Frequency schedule',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<MedicationReminderSchedule>(
+                    initialValue: selectedSchedule,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                    items: MedicationReminderSchedule.values.map((s) {
+                      return DropdownMenuItem(value: s, child: Text(s.label));
+                    }).toList(),
+                    onChanged: !isEnabled
+                        ? null
+                        : (newSchedule) {
+                            if (newSchedule != null) {
+                              setDialogState(() {
+                                selectedSchedule = newSchedule;
+                                customTimes = List.of(newSchedule.defaultTimes);
+                              });
+                            }
+                          },
+                  ),
+                  if (isEnabled &&
+                      selectedSchedule != MedicationReminderSchedule.prn) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Reminder times',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...customTimes.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final t = entry.value;
+                      final formatted = MaterialLocalizations.of(
+                        ctx,
+                      ).formatTimeOfDay(t);
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.access_time, size: 20),
+                        title: Text('Dose ${idx + 1}: $formatted'),
+                        trailing: TextButton(
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: ctx,
+                              initialTime: t,
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                customTimes[idx] = picked;
+                              });
+                            }
+                          },
+                          child: const Text('Change'),
+                        ),
+                      );
+                    }),
+                  ] else if (isEnabled &&
+                      selectedSchedule == MedicationReminderSchedule.prn) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'PRN (As needed) medications do not trigger recurring fixed-time alerts. Log doses manually as taken.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogCtx, true),
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (saved == true && mounted) {
+      final updatedReminder = MedicationReminder(
+        medicationId: med.id,
+        medicationName: med.name,
+        schedule: selectedSchedule,
+        times: customTimes,
+        isEnabled: isEnabled,
+      );
+
+      final updatedDetails = ManualMedicationDetails(
+        frequency: details.frequency,
+        route: details.route,
+        endDate: details.endDate,
+        discontinueReason: details.discontinueReason,
+        adherenceLogs: details.adherenceLogs,
+        reminder: updatedReminder,
+      );
+
+      final updatedRecord = med.copyWith(
+        sourceData: updatedDetails.withSourceData(med.sourceData),
+      );
+
+      await widget.controller.updateManualRecords([updatedRecord]);
+      if (widget.reminderService != null) {
+        await widget.reminderService!.setReminder(updatedReminder);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isEnabled
+                  ? 'Reminder scheduled for ${med.name} (${selectedSchedule.label})'
+                  : 'Reminder disabled for ${med.name}',
+            ),
           ),
         );
       }
@@ -808,9 +1001,12 @@ class _MedicationsPageState extends State<MedicationsPage> {
                   onSelected: (action) async {
                     if (action == 'history') {
                       _showAdherenceHistory(med);
+                    } else if (action == 'reminder') {
+                      await _showReminderConfigDialog(med);
                     } else if (action == 'log_with_note') {
                       await _logDoseWithDetails(med);
                     } else if (action == 'pause') {
+                      await widget.reminderService?.cancelReminder(med.id);
                       await widget.controller.updateMedicationStatus(
                         med,
                         'paused',
@@ -822,12 +1018,28 @@ class _MedicationsPageState extends State<MedicationsPage> {
                         med,
                         'active',
                       );
+                      final rem = ManualMedicationDetails.fromRecord(
+                        med,
+                      ).reminder;
+                      if (rem != null && rem.isEnabled) {
+                        await widget.reminderService?.scheduleReminder(rem);
+                      }
                     } else if (action == 'delete') {
                       await _confirmDeleteMedication(med);
                     }
                   },
                   itemBuilder: (ctx) => [
                     if (isActive) ...[
+                      const PopupMenuItem(
+                        value: 'reminder',
+                        child: Row(
+                          children: [
+                            Icon(Icons.alarm, size: 20),
+                            SizedBox(width: 8),
+                            Expanded(child: Text('Reminder schedule...')),
+                          ],
+                        ),
+                      ),
                       const PopupMenuItem(
                         value: 'log_with_note',
                         child: Row(
@@ -910,6 +1122,36 @@ class _MedicationsPageState extends State<MedicationsPage> {
               children: [
                 if (details.frequency.isNotEmpty)
                   _detailPill(Icons.repeat, details.frequency, colors),
+                if (details.reminder != null && details.reminder!.isEnabled)
+                  Tooltip(
+                    message:
+                        'Reminder scheduled: ${details.reminder!.schedule.label}',
+                    child: InkWell(
+                      onTap: isActive
+                          ? () => _showReminderConfigDialog(med)
+                          : null,
+                      borderRadius: BorderRadius.circular(8),
+                      child: _detailPill(
+                        Icons.alarm_on,
+                        details.reminder!.schedule.label,
+                        colors,
+                        color: colors.primary,
+                      ),
+                    ),
+                  )
+                else if (isActive)
+                  Tooltip(
+                    message: 'Set recurring reminder',
+                    child: InkWell(
+                      onTap: () => _showReminderConfigDialog(med),
+                      borderRadius: BorderRadius.circular(8),
+                      child: _detailPill(
+                        Icons.alarm_add_outlined,
+                        'Set reminder',
+                        colors,
+                      ),
+                    ),
+                  ),
                 if (details.route != null && details.route!.isNotEmpty)
                   _detailPill(Icons.alt_route, details.route!, colors),
                 if (lastTakenLabel != null)

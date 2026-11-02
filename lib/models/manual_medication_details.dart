@@ -1,5 +1,6 @@
 import 'health_record.dart';
 import 'medication_adherence_log.dart';
+import 'medication_reminder.dart';
 
 class ManualMedicationDetails {
   const ManualMedicationDetails({
@@ -8,6 +9,7 @@ class ManualMedicationDetails {
     this.endDate,
     this.discontinueReason,
     this.adherenceLogs = const [],
+    this.reminder,
   });
 
   static const sourceDataKey = 'manualMedication';
@@ -17,6 +19,7 @@ class ManualMedicationDetails {
   final DateTime? endDate;
   final String? discontinueReason;
   final List<MedicationAdherenceLog> adherenceLogs;
+  final MedicationReminder? reminder;
 
   factory ManualMedicationDetails.fromRecord(HealthRecord record) {
     final raw = record.sourceData?[sourceDataKey];
@@ -40,6 +43,15 @@ class ManualMedicationDetails {
       }
     }
 
+    final rawReminder =
+        record.sourceData?[MedicationReminder.sourceDataKey] ?? raw['reminder'];
+    MedicationReminder? reminder;
+    if (rawReminder is Map) {
+      reminder = MedicationReminder.fromJson(
+        Map<String, Object?>.from(rawReminder),
+      );
+    }
+
     return ManualMedicationDetails(
       frequency: frequency is String ? frequency : '',
       route: route is String && route.isNotEmpty ? route : null,
@@ -55,6 +67,7 @@ class ManualMedicationDetails {
           ? discontinueReason
           : null,
       adherenceLogs: logs,
+      reminder: reminder,
     );
   }
 
@@ -65,12 +78,14 @@ class ManualMedicationDetails {
       endDate: endDate,
       discontinueReason: discontinueReason,
       adherenceLogs: [...adherenceLogs, log],
+      reminder: reminder,
     );
   }
 
   Map<String, Object?> withSourceData(Map<String, Object?>? sourceData) {
     final end = endDate;
     final reason = discontinueReason;
+    final rem = reminder;
     return {
       ...?sourceData,
       sourceDataKey: {
@@ -82,7 +97,9 @@ class ManualMedicationDetails {
         if (reason != null && reason.isNotEmpty) 'discontinueReason': reason,
         if (adherenceLogs.isNotEmpty)
           'adherenceLogs': adherenceLogs.map((l) => l.toJson()).toList(),
+        if (rem != null) 'reminder': rem.toJson(),
       },
+      if (rem != null) MedicationReminder.sourceDataKey: rem.toJson(),
     };
   }
 }
