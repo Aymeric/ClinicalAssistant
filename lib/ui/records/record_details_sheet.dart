@@ -6,8 +6,14 @@ import 'package:flutter/services.dart';
 import '../../data/synthetic_demonstration_data.dart';
 import '../../guidelines/clinical_guideline.dart';
 import '../../guidelines/related_guidelines_widget.dart';
+import '../../models/clinical_panel.dart';
+import '../../models/coverage_details.dart';
 import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
+import '../../models/procedure_details.dart';
+import '../../safety/critical_safety_evaluator.dart';
+import '../../terminology/cross_provider_reconciler.dart';
+import '../../terminology/loinc_dictionary.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
 
@@ -23,6 +29,8 @@ class RecordDetailsSheet extends StatefulWidget {
     this.onEdit,
     this.onViewInTrends,
     this.onOpenGuideline,
+    this.restingHeartRateCriticalLow,
+    this.reconciledGroup,
   });
 
   final HealthRecord record;
@@ -34,6 +42,8 @@ class RecordDetailsSheet extends StatefulWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onViewInTrends;
   final ValueChanged<ClinicalGuideline>? onOpenGuideline;
+  final double? restingHeartRateCriticalLow;
+  final ReconciledRecordGroup? reconciledGroup;
 
   @override
   State<RecordDetailsSheet> createState() => _RecordDetailsSheetState();
@@ -146,6 +156,8 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
         record.isManual && record.category == RecordCategory.medication
         ? ManualMedicationDetails.fromRecord(record)
         : null;
+    final coverageDetails = CoverageDetails.fromRecord(record);
+    final procedureDetails = ProcedureDetails.fromRecord(record);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
@@ -429,6 +441,76 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
                 );
               },
             ),
+            Builder(
+              builder: (context) {
+                final criticalAlert = CriticalSafetyEvaluator.evaluate(
+                  record,
+                  heartRateCriticalLow:
+                      widget.restingHeartRateCriticalLow ??
+                      CriticalSafetyEvaluator.kHeartRateCriticalLowDefault,
+                );
+                if (criticalAlert == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Container(
+                    key: const ValueKey('record-critical-safety-banner'),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: colors.errorContainer,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: colors.error.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: colors.onErrorContainer,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Critical Alert: ${criticalAlert.title}',
+                                style: TextStyle(
+                                  color: colors.onErrorContainer,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          criticalAlert.emergencyGuidance,
+                          style: TextStyle(
+                            color: colors.onErrorContainer,
+                            fontSize: 13,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          CriticalSafetyAlert.clinicalDisclaimer,
+                          style: TextStyle(
+                            color: colors.onErrorContainer.withValues(
+                              alpha: 0.8,
+                            ),
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 16),
             if (widget.onViewInTrends != null)
               Padding(
@@ -452,6 +534,105 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
             DetailLine(
               label: 'Category',
               value: categoryLabel(record.category),
+            ),
+            if (coverageDetails != null) ...[
+              if (coverageDetails.planName != null)
+                DetailLine(
+                  label: 'Plan name',
+                  value: coverageDetails.planName!,
+                ),
+              if (coverageDetails.groupNumber != null)
+                DetailLine(
+                  label: 'Group number',
+                  value: coverageDetails.groupNumber!,
+                ),
+              if (coverageDetails.groupName != null)
+                DetailLine(
+                  label: 'Group name',
+                  value: coverageDetails.groupName!,
+                ),
+              if (coverageDetails.subscriberId != null)
+                DetailLine(
+                  label: 'Subscriber ID',
+                  value: coverageDetails.subscriberId!,
+                ),
+              if (coverageDetails.beneficiaryName != null)
+                DetailLine(
+                  label: 'Beneficiary',
+                  value: coverageDetails.beneficiaryName!,
+                ),
+              if (coverageDetails.relationship != null)
+                DetailLine(
+                  label: 'Relationship',
+                  value: coverageDetails.relationship!,
+                ),
+              if (coverageDetails.periodStart != null ||
+                  coverageDetails.periodEnd != null)
+                DetailLine(
+                  label: 'Coverage period',
+                  value:
+                      '${coverageDetails.periodStart != null ? formatRecordDate(coverageDetails.periodStart!) : "Start"} – ${coverageDetails.periodEnd != null ? formatRecordDate(coverageDetails.periodEnd!) : "Active"}',
+                ),
+              if (coverageDetails.coverageType != null)
+                DetailLine(
+                  label: 'Coverage type',
+                  value: coverageDetails.coverageType!,
+                ),
+              if (coverageDetails.network != null)
+                DetailLine(label: 'Network', value: coverageDetails.network!),
+              if (coverageDetails.copays.isNotEmpty)
+                DetailLine(
+                  label: 'Copays & Cost sharing',
+                  value: coverageDetails.copays
+                      .map((c) => '${c.type}: ${c.amount}')
+                      .join(' · '),
+                ),
+            ],
+            if (procedureDetails != null) ...[
+              if (procedureDetails.bodySite != null)
+                DetailLine(
+                  label: 'Anatomical site',
+                  value: procedureDetails.bodySite!,
+                ),
+              if (procedureDetails.outcome != null)
+                DetailLine(
+                  label: 'Procedure outcome',
+                  value: procedureDetails.outcome!,
+                ),
+              if (procedureDetails.performer != null)
+                DetailLine(
+                  label: 'Performer / Surgeon',
+                  value: procedureDetails.performer!,
+                ),
+              if (procedureDetails.reason != null)
+                DetailLine(
+                  label: 'Indication / Reason',
+                  value: procedureDetails.reason!,
+                ),
+            ],
+            Builder(
+              builder: (context) {
+                final panelInfo = extractRecordPanelInfo(record);
+                if (panelInfo == null) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DetailLine(label: 'Clinical panel', value: panelInfo.name),
+                    if (panelInfo.conclusion != null &&
+                        panelInfo.conclusion!.isNotEmpty)
+                      DetailLine(
+                        label: 'Report conclusion',
+                        value: panelInfo.conclusion!,
+                      ),
+                    if (panelInfo.performer != null &&
+                        panelInfo.performer!.isNotEmpty)
+                      DetailLine(
+                        label: 'Diagnostic performer',
+                        value: panelInfo.performer!,
+                      ),
+                  ],
+                );
+              },
             ),
             if (record.hasExplicitMeasurementContext)
               DetailLine(
@@ -488,10 +669,123 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
                     .split('.')
                     .first,
               ),
+            if (medicationDetails?.discontinueReason != null)
+              DetailLine(
+                label: 'Discontinue reason',
+                value: medicationDetails!.discontinueReason!,
+              ),
             if (record.code != null)
               DetailLine(label: 'Code', value: record.code!),
+            Builder(
+              builder: (context) {
+                final loincConcept = LoincDictionary.lookup(record.code);
+                if (loincConcept == null) return const SizedBox.shrink();
+                final numericVal = parseHealthRecordValue(record.value);
+                final descriptiveUnit = numericVal != null
+                    ? LoincDictionary.computeDescriptiveEquivalent(
+                        value: numericVal,
+                        fromUnit: record.unit,
+                        code: record.code,
+                      )
+                    : null;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (loincConcept.patientFriendlyName.toLowerCase() !=
+                        record.name.toLowerCase())
+                      DetailLine(
+                        label: 'Standardized name',
+                        value: loincConcept.patientFriendlyName,
+                      ),
+                    DetailLine(
+                      label: 'About this test',
+                      value: loincConcept.description,
+                    ),
+                    if (descriptiveUnit != null)
+                      DetailLine(
+                        label: 'Unit equivalent',
+                        value: '$descriptiveUnit (calculated equivalent)',
+                      ),
+                  ],
+                );
+              },
+            ),
             if (record.sourceId != null)
               DetailLine(label: 'Source ID', value: record.sourceId!),
+            if (widget.reconciledGroup != null &&
+                widget.reconciledGroup!.isMultiProvider) ...[
+              const SizedBox(height: 8),
+              Container(
+                key: const ValueKey('reconciled-sources-card'),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: colors.primary.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.sync_alt_rounded,
+                          size: 16,
+                          color: colors.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cross-Provider Reconciliation',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'This measurement was recorded by ${widget.reconciledGroup!.distinctSourceCount} separate portals/sources on this date. Contributing records and provenance are preserved:',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    for (final r in widget.reconciledGroup!.contributingRecords)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Row(
+                          children: [
+                            Icon(
+                              r.id == record.id
+                                  ? Icons.check_circle
+                                  : Icons.circle_outlined,
+                              size: 12,
+                              color: r.id == record.id
+                                  ? colors.primary
+                                  : colors.outline,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '${r.source}: ${r.displayValue}${r.referenceRange != null ? " (${r.referenceRange})" : ""}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: r.id == record.id
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),

@@ -1278,9 +1278,10 @@ abstract final class ClinicalGuidelineCatalog {
     // 6. Asthma / Respiratory / SpO2 / Peak Expiratory Flow
     const asthmaLoincs = {'2708-6', '59408-5', '19935-6', '20150-9', '19926-5'};
     if (asthmaLoincs.contains(code) ||
+        code == 'blood_oxygen' ||
         name.contains('asthma') ||
         name.contains('spo2') ||
-        name.contains('oxygen saturation') ||
+        name.contains('oxygen') ||
         name.contains('pulse oximetry') ||
         name.contains('peak flow') ||
         name.contains('pefr') ||

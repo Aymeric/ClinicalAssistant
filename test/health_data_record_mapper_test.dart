@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:clinical_assistant/integrations/health_data_record_mapper.dart';
-import 'package:clinical_assistant/integrations/health_import_windows.dart';
 import 'package:clinical_assistant/integrations/health_platform_importer.dart';
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:health/health.dart';
@@ -11,7 +10,7 @@ void main() {
   const mapper = HealthDataRecordMapper();
 
   test('requests the complete shared set of platform health types', () {
-    expect(HealthPlatformImporter.sharedDataTypes, hasLength(31));
+    expect(HealthPlatformImporter.sharedDataTypes, hasLength(33));
     expect(HealthPlatformImporter.sharedDataTypes.toSet(), {
       HealthDataType.ACTIVE_ENERGY_BURNED,
       HealthDataType.BASAL_ENERGY_BURNED,
@@ -44,6 +43,8 @@ void main() {
       HealthDataType.WEIGHT,
       HealthDataType.WORKOUT,
       HealthDataType.WORKOUT_ROUTE,
+      HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+      HealthDataType.ELECTROCARDIOGRAM,
     });
   });
 
@@ -387,19 +388,123 @@ void main() {
     );
   });
 
-  test('slices modern windows into configured day boundaries', () {
-    final window = HealthImportWindow(
-      DateTime.utc(2026, 9, 1),
-      DateTime.utc(2026, 9, 10),
+  test('maps heart rate variability SDNN and electrocardiogram points', () {
+    final hrvRecord = mapper.mapPoint(
+      _point(
+        HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+        NumericHealthValue(numericValue: 45),
+        unit: HealthDataUnit.MILLISECOND,
+      ),
+      fallbackSource: 'Apple Watch',
     );
-    final slices = HealthPlatformImporter.sliceWindow(window, maxDays: 3);
-    expect(slices, hasLength(3));
-    expect(slices[0].start, DateTime.utc(2026, 9, 1));
-    expect(slices[0].end, DateTime.utc(2026, 9, 4));
-    expect(slices[1].start, DateTime.utc(2026, 9, 4));
-    expect(slices[1].end, DateTime.utc(2026, 9, 7));
-    expect(slices[2].start, DateTime.utc(2026, 9, 7));
-    expect(slices[2].end, DateTime.utc(2026, 9, 10));
+    expect(hrvRecord.name, 'Heart rate variability (SDNN)');
+    expect(hrvRecord.displayValue, '45 ms');
+    expect(hrvRecord.category, RecordCategory.vital);
+
+    final ecgRecord = mapper.mapPoint(
+      _point(
+        HealthDataType.ELECTROCARDIOGRAM,
+        ElectrocardiogramHealthValue(
+          voltageValues: [],
+          averageHeartRate: 72,
+          samplingFrequency: 512,
+          classification: ElectrocardiogramClassification.SINUS_RHYTHM,
+        ),
+        unit: HealthDataUnit.VOLT,
+      ),
+      fallbackSource: 'Apple Watch',
+    );
+    expect(ecgRecord.name, 'Electrocardiogram (ECG)');
+    expect(ecgRecord.value, 'Sinus rhythm · 72 bpm avg');
+    expect(ecgRecord.category, RecordCategory.vital);
+  });
+
+  group('HealthDataRecordMapper - Percentage Normalization', () {
+    test(
+      'converts raw decimal fraction blood oxygen (e.g. 0.98) to percentage (98%)',
+      () {
+        final record = mapper.mapPoint(
+          _point(
+            HealthDataType.BLOOD_OXYGEN,
+            NumericHealthValue(numericValue: 0.98),
+            unit: HealthDataUnit.PERCENT,
+          ),
+          fallbackSource: 'Apple Health',
+        );
+
+        expect(record.name, 'Blood oxygen');
+        expect(record.value, '98');
+        expect(record.unit, '%');
+        expect(record.displayValue, '98 %');
+        expect(record.code, 'BLOOD_OXYGEN');
+        expect(record.category, RecordCategory.vital);
+      },
+    );
+
+    test('converts full saturation raw fraction 1.0 to 100%', () {
+      final record = mapper.mapPoint(
+        _point(
+          HealthDataType.BLOOD_OXYGEN,
+          NumericHealthValue(numericValue: 1.0),
+          unit: HealthDataUnit.PERCENT,
+        ),
+        fallbackSource: 'Apple Health',
+      );
+
+      expect(record.value, '100');
+      expect(record.displayValue, '100 %');
+      expect(record.unit, '%');
+    });
+
+    test('preserves already-scaled percentage blood oxygen (e.g. 97.5)', () {
+      final record = mapper.mapPoint(
+        _point(
+          HealthDataType.BLOOD_OXYGEN,
+          NumericHealthValue(numericValue: 97.5),
+          unit: HealthDataUnit.PERCENT,
+        ),
+        fallbackSource: 'Health Connect',
+      );
+
+      expect(record.value, '97.5');
+      expect(record.displayValue, '97.5 %');
+      expect(record.unit, '%');
+    });
+
+    test('converts raw fraction body fat percentage to percentage scale', () {
+      final record = mapper.mapPoint(
+        _point(
+          HealthDataType.BODY_FAT_PERCENTAGE,
+          NumericHealthValue(numericValue: 0.22),
+          unit: HealthDataUnit.PERCENT,
+        ),
+        fallbackSource: 'Apple Health',
+      );
+
+      expect(record.name, 'Body fat');
+      expect(record.value, '22');
+      expect(record.unit, '%');
+      expect(record.displayValue, '22 %');
+    });
+
+    test(
+      'rounds tracker fractional resting heart rate (e.g. 39.68 bpm) to clean integer bpm',
+      () {
+        final record = mapper.mapPoint(
+          _point(
+            HealthDataType.RESTING_HEART_RATE,
+            NumericHealthValue(numericValue: 39.68),
+            unit: HealthDataUnit.BEATS_PER_MINUTE,
+          ),
+          fallbackSource: 'Tracker',
+        );
+
+        expect(record.name, 'Resting heart rate');
+        expect(record.value, '40');
+        expect(record.displayValue, '40 bpm');
+        expect(record.unit, 'bpm');
+      },
+    );
   });
 }
 

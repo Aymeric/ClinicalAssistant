@@ -17,3 +17,7 @@
 ## 2026-10-28 - Structured Semantics Label for Complex Health Record Rows
 **Learning:** List items representing health records contain multiple pieces of context (title, value, out-of-range status, category, date, source, guidelines). Constructing a single, comma-separated structured string for `Semantics(label: ..., button: onTap != null, excludeSemantics: true)` provides screen readers with a cohesive sentence-like summary instead of disjointed fragments when navigating record lists.
 **Action:** Aggregate complex list row metadata into a structured, comma-separated `Semantics` label when wrapping interactive list items.
+
+## 2026-10-29 - Accessible Interactive Stat Chips with Tooltip and Semantics
+**Learning:** Small status/stat chips (such as "1 dose logged") that double as interactive shortcuts (opening detail bottom sheets on tap) are easily mistaken for plain static indicators by screen readers and mouse users. Wrapping interactive chips in `Tooltip(message: 'View adherence history')` and `Semantics(button: true, label: ...)` explicitly communicates tap behavior to both mouse users and screen readers.
+**Action:** Always wrap interactive stat/summary chips in `Tooltip` and `Semantics(button: true, label: ...)` to convey actionability.

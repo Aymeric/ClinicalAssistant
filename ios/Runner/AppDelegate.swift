@@ -50,9 +50,42 @@ private final class AppleClinicalRecordsPlugin: NSObject, FlutterPlugin {
   }
 
   private func importLabRecords(result: @escaping FlutterResult) {
-    guard HKHealthStore.isHealthDataAvailable(),
-          let clinicalType = HKObjectType.clinicalType(forIdentifier: .labResultRecord)
-    else {
+    guard HKHealthStore.isHealthDataAvailable() else {
+      result([])
+      return
+    }
+
+    var clinicalTypes: [HKClinicalType] = []
+    if let labType = HKObjectType.clinicalType(forIdentifier: .labResultRecord) {
+      clinicalTypes.append(labType)
+    }
+    if #available(iOS 16.4, *),
+       let noteType = HKObjectType.clinicalType(forIdentifier: .clinicalNoteRecord) {
+      clinicalTypes.append(noteType)
+    }
+    if let procedureType = HKObjectType.clinicalType(forIdentifier: .procedureRecord) {
+      clinicalTypes.append(procedureType)
+    }
+    if let conditionType = HKObjectType.clinicalType(forIdentifier: .conditionRecord) {
+      clinicalTypes.append(conditionType)
+    }
+    if let allergyType = HKObjectType.clinicalType(forIdentifier: .allergyRecord) {
+      clinicalTypes.append(allergyType)
+    }
+    if let medicationType = HKObjectType.clinicalType(forIdentifier: .medicationRecord) {
+      clinicalTypes.append(medicationType)
+    }
+    if let immunizationType = HKObjectType.clinicalType(forIdentifier: .immunizationRecord) {
+      clinicalTypes.append(immunizationType)
+    }
+    if let coverageType = HKObjectType.clinicalType(forIdentifier: .coverageRecord) {
+      clinicalTypes.append(coverageType)
+    }
+    if let vitalSignType = HKObjectType.clinicalType(forIdentifier: .vitalSignRecord) {
+      clinicalTypes.append(vitalSignType)
+    }
+
+    guard !clinicalTypes.isEmpty else {
       result([])
       return
     }
@@ -70,11 +103,11 @@ private final class AppleClinicalRecordsPlugin: NSObject, FlutterPlugin {
     }
 
     // Safety timeout: if HealthKit authorization prompt or query hangs, return empty results
-    DispatchQueue.global().asyncAfter(deadline: .now() + 10.0) {
+    DispatchQueue.global().asyncAfter(deadline: .now() + 15.0) {
       sendResult([])
     }
 
-    healthStore.requestAuthorization(toShare: nil, read: [clinicalType]) { success, error in
+    healthStore.requestAuthorization(toShare: nil, read: Set(clinicalTypes)) { success, error in
       if let error {
         sendResult([])
         return
@@ -84,34 +117,58 @@ private final class AppleClinicalRecordsPlugin: NSObject, FlutterPlugin {
         return
       }
 
-      let query = HKSampleQuery(
-        sampleType: clinicalType,
-        predicate: nil,
-        limit: HKObjectQueryNoLimit,
-        sortDescriptors: nil
-      ) { _, samples, queryError in
-        if let queryError {
-          sendResult([])
-          return
-        }
+      let group = DispatchGroup()
+      var allRecords: [[String: Any]] = []
+      var seenKeys = Set<String>()
+      let recordsLock = NSLock()
 
-        let records = (samples as? [HKClinicalRecord] ?? []).compactMap { record
-          -> [String: Any]? in
-          guard let data = record.fhirResource?.data,
-                let object = try? JSONSerialization.jsonObject(with: data),
-                let resource = object as? [String: Any]
-          else {
-            return nil
+      for clinicalType in clinicalTypes {
+        group.enter()
+        let query = HKSampleQuery(
+          sampleType: clinicalType,
+          predicate: nil,
+          limit: HKObjectQueryNoLimit,
+          sortDescriptors: nil
+        ) { _, samples, queryError in
+          defer { group.leave() }
+          guard queryError == nil, let samples = samples as? [HKClinicalRecord] else {
+            return
           }
-          return [
-            "sourceId": record.sourceRevision.source.bundleIdentifier,
-            "sourceName": record.sourceRevision.source.name,
-            "resource": resource,
-          ]
+
+          var extracted: [[String: Any]] = []
+          for record in samples {
+            guard let data = record.fhirResource?.data,
+                  let object = try? JSONSerialization.jsonObject(with: data),
+                  let resource = object as? [String: Any]
+            else {
+              continue
+            }
+            let resId = (resource["id"] as? String) ?? record.uuid.uuidString
+            let resType = (resource["resourceType"] as? String) ?? ""
+            let uniqueKey = "\(record.sourceRevision.source.bundleIdentifier):\(resType):\(resId)"
+
+            recordsLock.lock()
+            if !seenKeys.contains(uniqueKey) {
+              seenKeys.insert(uniqueKey)
+              extracted.append([
+                "sourceId": record.sourceRevision.source.bundleIdentifier,
+                "sourceName": record.sourceRevision.source.name,
+                "resource": resource,
+              ])
+            }
+            recordsLock.unlock()
+          }
+
+          recordsLock.lock()
+          allRecords.append(contentsOf: extracted)
+          recordsLock.unlock()
         }
-        sendResult(records)
+        self.healthStore.execute(query)
       }
-      self.healthStore.execute(query)
+
+      group.notify(queue: .main) {
+        sendResult(allRecords)
+      }
     }
   }
 }

@@ -252,6 +252,10 @@ class ClinicalPanel {
     required this.recordedAt,
     required this.source,
     required this.records,
+    this.code,
+    this.status,
+    this.performer,
+    this.conclusion,
   });
 
   final String id;
@@ -259,6 +263,10 @@ class ClinicalPanel {
   final DateTime recordedAt;
   final String source;
   final List<HealthRecord> records;
+  final String? code;
+  final String? status;
+  final String? performer;
+  final String? conclusion;
 
   int get analyteCount => records.length;
 
@@ -276,7 +284,15 @@ class ClinicalPanel {
 }
 
 /// Extracts the panel name and panel identifier from a [HealthRecord]'s sourceData if present.
-({String id, String name})? extractRecordPanelInfo(HealthRecord record) {
+({
+  String id,
+  String name,
+  String? code,
+  String? status,
+  String? performer,
+  String? conclusion,
+})?
+extractRecordPanelInfo(HealthRecord record) {
   final sourceData = record.sourceData;
   if (sourceData == null) return null;
 
@@ -290,6 +306,10 @@ class ClinicalPanel {
             id ??
             '${record.source}_${record.recordedAt.millisecondsSinceEpoch}_$name',
         name: name.trim(),
+        code: panelData['code']?.toString(),
+        status: panelData['status']?.toString(),
+        performer: panelData['performer']?.toString(),
+        conclusion: panelData['conclusion']?.toString(),
       );
     }
   }
@@ -368,6 +388,10 @@ List<RecordListItem> groupRecordsIntoListItems(List<HealthRecord> records) {
               recordedAt: record.recordedAt,
               source: record.source,
               records: group,
+              code: panelInfo.code,
+              status: panelInfo.status,
+              performer: panelInfo.performer,
+              conclusion: panelInfo.conclusion,
             ),
           ),
         );

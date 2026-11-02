@@ -474,7 +474,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('No matching records'), findsOneWidget);
 
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Clear search, filters, and date range'));
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
     expect(find.text('Glucose'), findsOneWidget);
     expect(find.text('Hemoglobin A1c'), findsOneWidget);

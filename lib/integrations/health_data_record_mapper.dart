@@ -17,7 +17,7 @@ class HealthDataRecordMapper {
       id: 'health:${point.sourceId}:${point.uuid}',
       name: labelFor(point.type),
       value: _displayValue(point, value),
-      unit: _unitLabel(point.unit),
+      unit: _unitFor(point),
       recordedAt: point.dateTo.toUtc(),
       category: _categoryFor(point.type),
       source: source,
@@ -56,9 +56,20 @@ class HealthDataRecordMapper {
     _ => RecordCategory.vital,
   };
 
+  String _unitFor(HealthDataPoint point) {
+    if (point.type == HealthDataType.BLOOD_OXYGEN ||
+        point.type == HealthDataType.BODY_FAT_PERCENTAGE) {
+      return '%';
+    }
+    return _unitLabel(point.unit);
+  }
+
   String _displayValue(HealthDataPoint point, Map<String, dynamic> json) {
     final numericValue = json['numericValue'];
-    if (numericValue is num) return _formatNumber(numericValue);
+    if (numericValue is num) {
+      final normalized = _normalizeNumericValue(point.type, numericValue);
+      return _formatNumber(normalized);
+    }
 
     return switch (point.value) {
       WorkoutHealthValue value => _workoutSummary(value),
@@ -68,9 +79,38 @@ class HealthDataRecordMapper {
       ),
       NutritionHealthValue value => _nutritionSummary(value),
       MenstruationFlowHealthValue value => _menstruationSummary(value),
+      ElectrocardiogramHealthValue value => _ecgSummary(value),
       _ => point.value.toString(),
     };
   }
+
+  String _ecgSummary(ElectrocardiogramHealthValue value) {
+    final parts = <String>[];
+    if (value.classification != null) {
+      parts.add(_ecgClassificationLabel(value.classification!));
+    }
+    if (value.averageHeartRate != null) {
+      parts.add('${formatSensibleNumber(value.averageHeartRate!)} bpm avg');
+    }
+    return parts.isEmpty ? 'Electrocardiogram' : parts.join(' · ');
+  }
+
+  String _ecgClassificationLabel(
+    ElectrocardiogramClassification classification,
+  ) => switch (classification) {
+    ElectrocardiogramClassification.SINUS_RHYTHM => 'Sinus rhythm',
+    ElectrocardiogramClassification.ATRIAL_FIBRILLATION =>
+      'Atrial fibrillation',
+    ElectrocardiogramClassification.INCONCLUSIVE_LOW_HEART_RATE =>
+      'Inconclusive (low heart rate)',
+    ElectrocardiogramClassification.INCONCLUSIVE_HIGH_HEART_RATE =>
+      'Inconclusive (high heart rate)',
+    ElectrocardiogramClassification.INCONCLUSIVE_POOR_READING =>
+      'Inconclusive (poor reading)',
+    ElectrocardiogramClassification.INCONCLUSIVE_OTHER =>
+      'Inconclusive (other)',
+    _ => 'Recorded',
+  };
 
   String _workoutRouteSummary(
     WorkoutRouteHealthValue value, {
@@ -125,6 +165,25 @@ class HealthDataRecordMapper {
     return details.join(' · ');
   }
 
+  num _normalizeNumericValue(HealthDataType type, num value) {
+    if (type == HealthDataType.BLOOD_OXYGEN ||
+        type == HealthDataType.BODY_FAT_PERCENTAGE) {
+      // In raw sources (e.g. Apple HealthKit HKUnit.percent()), percentages are
+      // reported as fractions in [0.0, 1.0] (e.g. 0.98 for 98% SpO2, 1.0 for 100%).
+      // If the value is within (0, 1], normalize it to standard 0–100 percentage.
+      if (value > 0 && value <= 1.0) {
+        return value * 100;
+      }
+    } else if (type == HealthDataType.HEART_RATE ||
+        type == HealthDataType.RESTING_HEART_RATE) {
+      // Wearables and health platforms often report averaged heart rates with
+      // floating-point precision (e.g. 39.68 bpm). Standard clinical practice and
+      // platform UI displays represent heart rate as discrete integer beats per minute.
+      return value.round();
+    }
+    return value;
+  }
+
   String _formatNumber(num value) => formatSensibleNumber(value);
 
   static String labelFor(HealthDataType type) => switch (type) {
@@ -159,6 +218,9 @@ class HealthDataRecordMapper {
     HealthDataType.WEIGHT => 'Weight',
     HealthDataType.WORKOUT => 'Workout',
     HealthDataType.WORKOUT_ROUTE => 'Workout route',
+    HealthDataType.HEART_RATE_VARIABILITY_SDNN =>
+      'Heart rate variability (SDNN)',
+    HealthDataType.ELECTROCARDIOGRAM => 'Electrocardiogram (ECG)',
     _ => type.name.replaceAll('_', ' ').toLowerCase(),
   };
 

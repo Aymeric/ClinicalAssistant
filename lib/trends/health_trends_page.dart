@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../guidelines/clinical_guideline.dart';
 import '../guidelines/related_guidelines_widget.dart';
+import '../models/doctor_visit_preparation.dart';
 import '../models/health_record.dart';
 import '../ui/shared/record_widgets.dart';
 import 'health_trend.dart';
@@ -17,6 +18,7 @@ class HealthTrendsPage extends StatefulWidget {
     required this.records,
     this.loading = false,
     this.initialSeriesId,
+    this.initialSpecialty,
     this.onRecordTap,
     this.onOpenGuideline,
   });
@@ -24,6 +26,7 @@ class HealthTrendsPage extends StatefulWidget {
   final List<HealthRecord> records;
   final bool loading;
   final String? initialSeriesId;
+  final DoctorVisitSpecialty? initialSpecialty;
   final ValueChanged<HealthRecord>? onRecordTap;
   final ValueChanged<ClinicalGuideline>? onOpenGuideline;
 
@@ -33,6 +36,7 @@ class HealthTrendsPage extends StatefulWidget {
 
 class _HealthTrendsPageState extends State<HealthTrendsPage> {
   RecordCategory? _category;
+  DoctorVisitSpecialty? _specialty;
   _TrendRange _range = _TrendRange.all;
   String? _selectedSeriesId;
   String? _selectedContext;
@@ -42,6 +46,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
   void initState() {
     super.initState();
     _selectedSeriesId = widget.initialSeriesId;
+    _specialty = widget.initialSpecialty;
   }
 
   @override
@@ -55,14 +60,27 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
         _selectedContext = null;
       });
     }
+    if (widget.initialSpecialty != oldWidget.initialSpecialty &&
+        widget.initialSpecialty != null) {
+      setState(() {
+        _specialty = widget.initialSpecialty;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final allSeries = buildHealthTrendSeries(widget.records);
-    final visibleSeries = _category == null
+    final specialtySeries = _specialty == null
         ? allSeries
-        : allSeries.where((series) => series.category == _category).toList();
+        : allSeries
+              .where((series) => _specialty!.matchesTrendSeries(series))
+              .toList();
+    final visibleSeries = _category == null
+        ? specialtySeries
+        : specialtySeries
+              .where((series) => series.category == _category)
+              .toList();
     final selectedSeries = visibleSeries.cast<HealthTrendSeries?>().firstWhere(
       (series) => series?.id == _selectedSeriesId,
       orElse: () => visibleSeries.isEmpty ? null : visibleSeries.first,
@@ -155,6 +173,44 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                     ),
                     const SizedBox(height: 20),
                     Text(
+                      'Specialty domain',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          ChoiceChip(
+                            key: const ValueKey('trend-specialty-all'),
+                            label: const Text('All specialties'),
+                            selected: _specialty == null,
+                            onSelected: (_) => setState(() {
+                              _specialty = null;
+                              _selectedContext = null;
+                            }),
+                          ),
+                          const SizedBox(width: 8),
+                          for (final spec in DoctorVisitSpecialty.values) ...[
+                            ChoiceChip(
+                              key: ValueKey('trend-specialty-${spec.id}'),
+                              avatar: Icon(spec.icon, size: 16),
+                              label: Text(spec.shortLabel),
+                              selected: _specialty == spec,
+                              onSelected: (selected) => setState(() {
+                                _specialty = selected ? spec : null;
+                                _selectedContext = null;
+                              }),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
                       'Record type',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
@@ -165,16 +221,16 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                       spacing: 8,
                       runSpacing: 4,
                       children: [
-                        _categoryChip('All', null, allSeries.length),
+                        _categoryChip('All', null, specialtySeries.length),
                         for (final category in RecordCategory.values)
-                          if (allSeries.any(
+                          if (specialtySeries.any(
                                 (series) => series.category == category,
                               ) ||
                               _category == category)
                             _categoryChip(
                               categoryLabel(category),
                               category,
-                              allSeries
+                              specialtySeries
                                   .where(
                                     (series) => series.category == category,
                                   )
@@ -312,6 +368,9 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                             .where(
                               (r) => r.category == RecordCategory.medication,
                             )
+                            .toList(),
+                        symptomRecords: widget.records
+                            .where((r) => r.category == RecordCategory.symptom)
                             .toList(),
                         showMovingAverage: _showMovingAverage,
                         onMovingAverageChanged: (value) =>
