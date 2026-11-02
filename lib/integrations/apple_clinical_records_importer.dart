@@ -18,7 +18,7 @@ class AppleClinicalRecordsImporter {
   final FhirObservationParser _parser;
 
   Future<List<HealthRecord>> importLabRecords({
-    Duration timeout = const Duration(seconds: 12),
+    Duration timeout = const Duration(seconds: 20),
   }) async {
     final List<Object?>? response;
     try {
@@ -34,7 +34,11 @@ class AppleClinicalRecordsImporter {
     }
     if (response == null) return const [];
 
-    final records = <HealthRecord>[];
+    // Group clinical resources by source so related panels and observations
+    // are parsed together in the same bundle context.
+    final groupedBySource = <String, List<Map<String, dynamic>>>{};
+    final sourceNames = <String, String>{};
+
     for (final item in response) {
       if (item is! Map) {
         throw const FormatException(
@@ -52,17 +56,26 @@ class AppleClinicalRecordsImporter {
         );
       }
       final fhirResource = Map<String, dynamic>.from(resource);
-      final sourceName = item['sourceName'];
-      final source = sourceName is String && sourceName.trim().isNotEmpty
-          ? 'Apple Health (${sourceName.trim()})'
+      final sourceName = item['sourceName']?.toString().trim();
+      if (sourceName != null && sourceName.isNotEmpty) {
+        sourceNames[sourceId] = sourceName;
+      }
+      groupedBySource.putIfAbsent(sourceId, () => []).add(fhirResource);
+    }
+
+    final records = <HealthRecord>[];
+    for (final entry in groupedBySource.entries) {
+      final sourceId = entry.key;
+      final resources = entry.value;
+      final sourceName = sourceNames[sourceId];
+      final source = sourceName != null && sourceName.isNotEmpty
+          ? 'Apple Health ($sourceName)'
           : 'Apple Health';
+
+      final bundleEntries = resources.map((res) => {'resource': res}).toList();
+
       final parsed = _parser.parseBundle(
-        {
-          'resourceType': 'Bundle',
-          'entry': [
-            {'resource': fhirResource},
-          ],
-        },
+        {'resourceType': 'Bundle', 'entry': bundleEntries},
         source: source,
         sourceId: sourceId,
         idPrefix: 'health-clinical',

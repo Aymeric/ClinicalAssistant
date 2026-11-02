@@ -1,5 +1,6 @@
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/models/manual_medication_details.dart';
+import 'package:clinical_assistant/models/symptom_details.dart';
 import 'package:clinical_assistant/records/manual_record_entry_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -173,5 +174,76 @@ void main() {
     expect(ManualMedicationDetails.fromRecord(restored).route, 'oral');
     expect(ManualMedicationDetails.fromRecord(restored).endDate, isNotNull);
     expect(restored.status, 'stopped');
+  });
+
+  testWidgets('logs structured Symptom with severity and category', (
+    tester,
+  ) async {
+    List<HealthRecord>? savedRecords;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ManualRecordEntrySheet(
+            onSave: (records) => savedRecords = records,
+          ),
+        ),
+      ),
+    );
+
+    // Switch to Symptom tab
+    await tester.ensureVisible(find.text('Symptom'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Symptom'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save Symptom to Vault'), findsOneWidget);
+
+    // Enter symptom name
+    await tester.enterText(
+      find.byKey(const ValueKey('manual-symptom-name')),
+      'Fatigue & Migraine',
+    );
+
+    // Select severe
+    await tester.tap(find.text('Severe'));
+    await tester.pumpAndSettle();
+
+    // Select category dropdown
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('manual-symptom-category')),
+    );
+    await tester.tap(find.byKey(const ValueKey('manual-symptom-category')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Neurological').last);
+    await tester.pumpAndSettle();
+
+    // Enter notes
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('manual-record-notes')),
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('manual-record-notes')),
+      'Started after afternoon exercise',
+    );
+
+    await tester.ensureVisible(find.text('Save Symptom to Vault'));
+    await tester.tap(find.text('Save Symptom to Vault'));
+    await tester.pump();
+
+    expect(savedRecords, isNotNull);
+    expect(savedRecords!.length, 1);
+
+    final record = savedRecords!.single;
+    expect(record.name, 'Fatigue & Migraine');
+    expect(record.value, 'Severe');
+    expect(record.category, RecordCategory.symptom);
+    expect(record.isManual, isTrue);
+    expect(record.notes, 'Started after afternoon exercise');
+
+    final details = SymptomDetails.fromRecord(record);
+    expect(details.category, SymptomCategory.neurological);
+    expect(details.severity, SymptomSeverity.severe);
+    expect(details.notes, 'Started after afternoon exercise');
   });
 }

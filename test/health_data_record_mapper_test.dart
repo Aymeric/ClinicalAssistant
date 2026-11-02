@@ -10,7 +10,7 @@ void main() {
   const mapper = HealthDataRecordMapper();
 
   test('requests the complete shared set of platform health types', () {
-    expect(HealthPlatformImporter.sharedDataTypes, hasLength(28));
+    expect(HealthPlatformImporter.sharedDataTypes, hasLength(33));
     expect(HealthPlatformImporter.sharedDataTypes.toSet(), {
       HealthDataType.ACTIVE_ENERGY_BURNED,
       HealthDataType.BASAL_ENERGY_BURNED,
@@ -21,6 +21,8 @@ void main() {
       HealthDataType.BODY_FAT_PERCENTAGE,
       HealthDataType.BODY_MASS_INDEX,
       HealthDataType.BODY_TEMPERATURE,
+      HealthDataType.DISTANCE_DELTA,
+      HealthDataType.DISTANCE_WALKING_RUNNING,
       HealthDataType.FLIGHTS_CLIMBED,
       HealthDataType.HEART_RATE,
       HealthDataType.HEIGHT,
@@ -34,12 +36,15 @@ void main() {
       HealthDataType.SLEEP_DEEP,
       HealthDataType.SLEEP_LIGHT,
       HealthDataType.SLEEP_REM,
+      HealthDataType.SLEEP_SESSION,
       HealthDataType.STEPS,
       HealthDataType.TOTAL_CALORIES_BURNED,
       HealthDataType.WATER,
       HealthDataType.WEIGHT,
       HealthDataType.WORKOUT,
       HealthDataType.WORKOUT_ROUTE,
+      HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+      HealthDataType.ELECTROCARDIOGRAM,
     });
   });
 
@@ -209,6 +214,36 @@ void main() {
     expect(jsonEncode(record.sourceData?['value']), contains('wasUserEntered'));
   });
 
+  test('maps distance entries to activity category', () {
+    final record = mapper.mapPoint(
+      _point(
+        HealthDataType.DISTANCE_DELTA,
+        NumericHealthValue(numericValue: 1250),
+        unit: HealthDataUnit.METER,
+      ),
+      fallbackSource: 'Health Connect',
+    );
+
+    expect(record.category, RecordCategory.activity);
+    expect(record.name, 'Distance');
+    expect(record.displayValue, '1250 m');
+  });
+
+  test('maps sleep session entries to sleep category', () {
+    final record = mapper.mapPoint(
+      _point(
+        HealthDataType.SLEEP_SESSION,
+        NumericHealthValue(numericValue: 450),
+        unit: HealthDataUnit.MINUTE,
+      ),
+      fallbackSource: 'Health Connect',
+    );
+
+    expect(record.category, RecordCategory.sleep);
+    expect(record.name, 'Sleep session');
+    expect(record.displayValue, '450 min');
+  });
+
   test('uses a fallback source when the platform point has no source name', () {
     final record = mapper.mapPoint(
       _point(
@@ -223,6 +258,253 @@ void main() {
     expect(record.category, RecordCategory.vital);
     expect(record.source, 'Health Connect');
     expect(record.displayValue, '72 bpm');
+  });
+
+  test(
+    'configures short slices for high-frequency HEART_RATE, calories, steps, and distance',
+    () {
+      expect(
+        HealthPlatformImporter.maxDaysForType(HealthDataType.HEART_RATE),
+        7,
+      );
+      expect(HealthPlatformImporter.maxDaysForType(HealthDataType.WORKOUT), 30);
+      expect(HealthPlatformImporter.maxDaysForType(HealthDataType.STEPS), 15);
+      expect(
+        HealthPlatformImporter.maxDaysForType(
+          HealthDataType.TOTAL_CALORIES_BURNED,
+        ),
+        15,
+      );
+      expect(
+        HealthPlatformImporter.maxDaysForType(
+          HealthDataType.ACTIVE_ENERGY_BURNED,
+        ),
+        15,
+      );
+      expect(
+        HealthPlatformImporter.maxDaysForType(HealthDataType.DISTANCE_DELTA),
+        15,
+      );
+      expect(
+        HealthPlatformImporter.maxDaysForType(
+          HealthDataType.DISTANCE_WALKING_RUNNING,
+        ),
+        15,
+      );
+    },
+  );
+
+  test('provides modern era start year for digital health platforms', () {
+    expect(
+      HealthPlatformImporter.modernEraStartYear(now: DateTime(2026, 10, 1)),
+      2015,
+    );
+    expect(
+      HealthPlatformImporter.modernEraStartYear(now: DateTime(2024, 5, 1)),
+      2015,
+    );
+  });
+
+  test('identifies paged detailed data types', () {
+    expect(
+      HealthPlatformImporter.isPagedDetailedType(HealthDataType.HEART_RATE),
+      isTrue,
+    );
+    expect(
+      HealthPlatformImporter.isPagedDetailedType(HealthDataType.WORKOUT),
+      isTrue,
+    );
+    expect(
+      HealthPlatformImporter.isPagedDetailedType(HealthDataType.WORKOUT_ROUTE),
+      isTrue,
+    );
+    expect(
+      HealthPlatformImporter.isPagedDetailedType(HealthDataType.DISTANCE_DELTA),
+      isTrue,
+    );
+    expect(
+      HealthPlatformImporter.isPagedDetailedType(
+        HealthDataType.DISTANCE_WALKING_RUNNING,
+      ),
+      isTrue,
+    );
+    expect(
+      HealthPlatformImporter.isPagedDetailedType(HealthDataType.BLOOD_GLUCOSE),
+      isFalse,
+    );
+  });
+
+  test('formats slice labels with precise day intervals and year', () {
+    final startSameMonth = DateTime(2026, 9, 1);
+    final endSameMonth = DateTime(2026, 9, 4);
+    expect(
+      HealthPlatformImporter.sliceLabel(startSameMonth, endSameMonth),
+      'Sep 1–4, 2026',
+    );
+
+    final startCrossMonth = DateTime(2026, 8, 29);
+    final endCrossMonth = DateTime(2026, 9, 1);
+    expect(
+      HealthPlatformImporter.sliceLabel(startCrossMonth, endCrossMonth),
+      'Aug 29 – Sep 1, 2026',
+    );
+
+    final startCaloriesExample = DateTime(2025, 11, 27);
+    final endCaloriesExample = DateTime(2025, 12, 12);
+    expect(
+      HealthPlatformImporter.sliceLabel(
+        startCaloriesExample,
+        endCaloriesExample,
+      ),
+      'Nov 27 – Dec 12, 2025',
+    );
+
+    final startCrossYear = DateTime(2025, 12, 28);
+    final endCrossYear = DateTime(2026, 1, 4);
+    expect(
+      HealthPlatformImporter.sliceLabel(startCrossYear, endCrossYear),
+      'Dec 28, 2025 – Jan 4, 2026',
+    );
+
+    final startMonthly = DateTime(2026, 5, 1);
+    final endMonthly = DateTime(2026, 5, 31);
+    expect(
+      HealthPlatformImporter.sliceLabel(startMonthly, endMonthly),
+      'May 2026',
+    );
+
+    final startYearWindow = DateTime(2025, 1, 1);
+    final endYearWindow = DateTime(2026, 1, 1);
+    expect(
+      HealthPlatformImporter.sliceLabel(startYearWindow, endYearWindow),
+      '2025',
+    );
+
+    final startPreModern = DateTime(1970, 1, 1);
+    final endPreModern = DateTime(2015, 1, 1);
+    expect(
+      HealthPlatformImporter.sliceLabel(startPreModern, endPreModern),
+      '1970–2015',
+    );
+  });
+
+  test('maps heart rate variability SDNN and electrocardiogram points', () {
+    final hrvRecord = mapper.mapPoint(
+      _point(
+        HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+        NumericHealthValue(numericValue: 45),
+        unit: HealthDataUnit.MILLISECOND,
+      ),
+      fallbackSource: 'Apple Watch',
+    );
+    expect(hrvRecord.name, 'Heart rate variability (SDNN)');
+    expect(hrvRecord.displayValue, '45 ms');
+    expect(hrvRecord.category, RecordCategory.vital);
+
+    final ecgRecord = mapper.mapPoint(
+      _point(
+        HealthDataType.ELECTROCARDIOGRAM,
+        ElectrocardiogramHealthValue(
+          voltageValues: [],
+          averageHeartRate: 72,
+          samplingFrequency: 512,
+          classification: ElectrocardiogramClassification.SINUS_RHYTHM,
+        ),
+        unit: HealthDataUnit.VOLT,
+      ),
+      fallbackSource: 'Apple Watch',
+    );
+    expect(ecgRecord.name, 'Electrocardiogram (ECG)');
+    expect(ecgRecord.value, 'Sinus rhythm · 72 bpm avg');
+    expect(ecgRecord.category, RecordCategory.vital);
+  });
+
+  group('HealthDataRecordMapper - Percentage Normalization', () {
+    test(
+      'converts raw decimal fraction blood oxygen (e.g. 0.98) to percentage (98%)',
+      () {
+        final record = mapper.mapPoint(
+          _point(
+            HealthDataType.BLOOD_OXYGEN,
+            NumericHealthValue(numericValue: 0.98),
+            unit: HealthDataUnit.PERCENT,
+          ),
+          fallbackSource: 'Apple Health',
+        );
+
+        expect(record.name, 'Blood oxygen');
+        expect(record.value, '98');
+        expect(record.unit, '%');
+        expect(record.displayValue, '98 %');
+        expect(record.code, 'BLOOD_OXYGEN');
+        expect(record.category, RecordCategory.vital);
+      },
+    );
+
+    test('converts full saturation raw fraction 1.0 to 100%', () {
+      final record = mapper.mapPoint(
+        _point(
+          HealthDataType.BLOOD_OXYGEN,
+          NumericHealthValue(numericValue: 1.0),
+          unit: HealthDataUnit.PERCENT,
+        ),
+        fallbackSource: 'Apple Health',
+      );
+
+      expect(record.value, '100');
+      expect(record.displayValue, '100 %');
+      expect(record.unit, '%');
+    });
+
+    test('preserves already-scaled percentage blood oxygen (e.g. 97.5)', () {
+      final record = mapper.mapPoint(
+        _point(
+          HealthDataType.BLOOD_OXYGEN,
+          NumericHealthValue(numericValue: 97.5),
+          unit: HealthDataUnit.PERCENT,
+        ),
+        fallbackSource: 'Health Connect',
+      );
+
+      expect(record.value, '97.5');
+      expect(record.displayValue, '97.5 %');
+      expect(record.unit, '%');
+    });
+
+    test('converts raw fraction body fat percentage to percentage scale', () {
+      final record = mapper.mapPoint(
+        _point(
+          HealthDataType.BODY_FAT_PERCENTAGE,
+          NumericHealthValue(numericValue: 0.22),
+          unit: HealthDataUnit.PERCENT,
+        ),
+        fallbackSource: 'Apple Health',
+      );
+
+      expect(record.name, 'Body fat');
+      expect(record.value, '22');
+      expect(record.unit, '%');
+      expect(record.displayValue, '22 %');
+    });
+
+    test(
+      'rounds tracker fractional resting heart rate (e.g. 39.68 bpm) to clean integer bpm',
+      () {
+        final record = mapper.mapPoint(
+          _point(
+            HealthDataType.RESTING_HEART_RATE,
+            NumericHealthValue(numericValue: 39.68),
+            unit: HealthDataUnit.BEATS_PER_MINUTE,
+          ),
+          fallbackSource: 'Tracker',
+        );
+
+        expect(record.name, 'Resting heart rate');
+        expect(record.value, '40');
+        expect(record.displayValue, '40 bpm');
+        expect(record.unit, 'bpm');
+      },
+    );
   });
 }
 

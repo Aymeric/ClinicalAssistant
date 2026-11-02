@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../guidelines/clinical_guideline_catalog.dart';
+import '../../models/clinical_panel.dart';
 import '../../models/health_record.dart';
+import '../../safety/critical_safety_evaluator.dart';
 import '../../sync/import_progress.dart';
 import '../../trends/health_trend.dart';
 
@@ -16,6 +18,10 @@ String categoryLabel(RecordCategory category) => switch (category) {
   RecordCategory.condition => 'Conditions',
   RecordCategory.allergy => 'Allergies',
   RecordCategory.immunization => 'Immunizations',
+  RecordCategory.coverage => 'Insurance & Coverage',
+  RecordCategory.procedure => 'Procedures & Surgeries',
+  RecordCategory.symptom => 'Symptoms',
+  RecordCategory.questionnaire => 'Questionnaires & Surveys',
 };
 
 String formatRecordDate(DateTime date) {
@@ -40,6 +46,10 @@ IconData categoryIcon(RecordCategory category) => switch (category) {
   RecordCategory.condition => Icons.health_and_safety_outlined,
   RecordCategory.allergy => Icons.warning_amber_outlined,
   RecordCategory.immunization => Icons.vaccines_outlined,
+  RecordCategory.coverage => Icons.badge_outlined,
+  RecordCategory.procedure => Icons.healing_outlined,
+  RecordCategory.symptom => Icons.sick_outlined,
+  RecordCategory.questionnaire => Icons.assignment_outlined,
 };
 
 Color categoryColor(RecordCategory category, ColorScheme colors) {
@@ -54,6 +64,10 @@ Color categoryColor(RecordCategory category, ColorScheme colors) {
     RecordCategory.condition => Colors.amber.shade800,
     RecordCategory.allergy => Colors.redAccent.shade700,
     RecordCategory.immunization => Colors.cyan.shade700,
+    RecordCategory.coverage => Colors.indigo.shade700,
+    RecordCategory.procedure => Colors.teal.shade800,
+    RecordCategory.symptom => Colors.deepOrange.shade700,
+    RecordCategory.questionnaire => Colors.blueGrey.shade700,
   };
 }
 
@@ -111,20 +125,26 @@ class SourcePanel extends StatelessWidget {
     required this.title,
     required this.description,
     required this.count,
+    this.rawCount,
     required this.connected,
     required this.busy,
     required this.buttonLabel,
     required this.onPressed,
+    this.onResetAnchor,
+    this.hasAnchor = false,
   });
 
   final IconData icon;
   final String title;
   final String description;
   final int count;
+  final int? rawCount;
   final bool connected;
   final bool busy;
   final String buttonLabel;
   final VoidCallback? onPressed;
+  final VoidCallback? onResetAnchor;
+  final bool hasAnchor;
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +170,7 @@ class SourcePanel extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (count > 0) CountPill(count: count),
+                if (count > 0) CountPill(count: count, rawCount: rawCount),
               ],
             ),
             if (connected) ...[
@@ -167,16 +187,30 @@ class SourcePanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: onPressed,
-              icon: busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.sync),
-              label: Text(busy ? 'Importing...' : buttonLabel),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: onPressed,
+                  icon: busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync),
+                  label: Text(busy ? 'Importing...' : buttonLabel),
+                ),
+                if (hasAnchor && onResetAnchor != null)
+                  OutlinedButton.icon(
+                    key: const ValueKey('reset-health-sync-anchor-button'),
+                    onPressed: busy ? null : onResetAnchor,
+                    icon: const Icon(Icons.restart_alt, size: 18),
+                    label: const Text('Reset sync anchor'),
+                  ),
+              ],
             ),
           ],
         ),
@@ -252,11 +286,13 @@ class RecordRow extends StatelessWidget {
     required this.record,
     required this.isLast,
     this.onTap,
+    this.reconciledGroupSourcesCount = 0,
   });
 
   final HealthRecord record;
   final bool isLast;
   final VoidCallback? onTap;
+  final int reconciledGroupSourcesCount;
 
   @override
   Widget build(BuildContext context) {
@@ -278,6 +314,8 @@ class RecordRow extends StatelessWidget {
         status == HealthReferenceStatus.above ||
         status == HealthReferenceStatus.below;
 
+    final criticalAlert = CriticalSafetyEvaluator.evaluate(record);
+
     final hasGuideline = ClinicalGuidelineCatalog.hasRelatedGuidelines(
       measurementName: record.name,
       category: categoryLabel(record.category),
@@ -290,150 +328,554 @@ class RecordRow extends StatelessWidget {
         trimmedValue.contains(' · ') ||
         trimmedValue.contains('\n');
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 40,
-              child: Column(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    margin: const EdgeInsets.only(top: 5),
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  if (!isLast)
+    final semanticParts = <String>[
+      record.name,
+      if (trimmedValue.isNotEmpty) trimmedValue,
+      if (criticalAlert != null)
+        "Critical safety alert: ${criticalAlert.title}",
+      if (criticalAlert == null && isOutOfRange)
+        status == HealthReferenceStatus.above
+            ? "Out of range: High"
+            : "Out of range: Low",
+      categoryLabel(record.category),
+      "Recorded ${formatRecordDate(record.recordedAt)}",
+      "Source ${record.source}",
+      if (hasGuideline) "Clinical guideline available",
+    ];
+
+    return Semantics(
+      button: onTap != null,
+      label: semanticParts.join(", "),
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 40,
+                child: Column(
+                  children: [
                     Container(
-                      width: 1,
-                      height: 50,
+                      width: 10,
+                      height: 10,
                       margin: const EdgeInsets.only(top: 5),
-                      color: colors.outlineVariant,
-                    ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          record.name,
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      if (isOutOfRange) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.errorContainer,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            status == HealthReferenceStatus.above
-                                ? 'High'
-                                : 'Low',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: colors.onErrorContainer,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 10,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (isLongValue && trimmedValue.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      trimmedValue,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.onSurface,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 3),
-                  Text(
-                    '${formatRecordDate(record.recordedAt)}  ·  ${record.source}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                  if (hasGuideline) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 1.5,
-                      ),
                       decoration: BoxDecoration(
-                        color: colors.primaryContainer.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(6),
+                        color: color,
+                        shape: BoxShape.circle,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.menu_book_outlined,
-                            size: 10,
-                            color: colors.onPrimaryContainer,
+                    ),
+                    if (!isLast)
+                      Container(
+                        width: 1,
+                        height: 50,
+                        margin: const EdgeInsets.only(top: 5),
+                        color: colors.outlineVariant,
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            record.name,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
-                          const SizedBox(width: 3),
-                          Flexible(
+                        ),
+                        if (criticalAlert != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.error,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 11,
+                                  color: colors.onError,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  'CRITICAL',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: colors.onError,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 9.5,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else if (isOutOfRange) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.errorContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
                             child: Text(
-                              'Guideline',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              status == HealthReferenceStatus.above
+                                  ? 'High'
+                                  : 'Low',
                               style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
-                                    color: colors.onPrimaryContainer,
-                                    fontWeight: FontWeight.w600,
+                                    color: colors.onErrorContainer,
+                                    fontWeight: FontWeight.w700,
                                     fontSize: 10,
                                   ),
                             ),
                           ),
                         ],
+                      ],
+                    ),
+                    if (isLongValue && trimmedValue.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        trimmedValue,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 3),
+                    Text(
+                      '${formatRecordDate(record.recordedAt)}  ·  ${record.source}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
                       ),
                     ),
+                    if (reconciledGroupSourcesCount > 1) ...[
+                      const SizedBox(height: 3),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.sync_alt_rounded,
+                            size: 11,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Reported by $reconciledGroupSourcesCount sources',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: colors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (hasGuideline) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.primaryContainer.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.menu_book_outlined,
+                              size: 10,
+                              color: colors.onPrimaryContainer,
+                            ),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                'Guideline',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: colors.onPrimaryContainer,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
+                ),
+              ),
+              if (!isLongValue && trimmedValue.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 130),
+                  child: Text(
+                    trimmedValue,
+                    textAlign: TextAlign.end,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ClinicalPanelCard extends StatefulWidget {
+  const ClinicalPanelCard({
+    super.key,
+    required this.panel,
+    required this.isLast,
+    this.onTapRecord,
+    this.initiallyExpanded = false,
+  });
+
+  final ClinicalPanel panel;
+  final bool isLast;
+  final ValueChanged<HealthRecord>? onTapRecord;
+  final bool initiallyExpanded;
+
+  @override
+  State<ClinicalPanelCard> createState() => _ClinicalPanelCardState();
+}
+
+class _ClinicalPanelCardState extends State<ClinicalPanelCard> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final color = categoryColor(RecordCategory.lab, colors);
+    final outOfRange = widget.panel.outOfRangeCount;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 40,
+            child: Column(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  margin: const EdgeInsets.only(top: 12),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                if (!widget.isLast)
+                  Container(
+                    width: 1,
+                    height: _expanded
+                        ? (60.0 + widget.panel.records.length * 48.0)
+                        : 60,
+                    margin: const EdgeInsets.only(top: 4),
+                    color: colors.outlineVariant,
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: outOfRange > 0
+                      ? colors.error.withValues(alpha: 0.5)
+                      : colors.outlineVariant,
+                ),
+              ),
+              color: colors.surfaceContainerLow,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.table_rows_outlined,
+                            size: 20,
+                            color: color,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.panel.name,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.secondaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${widget.panel.analyteCount} tests',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colors.onSecondaryContainer,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                          if (outOfRange > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.errorContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 13,
+                                    color: colors.onErrorContainer,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '$outOfRange out of range',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: colors.onErrorContainer,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: Icon(
+                              _expanded ? Icons.expand_less : Icons.expand_more,
+                            ),
+                            tooltip: _expanded
+                                ? 'Collapse panel'
+                                : 'Expand panel',
+                            onPressed: () =>
+                                setState(() => _expanded = !_expanded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${formatRecordDate(widget.panel.recordedAt)}  ·  ${widget.panel.source}${widget.panel.performer != null && widget.panel.performer!.isNotEmpty ? '  ·  ${widget.panel.performer}' : ''}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      if (_expanded) ...[
+                        if (widget.panel.conclusion != null &&
+                            widget.panel.conclusion!.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.surfaceContainerHighest.withValues(
+                                alpha: 0.5,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.notes,
+                                  size: 15,
+                                  color: colors.primary,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    widget.panel.conclusion!,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(fontStyle: FontStyle.italic),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+                        for (final record in widget.panel.records)
+                          _buildAnalyteRow(context, record, colors),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyteRow(
+    BuildContext context,
+    HealthRecord record,
+    ColorScheme colors,
+  ) {
+    HealthReferenceStatus? status;
+    if (record.referenceRange != null && record.referenceRange!.isNotEmpty) {
+      final range = HealthReferenceRange.tryParse(record.referenceRange);
+      final numVal = parseHealthRecordValue(record.value);
+      if (range != null && numVal != null) {
+        status = range.evaluate(numVal);
+      }
+    }
+    final isOutOfRange =
+        status == HealthReferenceStatus.above ||
+        status == HealthReferenceStatus.below;
+
+    final criticalAlert = CriticalSafetyEvaluator.evaluate(record);
+
+    return InkWell(
+      key: ValueKey('clinical-panel-analyte-${record.name}'),
+      onTap: widget.onTapRecord != null
+          ? () => widget.onTapRecord!(record)
+          : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    record.name,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (record.referenceRange != null &&
+                      record.referenceRange!.isNotEmpty)
+                    Text(
+                      'Ref: ${record.referenceRange}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.outline,
+                        fontSize: 11,
+                      ),
+                    ),
                 ],
               ),
             ),
-            if (!isLongValue && trimmedValue.isNotEmpty) ...[
-              const SizedBox(width: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 130),
+            if (criticalAlert != null) ...[
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.error,
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 child: Text(
-                  trimmedValue,
-                  textAlign: TextAlign.end,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  'CRITICAL',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onError,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 9.5,
+                  ),
+                ),
+              ),
+            ] else if (isOutOfRange) ...[
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.errorContainer,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  status == HealthReferenceStatus.above ? 'High' : 'Low',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onErrorContainer,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                  ),
                 ),
               ),
             ],
+            Text(
+              record.displayValue,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 16, color: colors.outlineVariant),
           ],
         ),
       ),
@@ -601,19 +1043,23 @@ class IconStamp extends StatelessWidget {
 }
 
 class CountPill extends StatelessWidget {
-  const CountPill({super.key, required this.count});
+  const CountPill({super.key, required this.count, this.rawCount});
 
   final int count;
+  final int? rawCount;
 
   @override
   Widget build(BuildContext context) {
+    final label = (rawCount != null && rawCount! > count)
+        ? '$count imported ($rawCount raw)'
+        : '$count imported';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text('$count imported'),
+      child: Text(label),
     );
   }
 }

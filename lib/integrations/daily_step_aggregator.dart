@@ -55,6 +55,28 @@ class DailyStepAggregator {
     ];
   }
 
+  static List<HealthRecord> combineDailyRecords(List<HealthRecord> records) {
+    final byId = <String, HealthRecord>{};
+    for (final record in records) {
+      final existing = byId[record.id];
+      if (existing == null) {
+        byId[record.id] = record;
+      } else {
+        final val1 = int.tryParse(existing.value) ?? 0;
+        final val2 = int.tryParse(record.value) ?? 0;
+        final count1 =
+            (existing.sourceData?['sampleCount'] as num?)?.toInt() ?? 1;
+        final count2 =
+            (record.sourceData?['sampleCount'] as num?)?.toInt() ?? 1;
+        byId[record.id] = existing.copyWith(
+          value: (val1 + val2).toString(),
+          sourceData: {...?existing.sourceData, 'sampleCount': count1 + count2},
+        );
+      }
+    }
+    return byId.values.toList();
+  }
+
   String _dateKey(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }

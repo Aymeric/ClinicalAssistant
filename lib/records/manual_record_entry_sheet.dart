@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../models/clinical_panel.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
+import '../models/prom_details.dart';
+import '../models/symptom_details.dart';
+import '../safety/critical_safety_evaluator.dart';
 
 enum ManualEntryType {
   bloodPressure('Blood Pressure', Icons.favorite_border),
@@ -12,6 +16,8 @@ enum ManualEntryType {
   oxygen('Oxygen (SpO2)', Icons.air_outlined),
   labResult('Lab Result', Icons.science_outlined),
   medication('Medication', Icons.medication_outlined),
+  symptom('Symptom', Icons.sick_outlined),
+  prom('PROM Survey', Icons.assignment_outlined),
   custom('Custom Measurement', Icons.tune_outlined);
 
   const ManualEntryType(this.label, this.icon);
@@ -74,6 +80,25 @@ const kCommonLabPresets = [
   ),
 ];
 
+class _PanelAnalyteInput {
+  _PanelAnalyteInput({
+    required this.name,
+    required this.unit,
+    required this.defaultRefRange,
+    this.loincCode,
+  }) : controller = TextEditingController();
+
+  final String name;
+  final String unit;
+  final String defaultRefRange;
+  final String? loincCode;
+  final TextEditingController controller;
+
+  void dispose() {
+    controller.dispose();
+  }
+}
+
 class ManualRecordEntrySheet extends StatefulWidget {
   const ManualRecordEntrySheet({super.key, required this.onSave});
 
@@ -98,14 +123,53 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
   final _medicationRouteController = TextEditingController();
   final _notesController = TextEditingController();
 
+  // Panel entry state
+  var _isPanelMode = false;
+  ClinicalPanelPreset? _selectedPanelPreset = kStandardClinicalPanels.first;
+  final _panelNameController = TextEditingController(
+    text: kStandardClinicalPanels.first.name,
+  );
+  var _panelAnalytes = <_PanelAnalyteInput>[];
+
   var _customCategory = RecordCategory.vital;
   var _glucoseContext = 'Fasting';
   var _weightUnit = 'lbs';
   var _tempUnit = '°F';
   var _medicationStatus = 'active';
   DateTime? _medicationEndDate;
+  var _symptomSeverity = SymptomSeverity.moderate;
+  var _symptomCategory = SymptomCategory.general;
+  var _selectedProm = PromInstrument.phq9;
+  var _promAnswers = <int>[];
 
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPanelPreset(kStandardClinicalPanels.first);
+  }
+
+  void _loadPanelPreset(ClinicalPanelPreset? preset) {
+    for (final a in _panelAnalytes) {
+      a.dispose();
+    }
+    _selectedPanelPreset = preset;
+    if (preset != null) {
+      _panelNameController.text = preset.name;
+      _panelAnalytes = preset.analytes.map((a) {
+        return _PanelAnalyteInput(
+          name: a.name,
+          unit: a.unit,
+          defaultRefRange: a.defaultRefRange,
+          loincCode: a.loincCode,
+        );
+      }).toList();
+    } else {
+      _panelNameController.text = 'Custom Lab Panel';
+      _panelAnalytes = [];
+    }
+  }
 
   @override
   void dispose() {
@@ -118,6 +182,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
     _medicationFrequencyController.dispose();
     _medicationRouteController.dispose();
     _notesController.dispose();
+    _panelNameController.dispose();
+    for (final a in _panelAnalytes) {
+      a.dispose();
+    }
     super.dispose();
   }
 
@@ -152,6 +220,9 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         case ManualEntryType.medication:
           _medicationStatus = 'active';
           _medicationEndDate = null;
+          break;
+        case ManualEntryType.prom:
+          _promAnswers = List.filled(_selectedProm.questions.length, 0);
           break;
         default:
           break;
@@ -252,6 +323,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
             recordedAt: timestamp,
             category: RecordCategory.lab,
             source: 'Manual Entry',
+            sourceData: {'measurementContext': _glucoseContext},
             referenceRange: _refRangeController.text.trim().isEmpty
                 ? '70 – 99 mg/dL'
                 : _refRangeController.text.trim(),
@@ -330,20 +402,77 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         break;
 
       case ManualEntryType.labResult:
-        final labRef = _refRangeController.text.trim();
-        records.add(
-          HealthRecord(
-            id: 'manual:lab:$nowMs',
-            name: _customNameController.text.trim(),
-            value: _valueController.text.trim(),
-            unit: _customUnitController.text.trim(),
-            recordedAt: timestamp,
-            category: RecordCategory.lab,
-            source: 'Manual Entry',
-            referenceRange: labRef.isEmpty ? null : labRef,
-            notes: userNote,
-          ),
-        );
+        if (_isPanelMode) {
+          final enteredAnalytes = _panelAnalytes
+              .where((a) => a.controller.text.trim().isNotEmpty)
+              .toList();
+          if (enteredAnalytes.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please enter at least one analyte value.'),
+              ),
+            );
+            return;
+          }
+
+          for (final a in enteredAnalytes) {
+            final val = a.controller.text.trim();
+            if (double.tryParse(val) == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Invalid value for ${a.name}: "$val"')),
+              );
+              return;
+            }
+          }
+
+          final panelName = _panelNameController.text.trim().isNotEmpty
+              ? _panelNameController.text.trim()
+              : (_selectedPanelPreset?.name ?? 'Clinical Panel');
+          final panelId = 'manual-panel-$nowMs';
+          final panelCode = _selectedPanelPreset?.loincCode;
+
+          for (var i = 0; i < enteredAnalytes.length; i++) {
+            final a = enteredAnalytes[i];
+            records.add(
+              HealthRecord(
+                id: 'manual:panel:$nowMs-$i',
+                name: a.name,
+                value: a.controller.text.trim(),
+                unit: a.unit,
+                recordedAt: timestamp,
+                category: RecordCategory.lab,
+                source: 'Manual Entry',
+                code: a.loincCode,
+                referenceRange: a.defaultRefRange.isNotEmpty
+                    ? a.defaultRefRange
+                    : null,
+                notes: userNote,
+                sourceData: {
+                  'panel': {
+                    'id': panelId,
+                    'name': panelName,
+                    'code': ?panelCode,
+                  },
+                },
+              ),
+            );
+          }
+        } else {
+          final labRef = _refRangeController.text.trim();
+          records.add(
+            HealthRecord(
+              id: 'manual:lab:$nowMs',
+              name: _customNameController.text.trim(),
+              value: _valueController.text.trim(),
+              unit: _customUnitController.text.trim(),
+              recordedAt: timestamp,
+              category: RecordCategory.lab,
+              source: 'Manual Entry',
+              referenceRange: labRef.isEmpty ? null : labRef,
+              notes: userNote,
+            ),
+          );
+        }
         break;
 
       case ManualEntryType.medication:
@@ -369,6 +498,55 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         );
         break;
 
+      case ManualEntryType.symptom:
+        final symptomName = _customNameController.text.trim();
+        final details = SymptomDetails(
+          name: symptomName,
+          severity: _symptomSeverity,
+          category: _symptomCategory,
+          notes: userNote,
+        );
+        records.add(
+          HealthRecord(
+            id: 'manual:symptom:$nowMs',
+            name: symptomName,
+            value: _symptomSeverity.label,
+            unit: '',
+            recordedAt: timestamp,
+            category: RecordCategory.symptom,
+            source: 'Manual Entry',
+            sourceData: details.withSourceData(null),
+            notes: userNote,
+          ),
+        );
+        break;
+
+      case ManualEntryType.prom:
+        final totalScore = _promAnswers.fold<int>(0, (sum, val) => sum + val);
+        final details = PromResponseDetails(
+          instrument: _selectedProm,
+          totalScore: totalScore,
+          answers: _promAnswers,
+          scoreSummary: _selectedProm.scoreSummary(totalScore),
+          notes: userNote,
+        );
+        records.add(
+          HealthRecord(
+            id: 'manual:prom:$nowMs',
+            name: _selectedProm.label,
+            value: totalScore.toString(),
+            unit: 'pts',
+            recordedAt: timestamp,
+            category: RecordCategory.questionnaire,
+            source: 'Manual Entry',
+            code: _selectedProm.loincCode,
+            status: 'completed',
+            notes: userNote,
+            sourceData: details.withSourceData(null),
+          ),
+        );
+        break;
+
       case ManualEntryType.custom:
         final ref = _refRangeController.text.trim();
         records.add(
@@ -387,8 +565,109 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
         break;
     }
 
+    _checkCriticalSafetyAndSave(records);
+  }
+
+  Future<void> _checkCriticalSafetyAndSave(List<HealthRecord> records) async {
+    final alerts = CriticalSafetyEvaluator.evaluateAll(records);
+    if (alerts.isNotEmpty) {
+      final alert = alerts.first;
+      final shouldProceed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          key: const ValueKey('critical-safety-alert-dialog'),
+          icon: Icon(
+            Icons.emergency_outlined,
+            color: Theme.of(ctx).colorScheme.error,
+            size: 40,
+          ),
+          title: Text(
+            'Critical Safety Alert',
+            style: TextStyle(
+              color: Theme.of(ctx).colorScheme.error,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Theme.of(ctx).colorScheme.onErrorContainer,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${alert.title}: ${alert.readingSummary}',
+                          style: TextStyle(
+                            color: Theme.of(ctx).colorScheme.onErrorContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  alert.emergencyGuidance,
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  CriticalSafetyAlert.clinicalDisclaimer,
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(ctx).colorScheme.outline,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('critical-alert-emergency-contact-button'),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Please seek immediate emergency medical care or call 911 / your local emergency number.',
+                    ),
+                    duration: Duration(seconds: 6),
+                  ),
+                );
+              },
+              child: const Text('Emergency Guidance'),
+            ),
+            FilledButton(
+              key: const ValueKey('critical-alert-acknowledge-save-button'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('I Understand — Save to Vault'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldProceed != true || !mounted) return;
+    }
+
     widget.onSave(records);
-    Navigator.of(context).pop();
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -428,6 +707,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                         ? 'Log Medication'
                         : _selectedType == ManualEntryType.labResult
                         ? 'Log Lab Result'
+                        : _selectedType == ManualEntryType.symptom
+                        ? 'Log Symptom'
+                        : _selectedType == ManualEntryType.prom
+                        ? 'Complete Survey (PROM)'
                         : 'Log Health Measurement',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -552,88 +835,235 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                   ],
                 ),
               ] else if (_selectedType == ManualEntryType.labResult) ...[
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final preset in kCommonLabPresets)
-                      ActionChip(
-                        key: ValueKey('manual-lab-preset-${preset.name}'),
-                        label: Text(preset.name),
-                        avatar: _customNameController.text == preset.name
-                            ? const Icon(Icons.check, size: 16)
-                            : null,
-                        onPressed: () {
-                          setState(() {
-                            _customNameController.text = preset.name;
-                            _customUnitController.text = preset.unit;
-                            _refRangeController.text = preset.defaultRefRange;
-                          });
-                        },
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const ValueKey('manual-lab-name'),
-                  controller: _customNameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Lab test name',
-                    hintText: 'e.g. Hemoglobin A1c, Ferritin',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (val) => val == null || val.trim().isEmpty
-                      ? 'Enter a lab name'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        key: const ValueKey('manual-lab-value'),
-                        controller: _valueController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          labelText: 'Result Value',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Required';
-                          }
-                          return null;
-                        },
-                      ),
+                SegmentedButton<bool>(
+                  key: const ValueKey('manual-lab-mode-toggle'),
+                  segments: const [
+                    ButtonSegment(
+                      value: false,
+                      label: Text('Single Test'),
+                      icon: Icon(Icons.science_outlined),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        key: const ValueKey('manual-lab-unit'),
-                        controller: _customUnitController,
-                        decoration: const InputDecoration(
-                          labelText: 'Unit',
-                          hintText: '% or mg/dL',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
+                    ButtonSegment(
+                      value: true,
+                      label: Text('Clinical Panel'),
+                      icon: Icon(Icons.table_rows_outlined),
                     ),
                   ],
+                  selected: {_isPanelMode},
+                  onSelectionChanged: (set) {
+                    setState(() {
+                      _isPanelMode = set.first;
+                      if (_isPanelMode && _panelAnalytes.isEmpty) {
+                        _loadPanelPreset(kStandardClinicalPanels.first);
+                      }
+                    });
+                  },
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  key: const ValueKey('manual-lab-ref-range'),
-                  controller: _refRangeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Reference Range (optional)',
-                    hintText: 'e.g. 4.0 – 5.6 %',
-                    border: OutlineInputBorder(),
+                if (!_isPanelMode) ...[
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final preset in kCommonLabPresets)
+                        ActionChip(
+                          key: ValueKey('manual-lab-preset-${preset.name}'),
+                          label: Text(preset.name),
+                          avatar: _customNameController.text == preset.name
+                              ? const Icon(Icons.check, size: 16)
+                              : null,
+                          onPressed: () {
+                            setState(() {
+                              _customNameController.text = preset.name;
+                              _customUnitController.text = preset.unit;
+                              _refRangeController.text = preset.defaultRefRange;
+                            });
+                          },
+                        ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const ValueKey('manual-lab-name'),
+                    controller: _customNameController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Lab test name',
+                      hintText: 'e.g. Hemoglobin A1c, Ferritin',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Enter a lab name'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          key: const ValueKey('manual-lab-value'),
+                          controller: _valueController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Result Value',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return 'Required';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          key: const ValueKey('manual-lab-unit'),
+                          controller: _customUnitController,
+                          decoration: const InputDecoration(
+                            labelText: 'Unit',
+                            hintText: '% or mg/dL',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const ValueKey('manual-lab-ref-range'),
+                    controller: _refRangeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Reference Range (optional)',
+                      hintText: 'e.g. 4.0 – 5.6 %',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ] else ...[
+                  DropdownButtonFormField<ClinicalPanelPreset?>(
+                    key: const ValueKey('manual-lab-panel-preset-dropdown'),
+                    initialValue: _selectedPanelPreset,
+                    decoration: const InputDecoration(
+                      labelText: 'Select Panel Preset',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final preset in kStandardClinicalPanels)
+                        DropdownMenuItem(
+                          value: preset,
+                          child: Text(preset.name),
+                        ),
+                    ],
+                    onChanged: (preset) {
+                      setState(() {
+                        _loadPanelPreset(preset);
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const ValueKey('manual-lab-panel-name'),
+                    controller: _panelNameController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Panel Name',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? 'Enter panel name'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Analytes (${_panelAnalytes.length})',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Enter values for tests included in this panel. Unfilled analytes will be omitted.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final analyte in _panelAnalytes) ...[
+                    Card(
+                      elevation: 0,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    analyte.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${analyte.unit} · Ref: ${analyte.defaultRefRange}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.outline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 110,
+                              child: TextFormField(
+                                key: ValueKey(
+                                  'manual-panel-analyte-${analyte.name}',
+                                ),
+                                controller: analyte.controller,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: InputDecoration(
+                                  hintText: analyte.unit,
+                                  isDense: true,
+                                  border: const OutlineInputBorder(),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 8,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                ],
               ] else if (_selectedType == ManualEntryType.medication) ...[
                 TextFormField(
                   key: const ValueKey('manual-medication-name'),
@@ -729,6 +1159,172 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                     _medicationEndDate == null
                         ? 'Choose end date'
                         : 'Ended: ${MaterialLocalizations.of(context).formatMediumDate(_medicationEndDate!)}',
+                  ),
+                ),
+              ] else if (_selectedType == ManualEntryType.symptom) ...[
+                TextFormField(
+                  key: const ValueKey('manual-symptom-name'),
+                  controller: _customNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Symptom Name',
+                    hintText:
+                        'e.g. Headache, Dizziness, Chest tightness, Nausea',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (val) => val == null || val.trim().isEmpty
+                      ? 'Enter a symptom name'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<SymptomCategory>(
+                  key: const ValueKey('manual-symptom-category'),
+                  initialValue: _symptomCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'System Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: SymptomCategory.values.map((cat) {
+                    return DropdownMenuItem(
+                      value: cat,
+                      child: Row(
+                        children: [
+                          Icon(cat.icon, size: 18),
+                          const SizedBox(width: 8),
+                          Text(cat.label),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _symptomCategory = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Severity Level',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                SegmentedButton<SymptomSeverity>(
+                  segments: SymptomSeverity.values.map((sev) {
+                    return ButtonSegment(value: sev, label: Text(sev.label));
+                  }).toList(),
+                  selected: {_symptomSeverity},
+                  onSelectionChanged: (selected) {
+                    setState(() => _symptomSeverity = selected.first);
+                  },
+                ),
+              ] else if (_selectedType == ManualEntryType.prom) ...[
+                DropdownButtonFormField<PromInstrument>(
+                  key: const ValueKey('manual-prom-instrument'),
+                  initialValue: _selectedProm,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Clinical Survey Instrument',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: PromInstrument.values.map((inst) {
+                    return DropdownMenuItem(
+                      value: inst,
+                      child: Text(
+                        '${inst.label} — ${inst.description}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _selectedProm = val;
+                        _promAnswers = List.filled(val.questions.length, 0);
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Instrument Questions (${_selectedProm.questions.length})',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                for (var i = 0; i < _selectedProm.questions.length; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${i + 1}. ${_selectedProm.questions[i]}',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 4),
+                        DropdownButtonFormField<int>(
+                          key: ValueKey('manual-prom-q$i'),
+                          initialValue: (_promAnswers.length > i)
+                              ? _promAnswers[i]
+                              : 0,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          items: _selectedProm.choices.map((c) {
+                            return DropdownMenuItem(
+                              value: c.score,
+                              child: Text('${c.text} (+${c.score})'),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                if (_promAnswers.length <= i) {
+                                  _promAnswers = List.filled(
+                                    _selectedProm.questions.length,
+                                    0,
+                                  );
+                                }
+                                _promAnswers[i] = val;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Calculated score: ${_promAnswers.fold<int>(0, (a, b) => a + b)} · ${_selectedProm.scoreSummary(_promAnswers.fold<int>(0, (a, b) => a + b))}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ] else if (_selectedType == ManualEntryType.custom) ...[
@@ -859,20 +1455,31 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                 ),
                 if (_selectedType == ManualEntryType.glucose) ...[
                   const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Text('Context:'),
-                      for (final ctx in ['Fasting', 'Random', 'Postprandial'])
-                        ChoiceChip(
-                          label: Text(ctx),
-                          selected: _glucoseContext == ctx,
-                          onSelected: (_) =>
-                              setState(() => _glucoseContext = ctx),
-                        ),
-                    ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        const Text('Context:'),
+                        const SizedBox(width: 8),
+                        for (final ctx in const [
+                          'Fasting',
+                          'Pre-meal',
+                          'Post-meal (2 hr)',
+                          'Bedtime',
+                          'Random',
+                        ])
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              key: ValueKey('glucose-context-chip-$ctx'),
+                              label: Text(ctx),
+                              selected: _glucoseContext == ctx,
+                              onSelected: (_) =>
+                                  setState(() => _glucoseContext = ctx),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -888,6 +1495,7 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
               const SizedBox(height: 16),
               // Personal Notes Field
               TextFormField(
+                key: const ValueKey('manual-record-notes'),
                 controller: _notesController,
                 maxLines: 2,
                 decoration: const InputDecoration(
@@ -907,6 +1515,10 @@ class _ManualRecordEntrySheetState extends State<ManualRecordEntrySheet> {
                       ? 'Save Medication to Vault'
                       : _selectedType == ManualEntryType.labResult
                       ? 'Save Lab Result to Vault'
+                      : _selectedType == ManualEntryType.symptom
+                      ? 'Save Symptom to Vault'
+                      : _selectedType == ManualEntryType.prom
+                      ? 'Save Survey to Vault'
                       : 'Save Measurement to Vault',
                 ),
                 onPressed: _submit,

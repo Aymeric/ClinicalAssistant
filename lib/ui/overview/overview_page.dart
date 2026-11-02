@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../models/doctor_visit_preparation.dart';
 import '../../models/health_record.dart';
+import '../../safety/critical_safety_evaluator.dart';
 import '../../sync/foreground_sync_state.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
@@ -19,6 +21,37 @@ String formatRecordsSpan(List<HealthRecord> records) {
   if (days < 365) return '${(days / 30).round()} mos';
   final years = (days / 365).toStringAsFixed(1).replaceAll('.0', '');
   return '$years yrs';
+}
+
+/// Efficiently selects the top [count] latest records without copying and sorting
+/// the entire list, reducing overhead from O(N log N) to O(N * count) = O(N) time
+/// and eliminating full-array heap allocations during Overview widget builds.
+List<HealthRecord> selectLatestRecords(List<HealthRecord> records, int count) {
+  if (records.isEmpty || count <= 0) return const [];
+  if (records.length <= count) {
+    final copy = List<HealthRecord>.of(records);
+    copy.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    return copy;
+  }
+
+  final result = <HealthRecord>[];
+  for (final record in records) {
+    if (result.length < count) {
+      int pos = result.length;
+      while (pos > 0 && record.recordedAt.isAfter(result[pos - 1].recordedAt)) {
+        pos--;
+      }
+      result.insert(pos, record);
+    } else if (record.recordedAt.isAfter(result.last.recordedAt)) {
+      result.removeLast();
+      int pos = result.length;
+      while (pos > 0 && record.recordedAt.isAfter(result[pos - 1].recordedAt)) {
+        pos--;
+      }
+      result.insert(pos, record);
+    }
+  }
+  return result;
 }
 
 String formatSyncTimestamp(DateTime? value) {
@@ -45,6 +78,7 @@ class OverviewPage extends StatelessWidget {
     this.syncing = false,
     this.pinnedSeries = const {},
     this.onSelectCategory,
+    this.onSelectSpecialty,
     this.onRecordTap,
     this.onSyncNow,
     this.onOpenTrends,
@@ -55,6 +89,8 @@ class OverviewPage extends StatelessWidget {
     this.onLogMeasurement,
     this.onViewOutOfRangeLabs,
     this.onOpenMedications,
+    this.onPrepareDoctorVisit,
+    this.restingHeartRateCriticalLow,
   });
 
   final List<HealthRecord> records;
@@ -66,7 +102,9 @@ class OverviewPage extends StatelessWidget {
   final ForegroundSyncState? syncState;
   final bool syncing;
   final Set<String> pinnedSeries;
+  final double? restingHeartRateCriticalLow;
   final ValueChanged<RecordCategory>? onSelectCategory;
+  final ValueChanged<DoctorVisitSpecialty>? onSelectSpecialty;
   final ValueChanged<HealthRecord>? onRecordTap;
   final VoidCallback? onSyncNow;
   final VoidCallback? onOpenTrends;
@@ -77,15 +115,23 @@ class OverviewPage extends StatelessWidget {
   final VoidCallback? onLogMeasurement;
   final VoidCallback? onViewOutOfRangeLabs;
   final VoidCallback? onOpenMedications;
+  final VoidCallback? onPrepareDoctorVisit;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     // Count lab results directly to avoid multiple full Iterable evaluations
     final labCount = records
         .where((record) => record.category == RecordCategory.lab)
         .length;
-    final latest = [...records]
-      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    final rawSamplesCount = countRawSamples(records);
+    final rawSamplesSuffix = rawSamplesCount > records.length
+        ? ' ($rawSamplesCount raw samples)'
+        : '';
+    // Find latest 4 records in O(N) pass instead of full list copy and O(N log N) sort.
+    final latestRecentRecords = selectLatestRecords(records, 4);
     final trendSeries = buildHealthTrendSeries(records)
       ..sort((a, b) {
         final latestDateOrder = b.points.last.record.recordedAt.compareTo(
@@ -113,6 +159,13 @@ class OverviewPage extends StatelessWidget {
                   r.referenceRange == 'active'),
         )
         .toList();
+
+    final criticalAlerts = CriticalSafetyEvaluator.evaluateAll(
+      records,
+      heartRateCriticalLow:
+          restingHeartRateCriticalLow ??
+          CriticalSafetyEvaluator.kHeartRateCriticalLowDefault,
+    );
 
     // Pinned metrics: map series ID to latest record using computed trendSeries
     // or by fallback map lookup to avoid O(pinned * records) filtering & sorting.
@@ -216,7 +269,7 @@ class OverviewPage extends StatelessWidget {
                   Text(
                     loading
                         ? 'Opening your encrypted record vault...'
-                        : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved  ·  $labCount lab ${labCount == 1 ? 'result' : 'results'}',
+                        : '${records.length} ${records.length == 1 ? 'record' : 'records'} saved$rawSamplesSuffix  ·  $labCount lab ${labCount == 1 ? 'result' : 'results'}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -269,6 +322,104 @@ class OverviewPage extends StatelessWidget {
             ),
           ),
 
+          // Critical Safety Alerts Section
+          if (criticalAlerts.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            SectionHeading(
+              title: 'Critical safety alerts',
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 14,
+                      color: Colors.red.shade900,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${criticalAlerts.length} acute ${criticalAlerts.length == 1 ? 'alert' : 'alerts'}',
+                      style: TextStyle(
+                        color: Colors.red.shade900,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              key: const ValueKey('overview-critical-safety-card'),
+              color: Colors.red.withValues(alpha: 0.08),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Colors.red.withValues(alpha: 0.5),
+                  width: 1.5,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final alert in criticalAlerts.take(3)) ...[
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.red.shade100,
+                          foregroundColor: Colors.red.shade900,
+                          child: const Icon(Icons.emergency_outlined, size: 20),
+                        ),
+                        title: Text(
+                          '${alert.title}: ${alert.readingSummary}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red.shade900,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 2),
+                            Text(
+                              '${MaterialLocalizations.of(context).formatShortDate(alert.record.recordedAt.toLocal())} · ${alert.record.source}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              alert.emergencyGuidance,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          _showCriticalSafetyModal(context, alert);
+                        },
+                      ),
+                      if (alert != criticalAlerts.take(3).last)
+                        const Divider(height: 12),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+
           // Pinned Metrics Section
           if (pinnedRecords.isNotEmpty) ...[
             const SizedBox(height: 24),
@@ -281,77 +432,90 @@ class OverviewPage extends StatelessWidget {
                   for (final record in pinnedRecords)
                     Padding(
                       padding: const EdgeInsets.only(right: 10),
-                      child: InkWell(
-                        onTap: () => onRecordTap?.call(record),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          width: 170,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withValues(alpha: 0.4),
+                      child: Tooltip(
+                        message: '${record.name}: ${record.displayValue}',
+                        child: Semantics(
+                          label:
+                              'Pinned metric ${record.name}, ${record.displayValue}, recorded on ${MaterialLocalizations.of(context).formatShortDate(record.recordedAt.toLocal())}',
+                          button: true,
+                          excludeSemantics: true,
+                          child: InkWell(
+                            onTap: () => onRecordTap?.call(record),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .outlineVariant
-                                  .withValues(alpha: 0.6),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                            child: Container(
+                              width: 170,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withValues(alpha: 0.4),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant
+                                      .withValues(alpha: 0.6),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(
-                                    Icons.push_pin,
-                                    size: 14,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.push_pin,
+                                        size: 14,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          record.name,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      record.name,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    record.displayValue,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    MaterialLocalizations.of(
+                                      context,
+                                    ).formatShortDate(
+                                      record.recordedAt.toLocal(),
                                     ),
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                record.displayValue,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                    ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                MaterialLocalizations.of(
-                                  context,
-                                ).formatShortDate(record.recordedAt.toLocal()),
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                    ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -589,7 +753,7 @@ class OverviewPage extends StatelessWidget {
             )
           else
             RecordLedger(
-              records: latest.take(4).toList(),
+              records: latestRecentRecords,
               onTapRecord: onRecordTap,
             ),
           if (records.isNotEmpty) ...[
@@ -599,6 +763,11 @@ class OverviewPage extends StatelessWidget {
             OverviewCategoryBreakdown(
               records: records,
               onSelectCategory: onSelectCategory,
+            ),
+            const SizedBox(height: 16),
+            OverviewSpecialtyBreakdown(
+              records: records,
+              onSelectSpecialty: onSelectSpecialty,
             ),
             const SizedBox(height: 24),
             const SectionHeading(title: 'Quick actions'),
@@ -652,9 +821,195 @@ class OverviewPage extends StatelessWidget {
                 ],
               ],
             ),
+            if (onPrepareDoctorVisit != null) ...[
+              const SizedBox(height: 12),
+              Card(
+                key: const ValueKey('overview-doctor-visit-banner'),
+                elevation: 0,
+                color: colors.primaryContainer.withValues(alpha: 0.35),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: colors.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: InkWell(
+                  onTap: onPrepareDoctorVisit,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.assignment_outlined,
+                            size: 18,
+                            color: colors.onPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Upcoming Doctor Visit?',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Prepare a tailored consultation summary with recent vitals, flagged labs, and discussion questions.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.chevron_right, color: colors.primary),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
           const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+
+  void _showCriticalSafetyModal(
+    BuildContext context,
+    CriticalSafetyAlert alert,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.red.shade100,
+                  foregroundColor: Colors.red.shade900,
+                  child: const Icon(Icons.emergency_outlined),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    alert.title,
+                    style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade900,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'Recorded Value:',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    alert.readingSummary,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.red.shade900,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    MaterialLocalizations.of(
+                      ctx,
+                    ).formatShortDate(alert.record.recordedAt.toLocal()),
+                    style: Theme.of(ctx).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Recommended Immediate Action:',
+              style: Theme.of(
+                ctx,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              alert.emergencyGuidance,
+              style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              CriticalSafetyAlert.clinicalDisclaimer,
+              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                color: Theme.of(ctx).colorScheme.outline,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                if (onRecordTap != null)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.description_outlined),
+                      label: const Text('View Record Details'),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        onRecordTap!(alert.record);
+                      },
+                    ),
+                  ),
+                if (onRecordTap != null) const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red.shade900,
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Dismiss'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -673,6 +1028,10 @@ class OverviewMetricStrip extends StatelessWidget {
         .map((record) => record.category)
         .toSet()
         .length;
+    final rawSamplesCount = countRawSamples(records);
+    final recordsValue = rawSamplesCount > records.length
+        ? '${records.length} ($rawSamplesCount raw)'
+        : records.length.toString();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -685,7 +1044,7 @@ class OverviewMetricStrip extends StatelessWidget {
           Expanded(
             child: MetricItem(
               label: 'Records',
-              value: records.length.toString(),
+              value: recordsValue,
               icon: Icons.receipt_long_outlined,
             ),
           ),
@@ -1046,6 +1405,131 @@ class CategorySummaryBadge extends StatelessWidget {
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: catColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class OverviewSpecialtyBreakdown extends StatelessWidget {
+  const OverviewSpecialtyBreakdown({
+    super.key,
+    required this.records,
+    this.onSelectSpecialty,
+  });
+
+  final List<HealthRecord> records;
+  final ValueChanged<DoctorVisitSpecialty>? onSelectSpecialty;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    final specialtyCounts = <DoctorVisitSpecialty, int>{};
+    for (final specialty in DoctorVisitSpecialty.values) {
+      final count = records.where(specialty.matchesRecord).length;
+      if (count > 0) {
+        specialtyCounts[specialty] = count;
+      }
+    }
+
+    if (specialtyCounts.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Clinical Specialties',
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final entry in specialtyCounts.entries)
+              SpecialtySummaryBadge(
+                key: ValueKey('overview-specialty-${entry.key.id}'),
+                specialty: entry.key,
+                count: entry.value,
+                onTap: onSelectSpecialty == null
+                    ? null
+                    : () => onSelectSpecialty!(entry.key),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class SpecialtySummaryBadge extends StatelessWidget {
+  const SpecialtySummaryBadge({
+    super.key,
+    required this.specialty,
+    required this.count,
+    this.onTap,
+  });
+
+  final DoctorVisitSpecialty specialty;
+  final int count;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Tooltip(
+      message:
+          'Filter records by ${specialty.shortLabel} ($count ${count == 1 ? 'entry' : 'entries'})',
+      child: Material(
+        color: colors.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.7)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(specialty.icon, size: 16, color: colors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  specialty.shortLabel,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colors.primary,
                     ),
                   ),
                 ),

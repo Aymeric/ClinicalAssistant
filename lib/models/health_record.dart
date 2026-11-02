@@ -9,6 +9,10 @@ enum RecordCategory {
   condition,
   allergy,
   immunization,
+  coverage,
+  procedure,
+  symptom,
+  questionnaire,
 }
 
 /// Formats a numeric value with sensible rounding and decimal limits for health data.
@@ -17,16 +21,23 @@ enum RecordCategory {
 /// - Standard numbers use at most [maxDecimals] decimal places (default 2, e.g. `98.6`, `120.25`).
 /// - Small decimal values (< 0.1) allow up to 3 or 4 decimals so values like `0.005` aren't rounded to 0.
 /// - Trailing zeros after the decimal point are trimmed (e.g. `4.10` -> `4.1`).
-final _trailingZerosPattern = RegExp(r'0+$');
-final _trailingDotPattern = RegExp(r'\.$');
 final _groupedNumberPattern = RegExp(
   r'^[+-]?\d{1,3}(,\d{3})+(?:\.\d+)?(?:[eE][+-]?\d+)?$',
+);
+// Compiled statically to avoid RegExp recompilation during frequent property access
+// in trends filtering, summary builders, and record detail rendering.
+final _notesContextPattern = RegExp(
+  r'(?:^|·|\n)\s*Context:\s*([^·\n\r]+)',
+  caseSensitive: false,
 );
 
 /// - Floating-point noise like `98.60000000000001` or `72.00000000001` is eliminated.
 String formatSensibleNumber(num value, {int maxDecimals = 2}) {
   if (!value.isFinite) return value.toString();
   if (value == 0) return '0';
+
+  // Fast-path integers directly without floating-point arithmetic or regexes.
+  if (value is int) return value.toString();
 
   final rounded = value.roundToDouble();
   if ((value - rounded).abs() < 1e-9) {
@@ -36,11 +47,20 @@ String formatSensibleNumber(num value, {int maxDecimals = 2}) {
   final absVal = value.abs();
   final decimals = absVal < 0.01 ? 4 : (absVal < 0.1 ? 3 : maxDecimals);
 
-  var fixed = value.toStringAsFixed(decimals);
-  if (fixed.contains('.')) {
-    fixed = fixed
-        .replaceFirst(_trailingZerosPattern, '')
-        .replaceFirst(_trailingDotPattern, '');
+  final fixed = value.toStringAsFixed(decimals);
+  final dotIndex = fixed.indexOf('.');
+  if (dotIndex != -1) {
+    // Fast string index scanning: trim trailing zeros and dot without RegExp execution or multiple allocations.
+    var end = fixed.length;
+    while (end > dotIndex + 1 && fixed.codeUnitAt(end - 1) == 0x30 /* '0' */ ) {
+      end--;
+    }
+    if (end == dotIndex + 1 && fixed.codeUnitAt(dotIndex) == 0x2E /* '.' */ ) {
+      end = dotIndex;
+    }
+    final trimmed = end == fixed.length ? fixed : fixed.substring(0, end);
+    if (trimmed == '-0') return '0';
+    return trimmed;
   }
 
   if (fixed == '-0') return '0';
@@ -125,6 +145,77 @@ class HealthRecord {
     return unit.isEmpty ? formatted : '$formatted $unit';
   }
 
+  /// Returns the structured measurement or meal-state context of this record
+  /// (e.g. 'Fasting', 'Pre-meal', 'Post-meal (2 hr)', 'Bedtime', 'Random').
+  ///
+  /// Resolves in order:
+  /// 1. Explicit `sourceData['measurementContext']` entry.
+  /// 2. Metadata meal-state keys from health platform data.
+  /// 3. Context tag in user notes (e.g., `Context: Fasting`).
+  /// 4. Defaults strictly to `'Unspecified'`.
+  String get measurementContext {
+    final direct = sourceData?['measurementContext'];
+    if (direct is String && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+    final metadata = sourceData?['metadata'];
+    if (metadata is Map) {
+      final meal =
+          metadata['meal_type'] ??
+          metadata['mealContext'] ??
+          metadata['meal_time'] ??
+          metadata['measurement_context'];
+      if (meal != null && meal.toString().trim().isNotEmpty) {
+        return meal.toString().trim();
+      }
+    }
+    if (notes != null && notes!.isNotEmpty) {
+      final notesText = notes!;
+      // Fast-path: only evaluate regex when notes actually contain "context:" (case-insensitive)
+      // to avoid regular expression overhead across chart rendering and context filtering.
+      if (notesText.toLowerCase().contains('context:')) {
+        final match = _notesContextPattern.firstMatch(notesText);
+        if (match != null) {
+          final val = match.group(1)?.trim();
+          if (val != null && val.isNotEmpty) return val;
+        }
+      }
+    }
+    return 'Unspecified';
+  }
+
+  bool get hasExplicitMeasurementContext => measurementContext != 'Unspecified';
+
+  /// Returns the number of underlying raw health samples represented by this record.
+  ///
+  /// - Daily aggregated records store their sample count in `sourceData['sampleCount']`.
+  /// - Workout-aggregated records count the workout itself (`1`) plus any child
+  ///   samples folded into `sourceData['aggregatedWorkoutMetrics']`.
+  /// - Non-aggregated records represent `1` raw sample.
+  int get rawSampleCount {
+    final directCount = sourceData?['sampleCount'];
+    if (directCount is num && directCount > 0) {
+      return directCount.toInt();
+    }
+    final workoutMetrics = sourceData?['aggregatedWorkoutMetrics'];
+    if (workoutMetrics is Map) {
+      var total = 1;
+      for (final key in const [
+        'distanceSampleCount',
+        'calorieSampleCount',
+        'stepSampleCount',
+        'flightsSampleCount',
+      ]) {
+        final v = workoutMetrics[key];
+        if (v is num && v > 0) {
+          total += v.toInt();
+        }
+      }
+      return total;
+    }
+    return 1;
+  }
+
   HealthRecord copyWith({
     String? id,
     String? name,
@@ -190,4 +281,13 @@ class HealthRecord {
       notes: json['notes'] as String?,
     );
   }
+}
+
+/// Sums [HealthRecord.rawSampleCount] across all [records].
+int countRawSamples(Iterable<HealthRecord> records) {
+  var total = 0;
+  for (final record in records) {
+    total += record.rawSampleCount;
+  }
+  return total;
 }

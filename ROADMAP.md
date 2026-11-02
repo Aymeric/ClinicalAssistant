@@ -73,70 +73,91 @@ Focus: Hardening current functionality, platform compliance, security review, an
 
 Focus: Expanding beyond lab observations to encompass broader clinical history, paper document ingestion, standardized survey instruments, cross-provider reconciliation, and medication safety checks.
 
-- [ ] **Expanded FHIR Resource Ingestion** ([#74](https://github.com/Aymeric/ClinicalAssistant/issues/74)):
-  - [ ] **Conditions & Diagnoses (`Condition`)**:
-    - Ingest active, inactive, and resolved problem lists from SMART-on-FHIR portals and Apple Health Clinical Records.
-    - Track clinical status, verification status, onset date, and coded SNOMED CT / ICD-10-CM terminology.
-  - [ ] **Immunizations (`Immunization`)**:
-    - Ingest vaccination history with dose numbers, vaccination dates, target disease codes, and vaccine manufacturers / lot numbers.
-    - Track vaccine status (completed, not-done) and route of administration.
-  - [ ] **Allergies & Intolerances (`AllergyIntolerance`)**:
-    - Record allergen substances (food, medication, environmental), reaction categories, critical severity badges, and manifestation notes.
-    - Highlight high-risk anaphylaxis manifestations prominently.
-  - [ ] **Procedures & Interventions (`Procedure`)**:
-    - Historical clinical procedures, surgical interventions, performed dates, and body sites.
-  - [ ] **Diagnostic Reports & Clinical Documents (`DiagnosticReport`, `DocumentReference`)**:
-    - Ingest diagnostic report summaries and embedded text notes (pathology summaries, radiology narrative impressions).
-- [ ] **Direct FHIR JSON File Import** ([#118](https://github.com/Aymeric/ClinicalAssistant/issues/118)):
-  - Select a local FHIR JSON file and preview the supported resource count before importing, reusing the existing parser and record-merge path.
-  - Preserve original resource data and provenance; process files locally, validate before saving, and report malformed or unsupported input without a partial import.
-- [ ] **Per-Source Import History and Coverage** ([#119](https://github.com/Aymeric/ClinicalAssistant/issues/119)):
+- [x] **Expanded FHIR Resource Ingestion** ([#74](https://github.com/Aymeric/ClinicalAssistant/issues/74)):
+  - [x] **Conditions & Diagnoses (`Condition`)**:
+    - [x] Ingest active, inactive, and resolved problem lists from SMART-on-FHIR portals and Apple Health Clinical Records.
+    - [x] Track clinical status, verification status, onset date, and coded SNOMED CT / ICD-10-CM terminology.
+  - [x] **Immunizations (`Immunization`)**:
+    - [x] Ingest vaccination history with dose numbers, vaccination dates, target disease codes, and vaccine manufacturers / lot numbers.
+    - [x] Track vaccine status (completed, not-done) and route of administration.
+  - [x] **Allergies & Intolerances (`AllergyIntolerance`)**:
+    - [x] Record allergen substances (food, medication, environmental), reaction categories, critical severity badges, and manifestation notes.
+    - [x] Highlight high-risk anaphylaxis manifestations prominently.
+  - [x] **Procedures & Interventions (`Procedure`)**:
+    - [x] Historical clinical procedures, surgical interventions, performed dates, and body sites.
+  - [x] **Diagnostic Reports & Clinical Documents (`DiagnosticReport`, `DocumentReference`)**:
+    - [x] Ingest diagnostic report summaries and embedded text notes (pathology summaries, radiology narrative impressions).
+  - [x] **Health Insurance & Coverage (`Coverage`)** ([#155](https://github.com/Aymeric/ClinicalAssistant/issues/155)):
+    - [x] Ingest coverage policies, payer names, subscriber identifiers, group numbers, copay structures, and coverage period dates from connected portals and Apple Health.
+    - [x] Provide an offline Insurance & Coverage summary card in records view and doctor visit exports without transmitting policy data off-device.
+- [x] **Direct FHIR JSON File Import** ([#118](https://github.com/Aymeric/ClinicalAssistant/issues/118)):
+  - [x] Select a local FHIR JSON file and preview the supported resource count before importing, reusing the existing parser and record-merge path.
+  - [x] Preserve original resource data and provenance; process files locally, validate before saving, and report malformed or unsupported input without a partial import.
+- [x] **Per-Source Import History and Coverage** ([#119](https://github.com/Aymeric/ClinicalAssistant/issues/119)):
   - Show local import and sync outcomes, last checked time, returned record counts, and observed date coverage for each source.
   - Distinguish successful empty results from failures, and make clear that observed date spans do not guarantee complete source history.
-- [ ] **FHIR Export Preflight** ([#120](https://github.com/Aymeric/ClinicalAssistant/issues/120)):
-  - Validate exported Bundles against a declared supported FHIR release/profile and summarize included resources and warnings before sharing.
-  - Keep validation local, preserve source records, and avoid implying universal provider acceptance.
+- [x] **FHIR Export Preflight** ([#120](https://github.com/Aymeric/ClinicalAssistant/issues/120)):
+  - [x] Validate exported Bundles against a declared supported FHIR release/profile and summarize included resources and warnings before sharing.
+  - [x] Keep validation local, preserve source records, and avoid implying universal provider acceptance.
+- [x] **Grouped Clinical Lab Panels & Multi-Analyte Entry** ([#130](https://github.com/Aymeric/ClinicalAssistant/issues/130)):
+  - [x] Preserve FHIR panel membership (`Observation.hasMember`, `DiagnosticReport.result`, or standard LOINC panel codes) and group same-source, same-timestamp panel analytes (such as CBC, CMP, BMP, Lipid, and Thyroid panels) in the records list and PDF summaries.
+  - [x] Provide collapsible panel headers showing panel name, date, source, analyte count, and out-of-range summary while expanding to individual analyte rows and source reference ranges.
+  - [x] Support multi-analyte panel entry in a single manual form while saving each analyte as a distinct record so individual analyte trend series continue to work unchanged.
+- [x] **Source-Scoped Exports & Privacy Redaction Controls** ([#131](https://github.com/Aymeric/ClinicalAssistant/issues/131)):
+  - Expose source selection and measurement search filtering on the Export screen so patients can scope exports to chosen sources and measurements.
+  - Provide explicit privacy toggles to include or omit personal record notes and raw `sourceData` JSON payloads in CSV, PDF, text, and FHIR exports without altering stored vault data.
+  - Default-exclude or prominently warn when synthetic demonstration records are present so demo data is not inadvertently shared in clinical exports.
+- [x] **Fasting & Measurement Context Filtering in Lab and Vital Trends** ([#132](https://github.com/Aymeric/ClinicalAssistant/issues/132)):
+  - [x] Preserve structured measurement and meal-state context tags (such as `Fasting`, `Pre-meal`, `Post-meal (2 hr)`, `Bedtime`, `Random`, or `Unspecified`) from manual entry and supported source metadata without modifying original record values.
+  - [x] Filter trend series by context in `HealthTrendsPage` so descriptive summary statistics (`average`, `minimum`, `maximum`, and `3-reading average`) and range-relative evaluations compare like-for-like readings.
+- [x] **Medication Start/Stop Markers on Single-Series Trend Charts** ([#133](https://github.com/Aymeric/ClinicalAssistant/issues/133)):
+  - [x] Add an opt-in `Medication dates` toggle on `TrendChartPanel` to overlay vertical date markers for recorded medication start and end dates within the active chart time window.
+  - [x] Present chronological medication markers with accessible text summaries and strictly descriptive copy that does not imply treatment efficacy or clinical causation.
 - [ ] **On-Device OCR & Physical Document Ingestion** ([#75](https://github.com/Aymeric/ClinicalAssistant/issues/75)):
   - [ ] **Paper Lab Report Scanner (Apple Vision / Google ML Kit)**:
     - Capture or import photo/PDF scans of printed lab reports (Quest, Labcorp, regional hospital printouts) and extract structured tabular values strictly on-device.
     - **Human-in-the-Loop Verification**: Side-by-side verification interface highlighting bounding boxes on the original scan against parsed fields before saving to the vault.
   - [ ] **Prescription Bottle Barcode & Label Scanner**:
     - Scan National Drug Code (NDC) barcodes or prescription bottle label text to auto-populate medication name, strength, formulation, and instructions using an offline, bundled RxNorm / FDA NDC lookup index.
-- [ ] **Patient-Reported Outcome Measures (PROMs) & Questionnaires** ([#76](https://github.com/Aymeric/ClinicalAssistant/issues/76)):
-  - [ ] Standardized clinical survey instruments:
+- [x] **Patient-Reported Outcome Measures (PROMs) & Questionnaires** ([#76](https://github.com/Aymeric/ClinicalAssistant/issues/76)):
+  - [x] Standardized clinical survey instruments:
     - **PHQ-9**: Patient Health Questionnaire for depression screening.
     - **GAD-7**: Generalized Anxiety Disorder assessment.
     - **CAT & mMRC**: COPD Assessment Test and Dyspnea scales.
     - **SF-12 / HAQ**: Functional health status and quality-of-life questionnaires.
-  - [ ] Ingest and export responses as standard FHIR `Questionnaire` and `QuestionnaireResponse` resources.
-  - [ ] Longitudinal survey score tracking plotted directly alongside medications and biometric trends.
+  - [x] Ingest and export responses as standard FHIR `Questionnaire` and `QuestionnaireResponse` resources.
+  - [x] Longitudinal survey score tracking plotted directly alongside medications and biometric trends.
+- [x] **Structured Symptoms Log & Timeline Overlays** ([#156](https://github.com/Aymeric/ClinicalAssistant/issues/156)):
+  - [x] Ingest structured symptoms from Apple Health (`HKCategoryTypeIdentifier`) and Android Health Connect with recorded severity (Mild, Moderate, Severe).
+  - [x] Add manual symptom logging for episodic cardiorespiratory, neurological, gastrointestinal, and pain events.
+  - [x] Expose an opt-in timeline overlay on trend charts to correlate episodic symptoms chronologically alongside numeric vitals and medications while maintaining diagnostic neutrality.
 - [ ] **Medication Management & Interaction Safety** ([#77](https://github.com/Aymeric/ClinicalAssistant/issues/77)):
-  - [ ] **Offline Drug-Drug & Food-Drug Interaction Checker**:
-    - Bundled offline open pharmacology interaction dataset (open FDA / RxNorm / open DrugBank data).
-    - Automatically flags known interactions between active logged medications (e.g., NSAIDs + ACE inhibitors; Potassium + Spironolactone).
-    - Highlights common dietary interactions (e.g., Grapefruit juice with Statins; high-Vitamin K foods with Warfarin).
-    - Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
+  - [x] **Offline Drug-Drug & Food-Drug Interaction Checker**:
+    - [x] Bundled offline open pharmacology interaction dataset (open FDA / RxNorm / open DrugBank data).
+    - [x] Automatically flags known interactions between active logged medications (e.g., NSAIDs + ACE inhibitors; Potassium + Spironolactone).
+    - [x] Highlights common dietary interactions (e.g., Grapefruit juice with Statins; high-Vitamin K foods with Warfarin).
+    - [x] Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
   - [ ] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
   - [ ] Log medication adherence history against prescribed regimens.
-  - [ ] Discontinue / archive medications with reason annotations and date effective.
-- [ ] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
-  - [ ] **Cross-Provider Record Reconciliation**:
-    - Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
-    - Groups equivalent readings into a unified longitudinal timeline while retaining all original source document links and provenance.
-  - [ ] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
-  - [ ] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
-- [ ] **Clinical Safety & Critical Value Red-Flag Alerts** ([#79](https://github.com/Aymeric/ClinicalAssistant/issues/79)):
-  - [ ] High-visibility emergency caution banners when newly entered or imported vitals cross consensus critical red-flag thresholds:
+  - [x] Discontinue / archive medications with reason annotations and date effective.
+  - [x] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
+    - [x] **Cross-Provider Record Reconciliation**:
+      - [x] Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
+      - [x] Groups equivalent readings into a unified longitudinal timeline while retaining all original source document links and provenance.
+    - [x] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
+    - [x] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
+- [x] **Clinical Safety & Critical Value Red-Flag Alerts** ([#79](https://github.com/Aymeric/ClinicalAssistant/issues/79)):
+  - [x] High-visibility emergency caution banners when newly entered or imported vitals cross consensus critical red-flag thresholds:
     - *Hypertensive Crisis*: Systolic $\ge 180$ mmHg and/or Diastolic $\ge 120$ mmHg.
     - *Severe Hypoglycemia*: Blood glucose $< 54$ mg/dL ($< 3.0$ mmol/L).
     - *Severe Hypoxemia*: $SpO_2 < 88\%$.
-  - [ ] Prompts immediate emergency care or physician contact without automated clinical triage assertions.
+  - [x] Prompts immediate emergency care or physician contact without automated clinical triage assertions.
 - [ ] **Multi-Modal Hands-Free Input** ([#80](https://github.com/Aymeric/ClinicalAssistant/issues/80)):
   - [ ] **Offline Voice Logging**:
     - On-device speech recognition (Apple Speech framework / Android On-Device Speech Recognizer) for voice logging vitals: *"Blood pressure 128 over 82, pulse 70"* parsed into structured paired records.
-- [ ] **Doctor Visit Preparation Wizard** ([#81](https://github.com/Aymeric/ClinicalAssistant/issues/81)):
-  - [ ] Step-by-step visit preparation flow: select recent out-of-range lab results, recent blood pressure/glucose trends, active medication questions, and personal agenda items.
-  - [ ] Specialty-tailored PDF export templates (e.g., Cardiology, Endocrinology, Annual Wellness Examination).
+- [x] **Doctor Visit Preparation Wizard** ([#81](https://github.com/Aymeric/ClinicalAssistant/issues/81)):
+  - [x] Step-by-step visit preparation flow: select recent out-of-range lab results, recent blood pressure/glucose trends, active medication questions, and personal agenda items.
+  - [x] Specialty-tailored PDF export templates (e.g., Cardiology, Endocrinology, Annual Wellness Examination).
 
 ---
 
@@ -176,11 +197,13 @@ Focus: Purpose-built longitudinal visualizations for high-impact chronic conditi
 - [ ] **Digital Biomarkers & Mobility** ([#85](https://github.com/Aymeric/ClinicalAssistant/issues/85)):
   - [ ] **Gait & Stability Metrics**:
     - Walking speed, step asymmetry percentage, and double-support time from HealthKit / Health Connect to display mobility stability trends over time (valuable for surgical recovery, elder care, and physical therapy).
+    - Import Apple Walking Steadiness notifications and classifications (OK, Low, Very Low) to highlight fall risk trends in doctor visit summaries without algorithmic medical claims.
 - [ ] **Environmental Trigger Overlays** ([#86](https://github.com/Aymeric/ClinicalAssistant/issues/86)):
   - [ ] Ephemeral download of regional Air Quality Index (AQI), pollen counts, and barometric pressure trends to allow patients to correlate environmental triggers with asthma flare-ups, migraines, or blood pressure swings without persisting location data.
 - [ ] **Pulmonary & Respiratory Health** ([#87](https://github.com/Aymeric/ClinicalAssistant/issues/87)):
   - [ ] Oxygen Saturation ($SpO_2$) daytime spot-checks vs. nocturnal nadir tracking.
   - [ ] Peak Expiratory Flow (PEF) and $FEV_1$ tracking for asthma and COPD patients.
+  - [ ] Ingest inhaler usage events (rescue vs. maintenance actuations) and correlate chronologically against peak flow trends.
 - [ ] **Women's Health & Cycle Tracking** ([#88](https://github.com/Aymeric/ClinicalAssistant/issues/88)):
   - [ ] Menstrual cycle length and period duration variability tracking.
   - [ ] Basal Body Temperature (BBT) biphasic temperature shift charting.

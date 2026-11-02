@@ -79,9 +79,11 @@ void main() {
     );
 
     test(
-      'verifyPin rejects PINs longer than 32 characters immediately',
+      'verifyPin rejects PINs shorter than 4 or longer than 32 characters immediately',
       () async {
         await service.setPin('1234');
+        expect(await service.verifyPin(''), isFalse);
+        expect(await service.verifyPin('123'), isFalse);
         final longPin = '1' * 33;
         expect(await service.verifyPin(longPin), isFalse);
       },
@@ -227,6 +229,8 @@ void main() {
         expect(service.constantTimeCompare(listA, listShorter), isFalse);
         expect(service.constantTimeCompare(listA, listLonger), isFalse);
         expect(service.constantTimeCompare([], []), isTrue);
+        expect(service.constantTimeCompare([1], []), isFalse);
+        expect(service.constantTimeCompare([], [1]), isFalse);
       },
     );
   });

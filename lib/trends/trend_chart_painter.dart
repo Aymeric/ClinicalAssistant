@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/health_record.dart';
+import '../models/symptom_details.dart';
 import 'health_trend.dart';
+import 'medication_chart_event.dart';
 
 /// Custom painter for rendering clinical time-series trend lines, grid lines,
 /// reference ranges, and optional moving averages.
@@ -20,6 +22,9 @@ class TrendChartPainter extends CustomPainter {
     this.secondaryPoints,
     this.secondaryIndexes,
     this.secondaryColor,
+    this.medicationEvents = const [],
+    this.medicationMarkerColor,
+    this.symptomEvents = const [],
     required this.color,
     required this.averageColor,
     required this.referenceColor,
@@ -38,6 +43,9 @@ class TrendChartPainter extends CustomPainter {
   final List<HealthTrendPoint>? secondaryPoints;
   final List<int>? secondaryIndexes;
   final Color? secondaryColor;
+  final List<MedicationChartEvent> medicationEvents;
+  final Color? medicationMarkerColor;
+  final List<SymptomChartEvent> symptomEvents;
   final Color color;
   final Color averageColor;
   final Color referenceColor;
@@ -57,17 +65,34 @@ class TrendChartPainter extends CustomPainter {
       size.width - right < left + 1 ? left + 1 : size.width - right,
       size.height - bottom < top + 1 ? top + 1 : size.height - bottom,
     );
-    final values = [
-      ...points.map((point) => point.value),
-      if (secondaryPoints != null) ...secondaryPoints!.map((p) => p.value),
-      ...averages,
-      for (final mark in referenceMarks) ?mark.range.lowerBound,
-      for (final mark in referenceMarks) ?mark.range.upperBound,
-      if (referenceBand?.lowerBound != null) referenceBand!.lowerBound!,
-      if (referenceBand?.upperBound != null) referenceBand!.upperBound!,
-    ];
-    var minimum = values.reduce((a, b) => a < b ? a : b);
-    var maximum = values.reduce((a, b) => a > b ? a : b);
+    // Compute value bounds in a single pass across primary series, secondary
+    // series, moving averages, and reference bounds without heap list allocations.
+    var minimum = double.infinity;
+    var maximum = -double.infinity;
+
+    void updateBounds(double value) {
+      if (value < minimum) minimum = value;
+      if (value > maximum) maximum = value;
+    }
+
+    for (var index = 0; index < points.length; index++) {
+      updateBounds(points[index].value);
+    }
+    if (secondaryPoints != null) {
+      for (var index = 0; index < secondaryPoints!.length; index++) {
+        updateBounds(secondaryPoints![index].value);
+      }
+    }
+    for (var index = 0; index < averages.length; index++) {
+      updateBounds(averages[index]);
+    }
+    for (var index = 0; index < referenceMarks.length; index++) {
+      final mark = referenceMarks[index];
+      if (mark.range.lowerBound case final lower?) updateBounds(lower);
+      if (mark.range.upperBound case final upper?) updateBounds(upper);
+    }
+    if (referenceBand?.lowerBound case final lower?) updateBounds(lower);
+    if (referenceBand?.upperBound case final upper?) updateBounds(upper);
     final padding = maximum == minimum
         ? math.max(maximum.abs() * 0.06, 0.5)
         : (maximum - minimum) * 0.12;
@@ -257,16 +282,16 @@ class TrendChartPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
       final secLine = Path();
-      final secIndexes =
-          secondaryIndexes ?? List.generate(secondaryPoints!.length, (i) => i);
       final secTotal = secondaryIndexes != null
           ? totalPoints
           : secondaryPoints!.length;
       for (var index = 0; index < secondaryPoints!.length; index++) {
+        final pointIndex = secondaryIndexes != null
+            ? secondaryIndexes![index]
+            : index;
         final secOffset = Offset(
           plot.left +
-              (secTotal <= 1 ? 0.5 : secIndexes[index] / (secTotal - 1)) *
-                  plot.width,
+              (secTotal <= 1 ? 0.5 : pointIndex / (secTotal - 1)) * plot.width,
           plot.bottom -
               (secondaryPoints![index].value - minimum) /
                   (maximum - minimum) *
@@ -282,9 +307,12 @@ class TrendChartPainter extends CustomPainter {
       final secMarkerPaint = Paint()..color = secColor;
       for (var index = 0; index < secondaryPoints!.length; index++) {
         if (index % 8 == 0 || index == secondaryPoints!.length - 1) {
+          final pointIndex = secondaryIndexes != null
+              ? secondaryIndexes![index]
+              : index;
           final secOffset = Offset(
             plot.left +
-                (secTotal <= 1 ? 0.5 : secIndexes[index] / (secTotal - 1)) *
+                (secTotal <= 1 ? 0.5 : pointIndex / (secTotal - 1)) *
                     plot.width,
             plot.bottom -
                 (secondaryPoints![index].value - minimum) /
@@ -324,6 +352,84 @@ class TrendChartPainter extends CustomPainter {
           ..style = PaintingStyle.stroke,
       );
     }
+
+    if (medicationEvents.isNotEmpty && points.isNotEmpty) {
+      final startMs = points.first.record.recordedAt.millisecondsSinceEpoch;
+      final endMs = points.last.record.recordedAt.millisecondsSinceEpoch;
+      final timeSpan = endMs - startMs;
+
+      for (final event in medicationEvents) {
+        final eventMs = event.date.millisecondsSinceEpoch;
+        final fraction = timeSpan <= 0
+            ? 0.5
+            : ((eventMs - startMs) / timeSpan).clamp(0.0, 1.0);
+        final x = plot.left + fraction * plot.width;
+
+        final isStart = event.type == MedicationChartEventType.started;
+        final markerColor =
+            medicationMarkerColor ??
+            (isStart ? const Color(0xFF00796B) : const Color(0xFFD97706));
+
+        final dashPaint = Paint()
+          ..color = markerColor.withValues(alpha: 0.65)
+          ..strokeWidth = 1.4
+          ..style = PaintingStyle.stroke;
+
+        const dashHeight = 4.0;
+        const dashSpace = 3.0;
+        var startY = plot.top;
+        while (startY < plot.bottom) {
+          canvas.drawLine(
+            Offset(x, startY),
+            Offset(x, math.min(startY + dashHeight, plot.bottom)),
+            dashPaint,
+          );
+          startY += dashHeight + dashSpace;
+        }
+
+        final badgePaint = Paint()
+          ..color = markerColor
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset(x, plot.top), 3.5, badgePaint);
+      }
+    }
+
+    if (symptomEvents.isNotEmpty && points.isNotEmpty) {
+      final startMs = points.first.record.recordedAt.millisecondsSinceEpoch;
+      final endMs = points.last.record.recordedAt.millisecondsSinceEpoch;
+      final timeSpan = endMs - startMs;
+
+      for (final event in symptomEvents) {
+        final eventMs = event.date.millisecondsSinceEpoch;
+        final fraction = timeSpan <= 0
+            ? 0.5
+            : ((eventMs - startMs) / timeSpan).clamp(0.0, 1.0);
+        final x = plot.left + fraction * plot.width;
+        final markerColor = event.severity.color;
+
+        final dashPaint = Paint()
+          ..color = markerColor.withValues(alpha: 0.7)
+          ..strokeWidth = 1.4
+          ..style = PaintingStyle.stroke;
+
+        const dashHeight = 3.0;
+        const dashSpace = 3.0;
+        var startY = plot.top;
+        while (startY < plot.bottom) {
+          canvas.drawLine(
+            Offset(x, startY),
+            Offset(x, math.min(startY + dashHeight, plot.bottom)),
+            dashPaint,
+          );
+          startY += dashHeight + dashSpace;
+        }
+
+        final badgePaint = Paint()
+          ..color = markerColor
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset(x, plot.bottom), 3.5, badgePaint);
+      }
+    }
   }
 
   @override
@@ -335,6 +441,9 @@ class TrendChartPainter extends CustomPainter {
       oldDelegate.totalPoints != totalPoints ||
       oldDelegate.inspectedIndex != inspectedIndex ||
       oldDelegate.inspectedPoint != inspectedPoint ||
+      oldDelegate.medicationEvents != medicationEvents ||
+      oldDelegate.medicationMarkerColor != medicationMarkerColor ||
+      oldDelegate.symptomEvents != symptomEvents ||
       oldDelegate.color != color ||
       oldDelegate.averageColor != averageColor ||
       oldDelegate.referenceColor != referenceColor ||

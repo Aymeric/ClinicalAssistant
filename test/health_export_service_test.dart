@@ -212,6 +212,178 @@ void main() {
   });
 
   test(
+    'selectRecordsForExport filters by sources, search query, and synthetic status',
+    () {
+      final lab1 = HealthRecord(
+        id: 'lab:1',
+        name: 'Hemoglobin A1c',
+        value: '5.7',
+        unit: '%',
+        recordedAt: DateTime.utc(2026, 9, 20),
+        category: RecordCategory.lab,
+        source: 'Hospital Portal',
+        code: '4548-4',
+      );
+      final lab2 = HealthRecord(
+        id: 'lab:2',
+        name: 'Lipid Panel',
+        value: '180',
+        unit: 'mg/dL',
+        recordedAt: DateTime.utc(2026, 9, 21),
+        category: RecordCategory.lab,
+        source: 'Quest Diagnostics',
+      );
+      final demoRecord = HealthRecord(
+        id: 'demo:1',
+        name: 'Synthetic Glucose',
+        value: '95',
+        unit: 'mg/dL',
+        recordedAt: DateTime.utc(2026, 9, 22),
+        category: RecordCategory.lab,
+        source: 'Synthetic Demo',
+        sourceId: 'synthetic-demo',
+      );
+
+      final all = [lab1, lab2, demoRecord];
+
+      // Filter by source
+      final filteredBySource = selectRecordsForExport(
+        all,
+        {RecordCategory.lab},
+        sources: {'Hospital Portal'},
+      );
+      expect(filteredBySource, [lab1]);
+
+      // Filter by search query
+      final filteredBySearch = selectRecordsForExport(all, {
+        RecordCategory.lab,
+      }, searchQuery: '4548-4');
+      expect(filteredBySearch, [lab1]);
+
+      // Exclude synthetic records
+      final realOnly = selectRecordsForExport(all, {
+        RecordCategory.lab,
+      }, includeSynthetic: false);
+      expect(realOnly, [lab1, lab2]);
+    },
+  );
+
+  test(
+    'redactRecordsForExport strips notes and sourceData without mutating stored records',
+    () {
+      final original = HealthRecord(
+        id: 'rec:1',
+        name: 'Blood Pressure',
+        value: '120/80',
+        unit: 'mmHg',
+        recordedAt: DateTime.utc(2026, 9, 20),
+        category: RecordCategory.vital,
+        source: 'Manual Entry',
+        notes: 'Patient felt relaxed',
+        sourceData: const {'raw': 'data'},
+      );
+
+      final redactedBoth = redactRecordsForExport(
+        [original],
+        includeNotes: false,
+        includeSourceData: false,
+      ).single;
+      expect(redactedBoth.notes, isNull);
+      expect(redactedBoth.sourceData, isNull);
+      expect(original.notes, 'Patient felt relaxed');
+      expect(original.sourceData, isNotNull);
+
+      final redactedNotesOnly = redactRecordsForExport(
+        [original],
+        includeNotes: false,
+        includeSourceData: true,
+      ).single;
+      expect(redactedNotesOnly.notes, isNull);
+      expect(redactedNotesOnly.sourceData, isNotNull);
+
+      final redactedSourceOnly = redactRecordsForExport(
+        [original],
+        includeNotes: true,
+        includeSourceData: false,
+      ).single;
+      expect(redactedSourceOnly.notes, 'Patient felt relaxed');
+      expect(redactedSourceOnly.sourceData, isNull);
+    },
+  );
+
+  test('buildCsv and buildFhirBundle respect privacy redaction controls', () {
+    final recordWithNotes = HealthRecord(
+      id: 'fhir:obs-1',
+      name: 'Glucose',
+      value: '95',
+      unit: 'mg/dL',
+      recordedAt: DateTime.utc(2026, 9, 20),
+      category: RecordCategory.lab,
+      source: 'Hospital Portal',
+      notes: 'Private doctor consultation question',
+      sourceData: const {
+        'resourceType': 'Observation',
+        'id': 'obs-1',
+        'rawSensitiveInfo': 'token-1234',
+      },
+    );
+
+    // CSV with privacy redaction (no notes, no raw source JSON)
+    final csvRedacted = exporter.buildCsv(
+      [recordWithNotes],
+      includeNotes: false,
+      includeSourceData: false,
+    );
+    expect(csvRedacted, isNot(contains('Notes')));
+    expect(csvRedacted, isNot(contains('Source data (JSON)')));
+    expect(
+      csvRedacted,
+      isNot(contains('Private doctor consultation question')),
+    );
+    expect(csvRedacted, isNot(contains('rawSensitiveInfo')));
+
+    // CSV with notes and sourceData included
+    final csvFull = exporter.buildCsv(
+      [recordWithNotes],
+      includeNotes: true,
+      includeSourceData: true,
+    );
+    expect(csvFull, contains('Notes'));
+    expect(csvFull, contains('Source data (JSON)'));
+    expect(csvFull, contains('Private doctor consultation question'));
+    expect(csvFull, contains('rawSensitiveInfo'));
+
+    // FHIR Bundle with privacy redaction
+    final fhirRedacted = exporter.buildFhirBundle(
+      [recordWithNotes],
+      includeNotes: false,
+      includeSourceData: false,
+    );
+    final entry = (fhirRedacted['entry'] as List).single as Map;
+    final res = entry['resource'] as Map;
+    expect(res, isNot(contains('rawSensitiveInfo')));
+    final notes = res['note'] as List;
+    expect(
+      notes.any((n) => (n['text'] as String).contains('Private')),
+      isFalse,
+    );
+
+    // Text summary privacy redaction
+    final textRedacted = exporter.buildTextSummary([
+      recordWithNotes,
+    ], includeNotes: false);
+    expect(
+      textRedacted,
+      isNot(contains('Private doctor consultation question')),
+    );
+
+    final textFull = exporter.buildTextSummary([
+      recordWithNotes,
+    ], includeNotes: true);
+    expect(textFull, contains('Private doctor consultation question'));
+  });
+
+  test(
     'restricts file permissions on exported files on POSIX platforms',
     () async {
       TestWidgetsFlutterBinding.ensureInitialized();

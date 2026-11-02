@@ -204,6 +204,46 @@ void main() {
       expect(details.adherenceLogs.first.medicationName, 'Atorvastatin');
     });
 
+    test(
+      'discontinues medication with effective end date and reason annotation',
+      () async {
+        final med = controller.records.firstWhere(
+          (r) => r.id == 'med-atorvastatin',
+        );
+        final stopDate = DateTime.utc(2026, 10, 15);
+        await controller.updateMedicationStatus(
+          med,
+          'discontinued',
+          endDate: stopDate,
+          discontinueReason: 'Adverse reaction: muscle aches',
+        );
+
+        expect(controller.activeMedications.length, 1);
+        expect(controller.pastMedications.length, 1);
+
+        final discontinued = controller.records.firstWhere(
+          (r) => r.id == 'med-atorvastatin',
+        );
+        expect(discontinued.status, 'discontinued');
+
+        final details = ManualMedicationDetails.fromRecord(discontinued);
+        expect(details.endDate, DateTime(2026, 10, 15));
+        expect(details.discontinueReason, 'Adverse reaction: muscle aches');
+
+        // Reactivating clears the discontinue reason and end date
+        await controller.updateMedicationStatus(discontinued, 'active');
+        final reactivated = controller.records.firstWhere(
+          (r) => r.id == 'med-atorvastatin',
+        );
+        expect(reactivated.status, 'active');
+        final reactivatedDetails = ManualMedicationDetails.fromRecord(
+          reactivated,
+        );
+        expect(reactivatedDetails.endDate, isNull);
+        expect(reactivatedDetails.discontinueReason, isNull);
+      },
+    );
+
     test('updates medication status between active and past', () async {
       final med = controller.records.firstWhere(
         (r) => r.id == 'med-atorvastatin',

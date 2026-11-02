@@ -129,6 +129,70 @@ void main() {
       expect(loadedFromLegacy.single.id, 'legacy:uncompressed');
     },
   );
+
+  test(
+    'restricts vault file permissions to user read/write only on POSIX systems',
+    () async {
+      await store.save(const []);
+      final file = File('${directory.path}/records.enc');
+      expect(file.existsSync(), isTrue);
+
+      if (!Platform.isWindows) {
+        final ProcessResult result;
+        if (Platform.isMacOS) {
+          result = await Process.run('stat', ['-f', '%Lp', file.path]);
+        } else {
+          result = await Process.run('stat', ['-c', '%a', file.path]);
+        }
+        if (result.exitCode == 0) {
+          final mode = (result.stdout as String).trim();
+          expect(mode, '600');
+        }
+      }
+    },
+  );
+
+  test(
+    'restricts permissions on recovered vault file when loading from atomic tmp recovery',
+    () async {
+      await store.save([
+        HealthRecord(
+          id: 'recovery:1',
+          name: 'Heart Rate',
+          value: '70',
+          unit: 'bpm',
+          recordedAt: DateTime.utc(2026, 9, 20),
+          category: RecordCategory.vital,
+          source: 'Apple Health',
+        ),
+      ]);
+
+      final file = File('${directory.path}/records.enc');
+      final tmpFile = File('${directory.path}/records.enc.tmp');
+
+      // Simulate interruption by moving records.enc to records.enc.tmp
+      await file.rename(tmpFile.path);
+      expect(file.existsSync(), isFalse);
+      expect(tmpFile.existsSync(), isTrue);
+
+      final recovered = await store.load();
+      expect(recovered.single.id, 'recovery:1');
+      expect(file.existsSync(), isTrue);
+
+      if (!Platform.isWindows) {
+        final ProcessResult result;
+        if (Platform.isMacOS) {
+          result = await Process.run('stat', ['-f', '%Lp', file.path]);
+        } else {
+          result = await Process.run('stat', ['-c', '%a', file.path]);
+        }
+        if (result.exitCode == 0) {
+          final mode = (result.stdout as String).trim();
+          expect(mode, '600');
+        }
+      }
+    },
+  );
 }
 
 class _MemorySecureStorage extends FlutterSecureStorage {
