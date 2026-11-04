@@ -53,75 +53,53 @@ class HeartRhythmAnalysisCard extends StatelessWidget {
       }
     }
 
-    // Determine latest resting rate and average
-    double? latestResting;
-    double? avgResting;
+    // Performance optimization: Replace repeated RegExp evaluation and intermediate list
+    // allocations (`.map().whereType().toList()`, `[...a, ...b, ...c]`) with single-pass
+    // inline accumulation using `_extractNumericValue` (fast-path `parseHealthRecordValue`).
+    // Eliminates multiple temporary list allocations and regex instantiations per build frame.
+    final (
+      latest: latestRestingFound,
+      avg: avgRestingFound,
+      peak: peakRestingFound,
+    ) = _computeStats(
+      restingRecords,
+    );
+
+    final (
+      latest: latestGeneralFound,
+      avg: avgGeneralFound,
+      peak: peakGeneralFound,
+    ) = _computeStats(
+      generalHeartRateRecords,
+    );
+
+    final (latest: _, avg: avgWalking, peak: peakWalkingFound) = _computeStats(
+      walkingRecords,
+    );
+
+    final double? latestResting;
+    final double? avgResting;
     if (restingRecords.isNotEmpty) {
-      final values = restingRecords
-          .map(
-            (r) => double.tryParse(r.value.replaceAll(RegExp(r'[^\d.]'), '')),
-          )
-          .whereType<double>()
-          .toList();
-      if (values.isNotEmpty) {
-        latestResting = values.last;
-        avgResting = values.reduce((a, b) => a + b) / values.length;
-      }
+      latestResting = latestRestingFound;
+      avgResting = avgRestingFound;
     } else if (generalHeartRateRecords.isNotEmpty) {
-      final values = generalHeartRateRecords
-          .map(
-            (r) => double.tryParse(r.value.replaceAll(RegExp(r'[^\d.]'), '')),
-          )
-          .whereType<double>()
-          .toList();
-      if (values.isNotEmpty) {
-        latestResting = values.last;
-        avgResting = values.reduce((a, b) => a + b) / values.length;
-      }
+      latestResting = latestGeneralFound;
+      avgResting = avgGeneralFound;
+    } else {
+      latestResting = null;
+      avgResting = null;
     }
 
-    // Determine walking average
-    double? avgWalking;
-    if (walkingRecords.isNotEmpty) {
-      final values = walkingRecords
-          .map(
-            (r) => double.tryParse(r.value.replaceAll(RegExp(r'[^\d.]'), '')),
-          )
-          .whereType<double>()
-          .toList();
-      if (values.isNotEmpty) {
-        avgWalking = values.reduce((a, b) => a + b) / values.length;
-      }
-    }
-
-    // Determine workout / peak heart rate from general or resting
+    // Determine workout / peak heart rate from general, resting, or walking
     double? peakHeartRate;
-    final allHrValues =
-        [...restingRecords, ...generalHeartRateRecords, ...walkingRecords]
-            .map(
-              (r) => double.tryParse(r.value.replaceAll(RegExp(r'[^\d.]'), '')),
-            )
-            .whereType<double>()
-            .toList();
-    if (allHrValues.isNotEmpty) {
-      peakHeartRate = allHrValues.reduce(math.max);
+    for (final p in [peakRestingFound, peakGeneralFound, peakWalkingFound]) {
+      if (p != null) {
+        peakHeartRate = peakHeartRate == null ? p : math.max(peakHeartRate, p);
+      }
     }
 
     // Determine HRV (SDNN) average and latest
-    double? latestHrv;
-    double? avgHrv;
-    if (hrvRecords.isNotEmpty) {
-      final values = hrvRecords
-          .map(
-            (r) => double.tryParse(r.value.replaceAll(RegExp(r'[^\d.]'), '')),
-          )
-          .whereType<double>()
-          .toList();
-      if (values.isNotEmpty) {
-        latestHrv = values.last;
-        avgHrv = values.reduce((a, b) => a + b) / values.length;
-      }
-    }
+    final (latest: latestHrv, avg: avgHrv, peak: _) = _computeStats(hrvRecords);
 
     return Card(
       key: const ValueKey('heart-rhythm-analysis-card'),
@@ -333,6 +311,50 @@ class HeartRhythmAnalysisCard extends StatelessWidget {
       ),
     );
   }
+}
+
+final _nonDigitPattern = RegExp(r'[^\d.]');
+
+/// Fast-path extraction of numeric value from health record without regex execution
+/// when standard float parsing succeeds.
+double? _extractNumericValue(HealthRecord record) {
+  final direct = parseHealthRecordValue(record.value);
+  if (direct != null) return direct;
+  final stripped = record.value.replaceAll(_nonDigitPattern, '');
+  return double.tryParse(stripped);
+}
+
+/// Computes latest, average, and peak numeric values in a single pass over [records],
+/// avoiding intermediate list allocations and multiple traversal loops.
+({double? latest, double? avg, double? peak}) _computeStats(
+  List<HealthRecord> records,
+) {
+  if (records.isEmpty) {
+    return (latest: null, avg: null, peak: null);
+  }
+
+  double? latest;
+  double? peak;
+  var sum = 0.0;
+  var count = 0;
+
+  for (final r in records) {
+    final v = _extractNumericValue(r);
+    if (v != null) {
+      latest = v;
+      sum += v;
+      count++;
+      if (peak == null || v > peak) {
+        peak = v;
+      }
+    }
+  }
+
+  if (count == 0) {
+    return (latest: null, avg: null, peak: null);
+  }
+
+  return (latest: latest, avg: sum / count, peak: peak);
 }
 
 class _MetricBox extends StatelessWidget {
