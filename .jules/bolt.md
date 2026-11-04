@@ -1,3 +1,7 @@
+## 2026-11-03 - Single-pass numeric stats and fast-path parsing for cardiac rhythm cards
+**Learning:** In cardiac analysis components such as `HeartRhythmAnalysisCard`, computing summary metrics (latest, longitudinal average, and peak) across resting, walking, workout, and HRV categories previously generated multiple intermediate arrays (`.map().whereType<double>().toList()` and spread collections `[...resting, ...general, ...walking]`) and invoked ad-hoc regular expressions (`RegExp(r'[^\d.]')`) repeatedly on every build frame.
+**Action:** Compute latest, sum/average, and peak in a single-pass accumulator record per category, and fast-path numeric parsing using `parseHealthRecordValue` with a hoisted fallback regex instead of per-item pattern instantiations.
+
 ## 2026-10-26 - Index-based string trimming instead of regexes for number formatting
 **Learning:** `formatSensibleNumber` is executed hundreds of times across chart painters, list row renderings, aggregations, and export generation. Using sequential `RegExp` replacements (`replaceFirst(RegExp(r'0+$'))` and `replaceFirst(RegExp(r'\.$'))`) for every formatted floating-point number triggered repeated regex pattern matching and intermediate string allocations in the hot rendering path.
 **Action:** Fast-path `value is int` directly to `.toString()` and perform backward index-based trimming with `fixed.codeUnitAt` rather than evaluating regular expressions on formatted decimal strings.
