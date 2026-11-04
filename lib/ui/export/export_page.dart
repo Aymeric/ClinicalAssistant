@@ -335,19 +335,31 @@ class _ExportPageState extends State<ExportPage> {
   @override
   Widget build(BuildContext context) {
     final selectedRecords = _selectedRecords;
-    final hasSyntheticRecords = widget.records.any(isSyntheticRecord);
-    final hasRealRecords = widget.records.any((r) => !isSyntheticRecord(r));
-    final availableCategories = widget.records
-        .where((record) => _includeSynthetic || !isSyntheticRecord(record))
-        .map((record) => record.category)
-        .toSet();
-    final availableSources =
-        widget.records
-            .where((record) => _includeSynthetic || !isSyntheticRecord(record))
-            .map((record) => record.source)
-            .toSet()
-            .toList()
-          ..sort();
+    var hasSyntheticRecords = false;
+    var hasRealRecords = false;
+    final categoryCounts = <RecordCategory, int>{};
+    final sourceCounts = <String, int>{};
+
+    // Single pass over widget.records: determine real/synthetic presence and
+    // aggregate counts per category and source, avoiding multiple O(N) list scans
+    // and closure allocations across category and source filter chip rendering.
+    for (final record in widget.records) {
+      final isSynth = isSyntheticRecord(record);
+      if (isSynth) {
+        hasSyntheticRecords = true;
+      } else {
+        hasRealRecords = true;
+      }
+
+      if (_includeSynthetic || !isSynth) {
+        categoryCounts[record.category] =
+            (categoryCounts[record.category] ?? 0) + 1;
+        sourceCounts[record.source] = (sourceCounts[record.source] ?? 0) + 1;
+      }
+    }
+
+    final availableCategories = categoryCounts.keys.toSet();
+    final availableSources = sourceCounts.keys.toList()..sort();
 
     return PageContent(
       children: [
@@ -415,7 +427,7 @@ class _ExportPageState extends State<ExportPage> {
                 if (availableCategories.contains(category))
                   FilterChip(
                     label: Text(
-                      '${categoryLabel(category)} (${widget.records.where((record) => record.category == category && (_includeSynthetic || !isSyntheticRecord(record))).length})',
+                      '${categoryLabel(category)} (${categoryCounts[category] ?? 0})',
                     ),
                     tooltip: _selectedCategories.contains(category)
                         ? 'Exclude ${categoryLabel(category)} from export'
@@ -725,9 +737,7 @@ class _ExportPageState extends State<ExportPage> {
                 for (final source in availableSources)
                   FilterChip(
                     key: ValueKey('export-source-$source'),
-                    label: Text(
-                      '$source (${widget.records.where((record) => record.source == source && (_includeSynthetic || !isSyntheticRecord(record))).length})',
-                    ),
+                    label: Text('$source (${sourceCounts[source] ?? 0})'),
                     tooltip: _selectedSources.contains(source)
                         ? 'Exclude $source from export'
                         : 'Include $source in export',
