@@ -189,6 +189,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                             key: const ValueKey('trend-specialty-all'),
                             label: const Text('All specialties'),
                             selected: _specialty == null,
+                            tooltip: 'Filter trends across all specialties',
                             onSelected: (_) => setState(() {
                               _specialty = null;
                               _selectedContext = null;
@@ -201,6 +202,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                               avatar: Icon(spec.icon, size: 16),
                               label: Text(spec.shortLabel),
                               selected: _specialty == spec,
+                              tooltip: 'Filter trends by ${spec.shortLabel}',
                               onSelected: (selected) => setState(() {
                                 _specialty = selected ? spec : null;
                                 _selectedContext = null;
@@ -258,6 +260,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                             key: ValueKey('trend-range-${range.name}'),
                             label: Text(range.label),
                             selected: _range == range,
+                            tooltip: range.tooltip,
                             onSelected: (_) => setState(() => _range = range),
                           ),
                       ],
@@ -491,4 +494,11 @@ enum _TrendRange {
 
   final String label;
   final int? days;
+
+  String get tooltip => switch (this) {
+    _TrendRange.days30 => 'Filter trend data from last 30 days',
+    _TrendRange.days90 => 'Filter trend data from last 90 days',
+    _TrendRange.year => 'Filter trend data from last 1 year',
+    _TrendRange.all => 'Filter trend data from all time',
+  };
 }
