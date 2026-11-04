@@ -196,7 +196,22 @@ void main() {
       source: 'Hospital Lab',
     );
 
-    final csv = exporter.buildCsv([unsafeRecord, safeNegativeRecord]);
+    final pipeRecord = HealthRecord(
+      id: 'lab:pipe',
+      name: '|cmd /c calc.exe',
+      value: '10',
+      unit: 'mg/dL',
+      recordedAt: DateTime.utc(2026, 9, 20),
+      category: RecordCategory.lab,
+      source: 'External Lab',
+      sourceData: {'notes': '=formula()'},
+    );
+
+    final csv = exporter.buildCsv([
+      unsafeRecord,
+      safeNegativeRecord,
+      pipeRecord,
+    ], includeSourceData: true);
 
     // Unsafe formula triggers must be sanitized with a leading single quote
     expect(csv, contains("'=HYPERLINK"));
@@ -206,6 +221,7 @@ void main() {
     expect(csv, contains("'\t1234"));
     expect(csv, contains("'-10% drop"));
     expect(csv, contains("'\rfinal"));
+    expect(csv, contains("'|cmd /c calc.exe"));
 
     // Standard negative numbers should not be prefixed with a single quote
     expect(csv, contains("Base Deficit,-3.5,mEq/L"));
