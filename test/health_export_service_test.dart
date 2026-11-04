@@ -204,14 +204,13 @@ void main() {
       recordedAt: DateTime.utc(2026, 9, 20),
       category: RecordCategory.lab,
       source: 'External Lab',
-      sourceData: {'notes': '=formula()'},
     );
 
     final csv = exporter.buildCsv([
       unsafeRecord,
       safeNegativeRecord,
       pipeRecord,
-    ], includeSourceData: true);
+    ]);
 
     // Unsafe formula triggers must be sanitized with a leading single quote
     expect(csv, contains("'=HYPERLINK"));

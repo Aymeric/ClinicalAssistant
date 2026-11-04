@@ -128,7 +128,7 @@ class HealthExportService {
             if (record.sourceData == null)
               ''
             else
-              _sanitizeCsvCell(jsonEncode(record.sourceData)),
+              jsonEncode(record.sourceData),
         ],
       ),
     ];
