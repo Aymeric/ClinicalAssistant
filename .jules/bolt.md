@@ -1,3 +1,7 @@
+## 2026-10-27 - Single-pass category and source count aggregation in ExportPage
+**Learning:** `ExportPage.build` was running separate full-collection passes: `.any(isSyntheticRecord)`, `.any(!isSyntheticRecord)`, `.where().map().toSet()` for available categories and sources, and then for *every* individual filter chip (14 categories + all unique sources), running `widget.records.where(...).length`. For large record sets, this repeated full O(N) traversals $14 + S + 4$ times per build and allocated dozens of closure iterators.
+**Action:** In a single pass over `widget.records`, track real/synthetic presence and increment category and source frequency counters simultaneously. Read directly from the count maps during filter chip rendering.
+
 ## 2026-11-03 - Single-pass numeric stats and fast-path parsing for cardiac rhythm cards
 **Learning:** In cardiac analysis components such as `HeartRhythmAnalysisCard`, computing summary metrics (latest, longitudinal average, and peak) across resting, walking, workout, and HRV categories previously generated multiple intermediate arrays (`.map().whereType<double>().toList()` and spread collections `[...resting, ...general, ...walking]`) and invoked ad-hoc regular expressions (`RegExp(r'[^\d.]')`) repeatedly on every build frame.
 **Action:** Compute latest, sum/average, and peak in a single-pass accumulator record per category, and fast-path numeric parsing using `parseHealthRecordValue` with a hoisted fallback regex instead of per-item pattern instantiations.
