@@ -37,6 +37,8 @@ void main() {
               onOpenTrends: () {},
               onOpenRecords: () {},
               onOpenExport: () {},
+              onSelectCategory: (_) {},
+              onSelectSpecialty: (_) {},
             ),
           ),
         ),
@@ -76,6 +78,90 @@ void main() {
         badgeTooltip.message,
         equals('Filter records by Vitals (1 entry)'),
       );
+
+      // Verify CategorySummaryBadge semantics
+      final badgeSemanticsList = tester.widgetList<Semantics>(
+        find.descendant(of: badgeFinder, matching: find.byType(Semantics)),
+      );
+      final badgeSemantics = badgeSemanticsList.firstWhere(
+        (s) => s.properties.label == 'Filter records by Vitals (1 entry)',
+      );
+      expect(badgeSemantics.properties.button, isTrue);
+      expect(badgeSemantics.excludeSemantics, isTrue);
+
+      // Verify SpecialtySummaryBadge semantics and tooltip
+      final specialtyBadgeFinder = find.byType(SpecialtySummaryBadge);
+      expect(specialtyBadgeFinder, findsWidgets);
+      final firstSpecialtyBadge = specialtyBadgeFinder.first;
+      final specialtyTooltip = tester.widget<Tooltip>(
+        find.descendant(
+          of: firstSpecialtyBadge,
+          matching: find.byType(Tooltip),
+        ),
+      );
+      expect(specialtyTooltip.message, contains('Filter records by'));
+      final specialtySemanticsList = tester.widgetList<Semantics>(
+        find.descendant(
+          of: firstSpecialtyBadge,
+          matching: find.byType(Semantics),
+        ),
+      );
+      final specialtySemantics = specialtySemanticsList.firstWhere(
+        (s) => s.properties.label == specialtyTooltip.message,
+      );
+      expect(specialtySemantics.properties.button, isTrue);
+      expect(specialtySemantics.excludeSemantics, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Critical safety alert modal close button displays accessible tooltip',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final criticalRecord = HealthRecord(
+        id: 'crit-1',
+        name: 'Systolic Blood Pressure',
+        category: RecordCategory.vital,
+        value: '195',
+        unit: 'mmHg',
+        recordedAt: DateTime.now(),
+        source: 'Manual entry',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: OverviewPage(
+              records: [criticalRecord],
+              loading: false,
+              error: null,
+              onConnect: () {},
+              onSeeAll: () {},
+              onRetry: () {},
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap on the critical alert card item to open modal
+      final criticalTile = find.textContaining('Hypertensive Crisis Range');
+      expect(criticalTile, findsOneWidget);
+      await tester.tap(criticalTile);
+      await tester.pumpAndSettle();
+
+      // Find close button in modal and verify tooltip
+      final closeButtonFinder = find.byTooltip('Close alert details');
+      expect(closeButtonFinder, findsOneWidget);
+
+      await tester.tap(closeButtonFinder);
+      await tester.pumpAndSettle();
+      expect(closeButtonFinder, findsNothing);
     },
   );
 
