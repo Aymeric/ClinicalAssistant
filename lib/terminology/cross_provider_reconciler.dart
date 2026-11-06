@@ -51,6 +51,9 @@ class ReconciledRecordGroup {
 class CrossProviderReconciler {
   const CrossProviderReconciler._();
 
+  // Hoisted pattern for non-alphanumeric character removal during analyte key normalization.
+  static final _nonAlphanumeric = RegExp(r'[^a-z0-9]');
+
   /// Normalizes a date to YYYY-MM-DD string representation in local time.
   static String normalizeDate(DateTime dt) {
     final local = dt.toLocal();
@@ -95,7 +98,7 @@ class CrossProviderReconciler {
 
     final cleanName = record.name
         .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]'), '')
+        .replaceAll(_nonAlphanumeric, '')
         .trim();
     return 'name:${record.category.name}:$cleanName';
   }
