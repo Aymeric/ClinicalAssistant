@@ -66,10 +66,14 @@ class HealthExportService {
     );
   }
 
-  static final _csvFormulaTrigger = RegExp(r'^\s*[=+\-@\t\r]');
+  // Security: Trigger characters that could initiate formula or command/DDE execution
+  // in spreadsheet engines (Excel, Calc, Google Sheets) per OWASP CSV Injection guidelines (CWE-1236).
+  // Includes `=`, `+`, `-`, `@`, `|`, tab (`\t`), and carriage return (`\r`).
+  static final _csvFormulaTrigger = RegExp(r'^\s*[=+\-@|\t\r]');
 
-  /// Sanitizes CSV cell values to prevent CSV / Formula Injection attacks when exported
-  /// data is opened in spreadsheet software (e.g. Excel, Calc, Google Sheets).
+  /// Sanitizes CSV cell values to prevent CSV / Formula Injection attacks (CWE-1236)
+  /// when exported data is opened in spreadsheet software (e.g. Excel, Calc, Google Sheets).
+  /// Formula trigger characters at the start of any cell are escaped with a leading single quote `'`.
   static String _sanitizeCsvCell(String value) {
     if (value.isEmpty) return value;
     final trimmed = value.trimLeft();
