@@ -234,7 +234,9 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
   Future<void> _loadInitialState() async {
     await _controller.load();
     if (!mounted) return;
-    unawaited(_medicationReminderService.initialize());
+    try {
+      await _medicationReminderService.initialize();
+    } catch (_) {}
     try {
       final hasPin = await _vaultSecurityService.isPinConfigured();
       if (hasPin && mounted) {
@@ -311,7 +313,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
   }
 
   void _onViewInTrends(HealthRecord record) {
-    final seriesId = healthTrendSeriesId(record);
+    final seriesId = canonicalTrendSeriesId(record);
     if (mounted) {
       setState(() {
         _trendInitialSeriesId = seriesId;
@@ -1030,6 +1032,7 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         records: _controller.records,
         loading: _controller.loading,
         initialSeriesId: _trendInitialSeriesId,
+        preferredUnitSystem: _controller.preferredUnitSystem,
         onRecordTap: _showRecordDetails,
         onOpenGuideline: _openGuideline,
       ),
@@ -1080,6 +1083,8 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
         restingHeartRateProfile: _controller.restingHeartRateProfile,
         onRestingHeartRateProfileChanged:
             _controller.setRestingHeartRateProfile,
+        preferredUnitSystem: _controller.preferredUnitSystem,
+        onPreferredUnitSystemChanged: _controller.setPreferredUnitSystem,
       ),
       ExportPage(
         records: _controller.records,

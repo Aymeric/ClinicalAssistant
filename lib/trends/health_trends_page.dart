@@ -4,6 +4,7 @@ import '../guidelines/clinical_guideline.dart';
 import '../guidelines/related_guidelines_widget.dart';
 import '../models/doctor_visit_preparation.dart';
 import '../models/health_record.dart';
+import '../terminology/clinical_unit_converter.dart';
 import '../ui/shared/record_widgets.dart';
 import 'blood_pressure_context_card.dart';
 import 'health_trend.dart';
@@ -21,6 +22,7 @@ class HealthTrendsPage extends StatefulWidget {
     this.loading = false,
     this.initialSeriesId,
     this.initialSpecialty,
+    this.preferredUnitSystem,
     this.onRecordTap,
     this.onOpenGuideline,
   });
@@ -29,6 +31,7 @@ class HealthTrendsPage extends StatefulWidget {
   final bool loading;
   final String? initialSeriesId;
   final DoctorVisitSpecialty? initialSpecialty;
+  final ClinicalUnitSystem? preferredUnitSystem;
   final ValueChanged<HealthRecord>? onRecordTap;
   final ValueChanged<ClinicalGuideline>? onOpenGuideline;
 
@@ -72,7 +75,10 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final allSeries = buildHealthTrendSeries(widget.records);
+    final allSeries = buildHealthTrendSeries(
+      widget.records,
+      preferredUnitSystem: widget.preferredUnitSystem,
+    );
     final specialtySeries = _specialty == null
         ? allSeries
         : allSeries
@@ -84,7 +90,15 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
               .where((series) => series.category == _category)
               .toList();
     final selectedSeries = visibleSeries.cast<HealthTrendSeries?>().firstWhere(
-      (series) => series?.id == _selectedSeriesId,
+      (series) =>
+          series?.id == _selectedSeriesId ||
+          (series != null &&
+              _selectedSeriesId != null &&
+              series.points.any(
+                (p) =>
+                    healthTrendSeriesId(p.record) == _selectedSeriesId ||
+                    canonicalTrendSeriesId(p.record) == _selectedSeriesId,
+              )),
       orElse: () => visibleSeries.isEmpty ? null : visibleSeries.first,
     );
 
@@ -389,6 +403,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                             ? 'Systolic'
                             : null,
                         secondaryName: selectedSeries.secondaryName,
+                        secondaryUnit: selectedSeries.secondaryUnit,
                         onRecordTap: widget.onRecordTap,
                       ),
                       if (selectedSeries.id == 'combined_blood_pressure')

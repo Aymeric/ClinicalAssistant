@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/health_record.dart';
 import '../models/symptom_details.dart';
+import '../terminology/clinical_unit_converter.dart';
 import 'health_trend.dart';
 import 'medication_chart_event.dart';
 import 'trend_chart_painter.dart';
@@ -20,6 +21,7 @@ class TrendChartPanel extends StatefulWidget {
     this.secondaryPoints = const [],
     this.primaryName,
     this.secondaryName,
+    this.secondaryUnit,
     this.onRecordTap,
   });
 
@@ -32,6 +34,7 @@ class TrendChartPanel extends StatefulWidget {
   final List<HealthTrendPoint> secondaryPoints;
   final String? primaryName;
   final String? secondaryName;
+  final String? secondaryUnit;
   final ValueChanged<HealthRecord>? onRecordTap;
 
   @override
@@ -670,11 +673,29 @@ class ChartInspectionBanner extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${record.displayValue} · $dateStr at $timeStr',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final numericVal = parseHealthRecordValue(
+                            record.value,
+                          );
+                          final secondaryEquiv = numericVal != null
+                              ? ClinicalUnitConverter.formatDualUnitEquivalent(
+                                  value: numericVal,
+                                  fromUnit: record.unit,
+                                  code: record.code,
+                                  name: record.name,
+                                )
+                              : null;
+                          final displayTitle = secondaryEquiv != null
+                              ? '${record.displayValue} ($secondaryEquiv)'
+                              : record.displayValue;
+                          return Text(
+                            '$displayTitle · $dateStr at $timeStr',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 2),
                       Text(

@@ -1,4 +1,5 @@
 import '../models/health_record.dart';
+import '../terminology/clinical_unit_converter.dart';
 
 class HealthTrendPoint {
   const HealthTrendPoint({required this.record, required this.value});
@@ -54,6 +55,8 @@ class HealthTrendSeries {
     this.secondaryPoints = const [],
     this.secondaryName,
     this.referenceBand,
+    this.secondaryUnit,
+    this.analyteConversion,
   });
 
   final String id;
@@ -64,8 +67,12 @@ class HealthTrendSeries {
   final List<HealthTrendPoint> secondaryPoints;
   final String? secondaryName;
   final HealthReferenceRange? referenceBand;
+  final String? secondaryUnit;
+  final ClinicalAnalyteConversion? analyteConversion;
 
   bool get hasSecondarySeries => secondaryPoints.isNotEmpty;
+  bool get hasSecondaryUnit =>
+      secondaryUnit != null && secondaryUnit!.isNotEmpty;
   String get label => unit.isEmpty ? name : '$name ($unit)';
 }
 
@@ -129,6 +136,9 @@ class HealthLabResultSummary {
 
 String healthTrendSeriesId(HealthRecord record) =>
     '${record.category.name}\u0000${record.name.trim().toLowerCase()}\u0000${record.unit}';
+
+String canonicalTrendSeriesId(HealthRecord record) =>
+    ClinicalUnitConverter.canonicalSeriesId(record);
 
 List<HealthLabResultSummary> buildLatestLabResultSummaries(
   Iterable<HealthRecord> records, {
@@ -269,11 +279,23 @@ HealthLabTrendDirection _labTrendDirection({
     return HealthLabTrendDirection.shiftedAcrossRange;
   }
 
-  final previousDistance = _distanceFromRange(
+  var previousDistance = _distanceFromRange(
     previous.value,
     previousRange,
     previousStatus,
   );
+  if (!_referenceUnitsMatch(previous.record.unit, latest.record.unit)) {
+    final convertedDist = ClinicalUnitConverter.convertValue(
+      previousDistance,
+      fromUnit: previous.record.unit,
+      toUnit: latest.record.unit,
+      code: latest.record.code ?? previous.record.code,
+      name: latest.record.name,
+    );
+    if (convertedDist != null) {
+      previousDistance = convertedDist;
+    }
+  }
   final latestDistance = _distanceFromRange(
     latest.value,
     latestRange,
@@ -321,14 +343,17 @@ HealthReferenceRange? findReferenceBand(
   return null;
 }
 
-List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
+List<HealthTrendSeries> buildHealthTrendSeries(
+  Iterable<HealthRecord> records, {
+  ClinicalUnitSystem? preferredUnitSystem,
+}) {
   // Store parsed HealthTrendPoint objects during grouping to avoid duplicate
   // numeric string parsing for every record when constructing HealthTrendSeries.
   final groups = <String, List<HealthTrendPoint>>{};
   for (final record in records) {
     final parsedValue = parseHealthRecordValue(record.value);
     if (parsedValue == null) continue;
-    final key = healthTrendSeriesId(record);
+    final key = canonicalTrendSeriesId(record);
     groups
         .putIfAbsent(key, () => [])
         .add(HealthTrendPoint(record: record, value: parsedValue));
@@ -339,15 +364,77 @@ List<HealthTrendSeries> buildHealthTrendSeries(Iterable<HealthRecord> records) {
     final points = entry.value
       ..sort((a, b) => a.record.recordedAt.compareTo(b.record.recordedAt));
     final first = points.first.record;
-    final band = findReferenceBand(points, unit: first.unit);
+    final latest = points.last.record;
+
+    final conv = ClinicalUnitConverter.findConversion(
+      code: latest.code ?? first.code,
+      name: latest.name,
+      unit: latest.unit,
+    );
+
+    String displayUnit = first.unit;
+    String? secondaryUnit;
+    var normalizedPoints = points;
+    HealthReferenceRange? band;
+
+    if (conv != null &&
+        first.category == RecordCategory.lab &&
+        (conv.isCompatibleUnit(first.unit) ||
+            conv.isCompatibleUnit(latest.unit))) {
+      if (preferredUnitSystem != null) {
+        displayUnit = conv.unitForSystem(preferredUnitSystem);
+      } else {
+        displayUnit = conv.isCompatibleUnit(latest.unit)
+            ? latest.unit
+            : conv.usUnit;
+      }
+      secondaryUnit = conv.isUsUnit(displayUnit) ? conv.siUnit : conv.usUnit;
+
+      normalizedPoints = points.map((p) {
+        if (_referenceUnitsMatch(p.record.unit, displayUnit)) {
+          return p;
+        }
+        final converted = conv.convert(
+          p.value,
+          fromUnit: p.record.unit,
+          toUnit: displayUnit,
+        );
+        return HealthTrendPoint(record: p.record, value: converted ?? p.value);
+      }).toList();
+
+      for (final point in points.reversed) {
+        final rangeText = point.record.referenceRange;
+        if (rangeText != null && rangeText.trim().isNotEmpty) {
+          final range = parseHealthReferenceRange(rangeText);
+          if (range != null &&
+              (range.lowerBound != null || range.upperBound != null)) {
+            band =
+                ClinicalUnitConverter.convertReferenceRange(
+                  range,
+                  fromUnit: point.record.unit,
+                  targetUnit: displayUnit,
+                  code: latest.code ?? first.code,
+                  name: latest.name,
+                ) ??
+                range;
+            break;
+          }
+        }
+      }
+    } else {
+      band = findReferenceBand(points, unit: first.unit);
+    }
+
     series.add(
       HealthTrendSeries(
         id: entry.key,
         name: first.name,
-        unit: first.unit,
+        unit: displayUnit,
         category: first.category,
-        points: points,
+        points: normalizedPoints,
         referenceBand: band,
+        secondaryUnit: secondaryUnit,
+        analyteConversion: conv,
       ),
     );
   }
@@ -489,10 +576,26 @@ List<HealthTrendReferenceMark> buildHealthTrendReferenceMarks(
 }) {
   final marks = <HealthTrendReferenceMark>[];
   for (var index = 0; index < points.length; index++) {
-    final range = parseHealthReferenceRange(
-      points[index].record.referenceRange,
+    final record = points[index].record;
+    var range = parseHealthReferenceRange(
+      record.referenceRange,
       expectedUnit: unit,
     );
+    if (range == null && record.referenceRange != null) {
+      final rawRange = parseHealthReferenceRange(
+        record.referenceRange,
+        expectedUnit: record.unit,
+      );
+      if (rawRange != null) {
+        range = ClinicalUnitConverter.convertReferenceRange(
+          rawRange,
+          fromUnit: record.unit,
+          targetUnit: unit,
+          code: record.code,
+          name: record.name,
+        );
+      }
+    }
     if (range != null) {
       marks.add(HealthTrendReferenceMark(index: index, range: range));
     }

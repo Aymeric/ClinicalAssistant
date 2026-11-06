@@ -1,4 +1,5 @@
 import '../models/health_record.dart';
+import 'clinical_unit_converter.dart';
 
 /// Represents a standardized offline LOINC concept entry with clear
 /// patient-facing nomenclature, clinical descriptions, and unit conversion metadata.
@@ -418,60 +419,21 @@ class LoincDictionary {
     required String fromUnit,
     required String? code,
   }) {
-    if (code == null) return null;
-    final concept = lookup(code);
-    if (concept == null) return null;
-
-    final normFrom = fromUnit.trim();
-
-    // Blood glucose: 1 mmol/L = 18.0182 mg/dL
-    if (concept.code == '2345-7' ||
-        concept.alternateCodes.contains(concept.code)) {
-      if (normFrom.toLowerCase() == 'mg/dl') {
-        final mmol = value / 18.0182;
-        return '${mmol.toStringAsFixed(1)} mmol/L';
-      } else if (normFrom.toLowerCase() == 'mmol/l') {
-        final mgdl = (value * 18.0182).round();
-        return '$mgdl mg/dL';
+    final formatted = ClinicalUnitConverter.formatDualUnitEquivalent(
+      value: value,
+      fromUnit: fromUnit,
+      code: code,
+    );
+    if (formatted != null && code != null) {
+      final concept = lookup(code);
+      if (concept != null) {
+        for (final eq in concept.equivalentUnits) {
+          if (eq.toLowerCase() == 'umol/l' && formatted.endsWith('µmol/L')) {
+            return formatted.replaceAll('µmol/L', eq);
+          }
+        }
       }
     }
-
-    // Total cholesterol, HDL, LDL: 1 mmol/L = 38.67 mg/dL
-    if (concept.code == '2093-3' ||
-        concept.code == '2085-9' ||
-        concept.code == '13457-7') {
-      if (normFrom.toLowerCase() == 'mg/dl') {
-        final mmol = value / 38.67;
-        return '${mmol.toStringAsFixed(2)} mmol/L';
-      } else if (normFrom.toLowerCase() == 'mmol/l') {
-        final mgdl = (value * 38.67).round();
-        return '$mgdl mg/dL';
-      }
-    }
-
-    // Triglycerides: 1 mmol/L = 88.57 mg/dL
-    if (concept.code == '2571-8') {
-      if (normFrom.toLowerCase() == 'mg/dl') {
-        final mmol = value / 88.57;
-        return '${mmol.toStringAsFixed(2)} mmol/L';
-      } else if (normFrom.toLowerCase() == 'mmol/l') {
-        final mgdl = (value * 88.57).round();
-        return '$mgdl mg/dL';
-      }
-    }
-
-    // Serum creatinine: 1 mg/dL = 88.4 umol/L
-    if (concept.code == '2160-0') {
-      if (normFrom.toLowerCase() == 'mg/dl') {
-        final umol = (value * 88.4).round();
-        return '$umol umol/L';
-      } else if (normFrom.toLowerCase() == 'umol/l' ||
-          normFrom.toLowerCase() == 'µmol/l') {
-        final mgdl = value / 88.4;
-        return '${mgdl.toStringAsFixed(2)} mg/dL';
-      }
-    }
-
-    return null;
+    return formatted;
   }
 }

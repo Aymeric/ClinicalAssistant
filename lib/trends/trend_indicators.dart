@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/health_record.dart';
+import '../terminology/clinical_unit_converter.dart';
 import '../ui/shared/record_widgets.dart';
 import 'health_trend.dart';
 
@@ -18,14 +19,52 @@ class SelectedReadingHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final latest = summary.latest.record;
+    final numericVal = parseHealthRecordValue(latest.value);
+    final secondaryEquiv = numericVal != null
+        ? ClinicalUnitConverter.formatDualUnitEquivalent(
+            value: numericVal,
+            fromUnit: latest.unit,
+            code: latest.code,
+            name: latest.name,
+          )
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          series.name,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                series.name,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (series.hasSecondaryUnit)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Text(
+                  '${series.unit} · ${series.secondaryUnit}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         Wrap(
@@ -33,7 +72,9 @@ class SelectedReadingHeading extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
-              latest.displayValue,
+              secondaryEquiv != null
+                  ? '${latest.displayValue} ($secondaryEquiv)'
+                  : latest.displayValue,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.7,

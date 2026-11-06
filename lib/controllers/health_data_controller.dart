@@ -4,11 +4,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../data/clinical_unit_preferences.dart';
 import '../data/critical_safety_preferences.dart';
 import '../data/encrypted_record_store.dart';
 import '../data/pinned_metrics_preferences.dart';
 import '../data/synthetic_demonstration_data.dart';
 import '../data/vault_backup_service.dart';
+import '../terminology/clinical_unit_converter.dart';
 import '../integrations/fhir_file_import.dart';
 import '../integrations/fhir_portal_importer.dart';
 import '../integrations/health_platform_importer.dart';
@@ -29,6 +31,7 @@ class HealthDataController extends ChangeNotifier {
     SyncValueStore? syncValueStore,
     PinnedMetricsPreferences? pinnedPreferences,
     CriticalSafetyPreferences? safetyPreferences,
+    ClinicalUnitPreferences? unitPreferences,
     VaultBackupService? vaultBackupService,
   }) : _store = store ?? EncryptedRecordStore(),
        _healthImporter = healthImporter ?? HealthPlatformImporter(),
@@ -56,6 +59,15 @@ class HealthDataController extends ChangeNotifier {
                    storage: secureStorage ?? const FlutterSecureStorage(),
                  ),
            ),
+       _unitPreferences =
+           unitPreferences ??
+           ClinicalUnitPreferences(
+             storage:
+                 syncValueStore ??
+                 SecureSyncValueStore(
+                   storage: secureStorage ?? const FlutterSecureStorage(),
+                 ),
+           ),
        _vaultBackupService = vaultBackupService ?? VaultBackupService();
 
   static const _fhirBaseKey = 'fhir_base_url_v1';
@@ -76,6 +88,7 @@ class HealthDataController extends ChangeNotifier {
   final PinnedMetricsPreferences _pinnedPreferences;
   final CriticalSafetyPreferences _safetyPreferences;
   final VaultBackupService _vaultBackupService;
+  final ClinicalUnitPreferences _unitPreferences;
   late final SourceImportHistoryStore _historyStore = SourceImportHistoryStore(
     storage: _syncValueStore,
   );
@@ -87,7 +100,22 @@ class HealthDataController extends ChangeNotifier {
   SyncValueStore get syncValueStore => _syncValueStore;
   PinnedMetricsPreferences get pinnedPreferences => _pinnedPreferences;
   CriticalSafetyPreferences get safetyPreferences => _safetyPreferences;
+  ClinicalUnitPreferences get unitPreferences => _unitPreferences;
   VaultBackupService get vaultBackupService => _vaultBackupService;
+
+  ClinicalUnitSystem _preferredUnitSystem = ClinicalUnitSystem.usConventional;
+  ClinicalUnitSystem get preferredUnitSystem => _preferredUnitSystem;
+
+  Future<void> loadUnitPreferences() async {
+    _preferredUnitSystem = await _unitPreferences.getPreferredSystem();
+    notifyListeners();
+  }
+
+  Future<void> setPreferredUnitSystem(ClinicalUnitSystem system) async {
+    _preferredUnitSystem = system;
+    await _unitPreferences.setPreferredSystem(system);
+    notifyListeners();
+  }
 
   RestingHeartRateProfile _restingHeartRateProfile =
       RestingHeartRateProfile.athletic;
@@ -181,6 +209,7 @@ class HealthDataController extends ChangeNotifier {
     }
     unawaited(_loadImportHistory());
     unawaited(loadSafetyPreferences());
+    unawaited(loadUnitPreferences());
   }
 
   Future<void> _loadImportHistory() async {
