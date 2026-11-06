@@ -1121,19 +1121,25 @@ class _MedicationsPageState extends State<MedicationsPage> {
                   Tooltip(
                     message:
                         '30-day Proportion of Days Covered (PDC): ${pdc30.descriptiveLabel}',
-                    child: InkWell(
-                      key: ValueKey('pdc-chip-${med.name}'),
-                      onTap: () => _showAdherenceHistory(med),
-                      borderRadius: BorderRadius.circular(8),
-                      child: _detailPill(
-                        pdc30.meetsClinicalBenchmark
-                            ? Icons.verified_outlined
-                            : Icons.pie_chart_outline,
-                        '30d PDC: ${pdc30.pdcPercentRounded}%',
-                        colors,
-                        color: pdc30.meetsClinicalBenchmark
-                            ? colors.primary
-                            : colors.tertiary,
+                    child: Semantics(
+                      button: true,
+                      label:
+                          '30-day Proportion of Days Covered: ${pdc30.pdcPercentRounded}%, ${pdc30.descriptiveLabel}. Tap to view adherence history',
+                      excludeSemantics: true,
+                      child: InkWell(
+                        key: ValueKey('pdc-chip-${med.name}'),
+                        onTap: () => _showAdherenceHistory(med),
+                        borderRadius: BorderRadius.circular(8),
+                        child: _detailPill(
+                          pdc30.meetsClinicalBenchmark
+                              ? Icons.verified_outlined
+                              : Icons.pie_chart_outline,
+                          '30d PDC: ${pdc30.pdcPercentRounded}%',
+                          colors,
+                          color: pdc30.meetsClinicalBenchmark
+                              ? colors.primary
+                              : colors.tertiary,
+                        ),
                       ),
                     ),
                   ),
