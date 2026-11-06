@@ -258,12 +258,16 @@ class VaultSecurityService {
   }
 
   /// Compares two byte lists in constant time to prevent timing attacks.
+  /// Iterates across the maximum length of both buffers to prevent leaking the
+  /// shorter buffer length via execution timing variance.
   /// Visible for testing.
   bool constantTimeCompare(List<int> a, List<int> b) {
     var result = a.length ^ b.length;
-    final minLength = a.length < b.length ? a.length : b.length;
-    for (var i = 0; i < minLength; i++) {
-      result |= a[i] ^ b[i];
+    final maxLength = a.length > b.length ? a.length : b.length;
+    for (var i = 0; i < maxLength; i++) {
+      final byteA = i < a.length ? a[i] : 0;
+      final byteB = i < b.length ? b[i] : 0;
+      result |= byteA ^ byteB;
     }
     return result == 0;
   }
