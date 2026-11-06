@@ -271,6 +271,7 @@ class _HealthTrendsPageState extends State<HealthTrendsPage> {
                           ChoiceChip(
                             key: ValueKey('trend-range-${range.name}'),
                             label: Text(range.label),
+                            tooltip: range.tooltip,
                             selected: _range == range,
                             onSelected: (_) => setState(() => _range = range),
                           ),
@@ -506,4 +507,11 @@ enum _TrendRange {
 
   final String label;
   final int? days;
+
+  String get tooltip => switch (this) {
+    _TrendRange.days30 => 'Chart readings from the last 30 days',
+    _TrendRange.days90 => 'Chart readings from the last 90 days',
+    _TrendRange.year => 'Chart readings from the last 1 year',
+    _TrendRange.all => 'Chart readings from all recorded time',
+  };
 }
