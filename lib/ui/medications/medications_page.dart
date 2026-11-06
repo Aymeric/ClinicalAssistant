@@ -82,21 +82,31 @@ class _MedicationsPageState extends State<MedicationsPage> {
     }
   }
 
-  Future<void> _quickLogDose(HealthRecord med) async {
-    await widget.controller.logMedicationDose(med);
+  Future<void> _quickLogDose(
+    HealthRecord med, {
+    MedicationAdherenceStatus status = MedicationAdherenceStatus.taken,
+  }) async {
+    await widget.controller.logMedicationDose(med, status: status);
     if (mounted) {
+      final actionWord = status == MedicationAdherenceStatus.skipped
+          ? 'Logged skipped dose'
+          : 'Logged dose';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Logged dose for ${med.name}'),
+          content: Text('$actionWord for ${med.name}'),
           duration: const Duration(seconds: 2),
         ),
       );
     }
   }
 
-  Future<void> _logDoseWithDetails(HealthRecord med) async {
+  Future<void> _logDoseWithDetails(
+    HealthRecord med, {
+    MedicationAdherenceStatus initialStatus = MedicationAdherenceStatus.taken,
+  }) async {
     final noteController = TextEditingController();
     DateTime chosenTime = DateTime.now();
+    var chosenStatus = initialStatus;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -113,11 +123,36 @@ class _MedicationsPageState extends State<MedicationsPage> {
                   color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              SegmentedButton<MedicationAdherenceStatus>(
+                segments: const [
+                  ButtonSegment(
+                    value: MedicationAdherenceStatus.taken,
+                    icon: Icon(Icons.check, size: 16),
+                    label: Text('Taken'),
+                  ),
+                  ButtonSegment(
+                    value: MedicationAdherenceStatus.skipped,
+                    icon: Icon(Icons.close, size: 16),
+                    label: Text('Skipped'),
+                  ),
+                ],
+                selected: {chosenStatus},
+                onSelectionChanged: (newSet) {
+                  if (newSet.isNotEmpty) {
+                    setDialogState(() => chosenStatus = newSet.first);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.access_time),
-                title: const Text('Time taken'),
+                title: Text(
+                  chosenStatus == MedicationAdherenceStatus.skipped
+                      ? 'Time skipped'
+                      : 'Time taken',
+                ),
                 subtitle: Text(
                   MaterialLocalizations.of(
                     ctx,
@@ -147,10 +182,12 @@ class _MedicationsPageState extends State<MedicationsPage> {
               const SizedBox(height: 8),
               TextField(
                 controller: noteController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Note (optional)',
-                  hintText: 'e.g. Taken with food, mild nausea...',
-                  border: OutlineInputBorder(),
+                  hintText: chosenStatus == MedicationAdherenceStatus.skipped
+                      ? 'e.g. Fasting for lab work, mild nausea...'
+                      : 'e.g. Taken with food, mild nausea...',
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -162,7 +199,11 @@ class _MedicationsPageState extends State<MedicationsPage> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogCtx, true),
-              child: const Text('Log Dose'),
+              child: Text(
+                chosenStatus == MedicationAdherenceStatus.skipped
+                    ? 'Log Skipped'
+                    : 'Log Dose',
+              ),
             ),
           ],
         ),
@@ -173,14 +214,18 @@ class _MedicationsPageState extends State<MedicationsPage> {
       await widget.controller.logMedicationDose(
         med,
         takenAt: chosenTime,
+        status: chosenStatus,
         note: noteController.text.trim().isEmpty
             ? null
             : noteController.text.trim(),
       );
       if (mounted) {
+        final msg = chosenStatus == MedicationAdherenceStatus.skipped
+            ? 'Logged skipped dose for ${med.name}'
+            : 'Logged dose for ${med.name}';
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Logged dose for ${med.name}')));
+        ).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
   }
@@ -508,106 +553,11 @@ class _MedicationsPageState extends State<MedicationsPage> {
   }
 
   void _showAdherenceHistory(HealthRecord med) {
-    final details = ManualMedicationDetails.fromRecord(med);
-    final logs = [...details.adherenceLogs]
-      ..sort((a, b) => b.takenAt.compareTo(a.takenAt));
-
     showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
       isScrollControlled: true,
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        minChildSize: 0.4,
-        builder: (sheetCtx, scrollController) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(ctx).colorScheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${med.name} Adherence',
-                          style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          '${logs.length} logged dose${logs.length == 1 ? '' : 's'}',
-                          style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    tooltip: 'Close',
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              if (logs.isEmpty)
-                const Expanded(
-                  child: Center(
-                    child: Text('No doses logged yet for this medication.'),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.separated(
-                    controller: scrollController,
-                    itemCount: logs.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final log = logs[index];
-                      final local = log.takenAt.toLocal();
-                      final dateStr = MaterialLocalizations.of(
-                        ctx,
-                      ).formatShortDate(local);
-                      final timeStr = MaterialLocalizations.of(
-                        ctx,
-                      ).formatTimeOfDay(TimeOfDay.fromDateTime(local));
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Theme.of(
-                            ctx,
-                          ).colorScheme.primaryContainer,
-                          foregroundColor: Theme.of(
-                            ctx,
-                          ).colorScheme.onPrimaryContainer,
-                          child: const Icon(Icons.check, size: 18),
-                        ),
-                        title: Text('$dateStr at $timeStr'),
-                        subtitle: log.notes != null ? Text(log.notes!) : null,
-                      );
-                    },
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
+      builder: (ctx) => _MedicationAdherenceSheet(med: med),
     );
   }
 
@@ -927,6 +877,7 @@ class _MedicationsPageState extends State<MedicationsPage> {
     final colors = theme.colorScheme;
     final details = ManualMedicationDetails.fromRecord(med);
     final logCount = details.adherenceLogs.length;
+    final pdc30 = MedicationPdcEvaluation.evaluate(med, windowDays: 30);
 
     MedicationAdherenceLog? lastLog;
     if (details.adherenceLogs.isNotEmpty) {
@@ -939,13 +890,14 @@ class _MedicationsPageState extends State<MedicationsPage> {
     if (lastLog != null) {
       final now = DateTime.now();
       final diff = now.difference(lastLog.takenAt);
+      final verb = lastLog.isSkipped ? 'Skipped' : 'Taken';
       if (diff.inHours < 1) {
-        lastTakenLabel = 'Taken recently (${diff.inMinutes}m ago)';
+        lastTakenLabel = '$verb recently (${diff.inMinutes}m ago)';
       } else if (diff.inHours < 24) {
-        lastTakenLabel = 'Taken ${diff.inHours}h ago';
+        lastTakenLabel = '$verb ${diff.inHours}h ago';
       } else {
         lastTakenLabel =
-            'Last taken: ${MaterialLocalizations.of(context).formatShortDate(lastLog.takenAt.toLocal())}';
+            'Last ${verb.toLowerCase()}: ${MaterialLocalizations.of(context).formatShortDate(lastLog.takenAt.toLocal())}';
       }
     }
 
@@ -1156,10 +1108,34 @@ class _MedicationsPageState extends State<MedicationsPage> {
                   _detailPill(Icons.alt_route, details.route!, colors),
                 if (lastTakenLabel != null)
                   _detailPill(
-                    Icons.check_circle_outline,
+                    lastLog != null && lastLog.isSkipped
+                        ? Icons.cancel_outlined
+                        : Icons.check_circle_outline,
                     lastTakenLabel,
                     colors,
-                    color: colors.primary,
+                    color: lastLog != null && lastLog.isSkipped
+                        ? colors.tertiary
+                        : colors.primary,
+                  ),
+                if (!pdc30.isPrn && logCount > 0 && pdc30.eligibleDays > 0)
+                  Tooltip(
+                    message:
+                        '30-day Proportion of Days Covered (PDC): ${pdc30.descriptiveLabel}',
+                    child: InkWell(
+                      key: ValueKey('pdc-chip-${med.name}'),
+                      onTap: () => _showAdherenceHistory(med),
+                      borderRadius: BorderRadius.circular(8),
+                      child: _detailPill(
+                        pdc30.meetsClinicalBenchmark
+                            ? Icons.verified_outlined
+                            : Icons.pie_chart_outline,
+                        '30d PDC: ${pdc30.pdcPercentRounded}%',
+                        colors,
+                        color: pdc30.meetsClinicalBenchmark
+                            ? colors.primary
+                            : colors.tertiary,
+                      ),
+                    ),
                   ),
                 if (logCount > 0)
                   Tooltip(
@@ -1216,10 +1192,31 @@ class _MedicationsPageState extends State<MedicationsPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  Expanded(
+                    child: Tooltip(
+                      message: 'Record a skipped dose',
+                      child: OutlinedButton.icon(
+                        key: ValueKey('skip-dose-${med.name}'),
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () => _quickLogDose(
+                          med,
+                          status: MedicationAdherenceStatus.skipped,
+                        ),
+                        icon: const Icon(Icons.close, size: 16),
+                        label: const Text('Mark Skipped'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   IconButton.outlined(
-                    tooltip: 'History',
+                    tooltip: 'History & Calendar',
                     visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.history, size: 18),
+                    icon: const Icon(Icons.calendar_month_outlined, size: 18),
                     onPressed: () => _showAdherenceHistory(med),
                   ),
                 ],
@@ -1258,6 +1255,548 @@ class _MedicationsPageState extends State<MedicationsPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MedicationAdherenceSheet extends StatefulWidget {
+  const _MedicationAdherenceSheet({required this.med});
+
+  final HealthRecord med;
+
+  @override
+  State<_MedicationAdherenceSheet> createState() =>
+      _MedicationAdherenceSheetState();
+}
+
+class _MedicationAdherenceSheetState extends State<_MedicationAdherenceSheet> {
+  int _selectedWindowDays = 30;
+  late DateTime _displayedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    final details = ManualMedicationDetails.fromRecord(widget.med);
+    if (details.adherenceLogs.isNotEmpty) {
+      final latestLog = details.adherenceLogs.reduce(
+        (a, b) => a.takenAt.isAfter(b.takenAt) ? a : b,
+      );
+      final local = latestLog.takenAt.toLocal();
+      _displayedMonth = DateTime(local.year, local.month, 1);
+    } else {
+      final now = DateTime.now();
+      _displayedMonth = DateTime(now.year, now.month, 1);
+    }
+  }
+
+  void _changeMonth(int delta) {
+    setState(() {
+      _displayedMonth = DateTime(
+        _displayedMonth.year,
+        _displayedMonth.month + delta,
+        1,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final details = ManualMedicationDetails.fromRecord(widget.med);
+    final logs = [...details.adherenceLogs]
+      ..sort((a, b) => b.takenAt.compareTo(a.takenAt));
+
+    final pdc = MedicationPdcEvaluation.evaluate(
+      widget.med,
+      windowDays: _selectedWindowDays,
+    );
+    final monthDays = MedicationPdcEvaluation.buildMonthCalendar(
+      widget.med,
+      year: _displayedMonth.year,
+      month: _displayedMonth.month,
+    );
+    final firstWeekdayOffset = _displayedMonth.weekday % 7; // Sunday = 0
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.82,
+      maxChildSize: 0.94,
+      minChildSize: 0.5,
+      builder: (sheetCtx, scrollController) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${widget.med.name} Adherence',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${logs.length} logged dose${logs.length == 1 ? '' : 's'} · ${details.frequency.isNotEmpty ? details.frequency : "Standard schedule"}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  _buildPdcSummaryCard(pdc, theme, colors),
+                  const SizedBox(height: 16),
+                  _buildMonthlyCalendarCard(
+                    monthDays,
+                    firstWeekdayOffset,
+                    theme,
+                    colors,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Dose Log History (${logs.length})',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (logs.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No doses logged yet for this medication.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    for (var i = 0; i < logs.length; i++) ...[
+                      _buildLogTile(logs[i], context, colors, theme),
+                      if (i < logs.length - 1) const Divider(height: 1),
+                    ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPdcSummaryCard(
+    MedicationPdcEvaluation pdc,
+    ThemeData theme,
+    ColorScheme colors,
+  ) {
+    final isBenchmarkMet = pdc.meetsClinicalBenchmark;
+    final badgeColor = pdc.isPrn
+        ? colors.secondary
+        : (isBenchmarkMet ? colors.primary : colors.tertiary);
+
+    return Container(
+      key: const ValueKey('medication-pdc-summary-card'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Proportion of Days Covered (PDC)',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              SegmentedButton<int>(
+                key: const ValueKey('pdc-window-selector'),
+                style: SegmentedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                segments: const [
+                  ButtonSegment(value: 30, label: Text('30d')),
+                  ButtonSegment(value: 60, label: Text('60d')),
+                  ButtonSegment(value: 90, label: Text('90d')),
+                ],
+                selected: {_selectedWindowDays},
+                onSelectionChanged: (selection) {
+                  if (selection.isNotEmpty) {
+                    setState(() => _selectedWindowDays = selection.first);
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (pdc.isPrn)
+            Text(
+              'PRN (As needed) regimen · ${pdc.takenDoses} dose${pdc.takenDoses == 1 ? '' : 's'} taken in the last $_selectedWindowDays days.',
+              style: theme.textTheme.bodyMedium,
+            )
+          else ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '${pdc.pdcPercentRounded}%',
+                  key: const ValueKey('pdc-percentage-value'),
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: badgeColor,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '${pdc.coveredDays} of ${pdc.eligibleDays} eligible days covered (${pdc.expectedDosesPerDay}x/day)',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: pdc.pdcRatio,
+                minHeight: 6,
+                backgroundColor: colors.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation<Color>(badgeColor),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  isBenchmarkMet
+                      ? Icons.verified_outlined
+                      : Icons.info_outline_rounded,
+                  size: 15,
+                  color: badgeColor,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    isBenchmarkMet
+                        ? 'Meets standard clinical adherence benchmark (≥80% PDC).'
+                        : 'Below 80% PDC clinical adherence benchmark (${pdc.takenDoses} taken, ${pdc.skippedDoses} skipped).',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurface,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 6),
+          Text(
+            'Calculated locally on-device for descriptive consultation review. Does not constitute medical advice.',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colors.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthlyCalendarCard(
+    List<MedicationAdherenceDaySummary> monthDays,
+    int firstWeekdayOffset,
+    ThemeData theme,
+    ColorScheme colors,
+  ) {
+    final monthLabel = MaterialLocalizations.of(
+      context,
+    ).formatMonthYear(_displayedMonth);
+    const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return Container(
+      key: const ValueKey('medication-adherence-calendar'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Monthly Adherence Calendar',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    key: const ValueKey('calendar-prev-month'),
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.chevron_left, size: 20),
+                    tooltip: 'Previous month',
+                    onPressed: () => _changeMonth(-1),
+                  ),
+                  Text(
+                    monthLabel,
+                    key: const ValueKey('calendar-month-label'),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  IconButton(
+                    key: const ValueKey('calendar-next-month'),
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.chevron_right, size: 20),
+                    tooltip: 'Next month',
+                    onPressed: () => _changeMonth(1),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: weekdayLabels
+                .map(
+                  (label) => Expanded(
+                    child: Center(
+                      child: Text(
+                        label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 6),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+              childAspectRatio: 1.1,
+            ),
+            itemCount: firstWeekdayOffset + monthDays.length,
+            itemBuilder: (ctx, index) {
+              if (index < firstWeekdayOffset) {
+                return const SizedBox.shrink();
+              }
+              final summary = monthDays[index - firstWeekdayOffset];
+              return _buildCalendarDayCell(summary, theme, colors);
+            },
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            children: [
+              _buildLegendItem(
+                colors.primaryContainer,
+                colors.primary,
+                'Covered',
+                theme,
+              ),
+              _buildLegendItem(
+                colors.secondaryContainer,
+                colors.secondary,
+                'Partial',
+                theme,
+              ),
+              _buildLegendItem(
+                colors.errorContainer,
+                colors.error,
+                'Skipped',
+                theme,
+              ),
+              _buildLegendItem(
+                colors.surfaceContainerHighest,
+                colors.onSurfaceVariant,
+                'No log',
+                theme,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarDayCell(
+    MedicationAdherenceDaySummary summary,
+    ThemeData theme,
+    ColorScheme colors,
+  ) {
+    final (bgColor, fgColor, borderColor) = switch (summary.state) {
+      MedicationDayAdherenceState.covered => (
+        colors.primaryContainer,
+        colors.onPrimaryContainer,
+        colors.primary,
+      ),
+      MedicationDayAdherenceState.partial => (
+        colors.secondaryContainer,
+        colors.onSecondaryContainer,
+        colors.secondary,
+      ),
+      MedicationDayAdherenceState.skipped => (
+        colors.errorContainer,
+        colors.onErrorContainer,
+        colors.error,
+      ),
+      MedicationDayAdherenceState.noLog => (
+        colors.surfaceContainerHighest.withValues(alpha: 0.45),
+        colors.onSurfaceVariant,
+        colors.outlineVariant,
+      ),
+      MedicationDayAdherenceState.notPrescribed => (
+        Colors.transparent,
+        colors.onSurfaceVariant.withValues(alpha: 0.4),
+        Colors.transparent,
+      ),
+    };
+
+    return Tooltip(
+      message:
+          'Day ${summary.date.day}: ${summary.takenCount} taken, ${summary.skippedCount} skipped',
+      child: Container(
+        key: ValueKey(
+          'calendar-day-${summary.date.year}-${summary.date.month}-${summary.date.day}',
+        ),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: borderColor.withValues(alpha: 0.5),
+            width:
+                summary.state == MedicationDayAdherenceState.covered ||
+                    summary.state == MedicationDayAdherenceState.skipped
+                ? 1.2
+                : 0.5,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '${summary.date.day}',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: fgColor,
+            fontWeight:
+                summary.state == MedicationDayAdherenceState.covered ||
+                    summary.state == MedicationDayAdherenceState.skipped
+                ? FontWeight.bold
+                : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(
+    Color bg,
+    Color border,
+    String label,
+    ThemeData theme,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: border.withValues(alpha: 0.6)),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: theme.textTheme.labelSmall),
+      ],
+    );
+  }
+
+  Widget _buildLogTile(
+    MedicationAdherenceLog log,
+    BuildContext ctx,
+    ColorScheme colors,
+    ThemeData theme,
+  ) {
+    final local = log.takenAt.toLocal();
+    final dateStr = MaterialLocalizations.of(ctx).formatShortDate(local);
+    final timeStr = MaterialLocalizations.of(
+      ctx,
+    ).formatTimeOfDay(TimeOfDay.fromDateTime(local));
+    final isSkipped = log.isSkipped;
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        backgroundColor: isSkipped
+            ? colors.errorContainer
+            : colors.primaryContainer,
+        foregroundColor: isSkipped
+            ? colors.onErrorContainer
+            : colors.onPrimaryContainer,
+        child: Icon(isSkipped ? Icons.close : Icons.check, size: 18),
+      ),
+      title: Text('${log.status.label} · $dateStr at $timeStr'),
+      subtitle: log.notes != null ? Text(log.notes!) : null,
     );
   }
 }

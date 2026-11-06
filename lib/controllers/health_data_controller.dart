@@ -709,14 +709,16 @@ class HealthDataController extends ChangeNotifier {
   Future<void> logMedicationDose(
     HealthRecord med, {
     DateTime? takenAt,
+    MedicationAdherenceStatus status = MedicationAdherenceStatus.taken,
     String? note,
   }) async {
     final details = ManualMedicationDetails.fromRecord(med);
     final log = MedicationAdherenceLog(
-      id: 'adherence:${DateTime.now().millisecondsSinceEpoch}',
+      id: 'adherence:${DateTime.now().microsecondsSinceEpoch}',
       medicationId: med.id,
       medicationName: med.name,
       takenAt: takenAt ?? DateTime.now(),
+      status: status,
       notes: note,
     );
     final updatedDetails = ManualMedicationDetails(
@@ -725,7 +727,9 @@ class HealthDataController extends ChangeNotifier {
           : details.frequency,
       route: details.route,
       endDate: details.endDate,
+      discontinueReason: details.discontinueReason,
       adherenceLogs: [...details.adherenceLogs, log],
+      reminder: details.reminder,
     );
     final updatedRecord = med.copyWith(
       status: med.status ?? 'active',

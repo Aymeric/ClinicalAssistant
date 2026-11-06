@@ -15,6 +15,7 @@ import 'guidelines/guidelines_library_page.dart';
 import 'integrations/fhir_file_import.dart';
 import 'models/doctor_visit_preparation.dart';
 import 'models/health_record.dart';
+import 'models/medication_adherence_log.dart';
 import 'notifications/local_notification_dispatcher.dart';
 import 'notifications/medication_reminder_service.dart';
 import 'notifications/result_notification_manager.dart';
@@ -142,6 +143,8 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
   late final _medicationReminderService = MedicationReminderService(
     dispatcher: FlutterLocalNotificationDispatcher(),
     syncValueStore: _controller.syncValueStore,
+    onNotificationTap: _openMedications,
+    onDoseAction: _handleReminderDoseAction,
   );
   final _exporter = HealthExportService();
   var _selectedIndex = 0;
@@ -207,9 +210,31 @@ class _HealthHomeState extends State<HealthHome> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _handleReminderDoseAction(
+    String medicationId,
+    MedicationAdherenceStatus status,
+  ) async {
+    HealthRecord? target;
+    for (final record in _controller.records) {
+      if (record.id == medicationId &&
+          record.category == RecordCategory.medication) {
+        target = record;
+        break;
+      }
+    }
+    if (target == null) return;
+    await _controller.logMedicationDose(target, status: status);
+    if (mounted) {
+      _showMessage(
+        '${target.name} marked ${status.label.toLowerCase()} from reminder.',
+      );
+    }
+  }
+
   Future<void> _loadInitialState() async {
     await _controller.load();
     if (!mounted) return;
+    unawaited(_medicationReminderService.initialize());
     try {
       final hasPin = await _vaultSecurityService.isPinConfigured();
       if (hasPin && mounted) {

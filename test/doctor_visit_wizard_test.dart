@@ -1,6 +1,8 @@
 import 'package:clinical_assistant/exports/health_export_service.dart';
 import 'package:clinical_assistant/models/doctor_visit_preparation.dart';
 import 'package:clinical_assistant/models/health_record.dart';
+import 'package:clinical_assistant/models/manual_medication_details.dart';
+import 'package:clinical_assistant/models/medication_adherence_log.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -137,6 +139,55 @@ void main() {
         expect(
           suggestions.any(
             (s) => s.contains('glucose readings above 180 mg/dL'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'generates smart suggestion when a medication has <80% 30-day PDC adherence',
+      () {
+        final now = DateTime.now().toUtc();
+        final medRecord = HealthRecord(
+          id: 'med-low-pdc',
+          name: 'Atorvastatin',
+          value: '20 mg',
+          unit: '',
+          recordedAt: now.subtract(const Duration(days: 30)),
+          category: RecordCategory.medication,
+          source: 'Manual Entry',
+          status: 'active',
+          sourceData: ManualMedicationDetails(
+            frequency: 'Once daily',
+            adherenceLogs: [
+              MedicationAdherenceLog(
+                id: 'l-1',
+                medicationId: 'med-low-pdc',
+                medicationName: 'Atorvastatin',
+                takenAt: now.subtract(const Duration(days: 2)),
+                status: MedicationAdherenceStatus.taken,
+              ),
+              MedicationAdherenceLog(
+                id: 'l-2',
+                medicationId: 'med-low-pdc',
+                medicationName: 'Atorvastatin',
+                takenAt: now.subtract(const Duration(days: 1)),
+                status: MedicationAdherenceStatus.skipped,
+              ),
+            ],
+          ).withSourceData(null),
+        );
+
+        final suggestions =
+            DoctorVisitPreparationConfig.generateSmartSuggestions(
+              records: [medRecord],
+              specialty: DoctorVisitSpecialty.cardiology,
+            );
+
+        expect(
+          suggestions.any(
+            (s) => s.contains('Atorvastatin') && s.contains('30-day PDC'),
           ),
           isTrue,
         );

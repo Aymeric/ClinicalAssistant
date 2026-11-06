@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../trends/health_trend.dart';
 import 'clinical_panel.dart';
 import 'health_record.dart';
+import 'manual_medication_details.dart';
+import 'medication_adherence_log.dart';
 
 /// Available specialty templates for clinical consultation preparation.
 enum DoctorVisitSpecialty {
@@ -526,15 +528,29 @@ class DoctorVisitPreparationConfig {
       }
     }
 
-    // 3. General medication discussion suggestion if medications exist
-    final hasMedications = records.any(
-      (r) => r.category == RecordCategory.medication,
-    );
-    if (hasMedications) {
+    // 3. General medication discussion suggestion and adherence review if medications exist
+    final medications = records
+        .where((r) => r.category == RecordCategory.medication)
+        .toList();
+    if (medications.isNotEmpty) {
       addSuggestion(
         'medication_review',
         'Review current prescription dosages, potential side effects, and refill needs.',
       );
+      for (final med in medications) {
+        final details = ManualMedicationDetails.fromRecord(med);
+        if (details.adherenceLogs.isNotEmpty) {
+          final pdc = MedicationPdcEvaluation.evaluate(med, windowDays: 30);
+          if (!pdc.isPrn &&
+              pdc.eligibleDays > 0 &&
+              !pdc.meetsClinicalBenchmark) {
+            addSuggestion(
+              'adherence_${med.name.toLowerCase()}',
+              'Discuss ${med.name} dosing schedule and adherence (${pdc.pdcPercentRounded}% 30-day PDC vs. 80% benchmark).',
+            );
+          }
+        }
+      }
     }
 
     return suggestions;

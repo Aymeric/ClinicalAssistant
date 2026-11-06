@@ -1,28 +1,88 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../models/health_record.dart';
+import '../models/medication_adherence_log.dart';
 import '../models/medication_reminder.dart';
 import '../sync/foreground_sync_state.dart';
 import 'local_notification_dispatcher.dart';
+
+typedef MedicationReminderActionHandler =
+    Future<void> Function(
+      String medicationId,
+      MedicationAdherenceStatus status,
+    );
 
 /// Manages recurring local medication reminder notifications.
 class MedicationReminderService {
   MedicationReminderService({
     required LocalNotificationDispatcher dispatcher,
     required SyncValueStore syncValueStore,
+    this.onDoseAction,
+    this.onNotificationTap,
   }) : _dispatcher = dispatcher,
        _store = syncValueStore;
 
   final LocalNotificationDispatcher _dispatcher;
   final SyncValueStore _store;
+  final MedicationReminderActionHandler? onDoseAction;
+  final VoidCallback? onNotificationTap;
 
   static const _remindersStoreKey = 'medication_reminders_v1';
+  static const actionMarkTaken =
+      FlutterLocalNotificationDispatcher.actionMarkTaken;
+  static const actionMarkSkipped =
+      FlutterLocalNotificationDispatcher.actionMarkSkipped;
+
+  static const reminderActions = [
+    LocalNotificationAction(id: actionMarkTaken, label: 'Taken'),
+    LocalNotificationAction(id: actionMarkSkipped, label: 'Skipped'),
+  ];
 
   /// Generates a stable deterministic integer notification ID for a medication and time slot.
   static int notificationIdFor(String medicationId, int hour, int minute) {
     var hash = medicationId.hashCode ^ (hour << 8) ^ minute;
     // Keep positive 31-bit integer for notification plugins
     return hash & 0x7FFFFFFF;
+  }
+
+  /// Builds a structured notification payload encoding the medication ID.
+  static String payloadForMedication(String medicationId) =>
+      'medication:$medicationId';
+
+  /// Extracts the medication ID from a reminder notification payload.
+  static String? parseMedicationIdFromPayload(String? payload) {
+    if (payload == null || !payload.startsWith('medication:')) return null;
+    final id = payload.substring('medication:'.length).trim();
+    return id.isEmpty ? null : id;
+  }
+
+  /// Initializes the underlying notification dispatcher to listen for Taken / Skipped actions.
+  Future<void> initialize() async {
+    await _dispatcher.initialize(
+      onNotificationTap: onNotificationTap,
+      onNotificationAction: handleNotificationResponse,
+    );
+  }
+
+  /// Processes a notification tap or quick-action response ('mark_taken' / 'mark_skipped').
+  Future<void> handleNotificationResponse(
+    String? actionId,
+    String? payload,
+  ) async {
+    final medicationId = parseMedicationIdFromPayload(payload);
+    if (medicationId == null) {
+      onNotificationTap?.call();
+      return;
+    }
+    if (actionId == actionMarkTaken) {
+      await onDoseAction?.call(medicationId, MedicationAdherenceStatus.taken);
+    } else if (actionId == actionMarkSkipped) {
+      await onDoseAction?.call(medicationId, MedicationAdherenceStatus.skipped);
+    } else {
+      onNotificationTap?.call();
+    }
   }
 
   /// Loads all user-configured medication reminders.
@@ -83,6 +143,7 @@ class MedicationReminderService {
       return;
     }
 
+    await initialize();
     final hasPermission = await _dispatcher.requestPermission();
     if (!hasPermission) return;
 
@@ -101,6 +162,8 @@ class MedicationReminderService {
         title: 'Medication Reminder',
         body:
             'Time to take ${reminder.medicationName} ($timeFormatted · ${reminder.schedule.label})',
+        payload: payloadForMedication(reminder.medicationId),
+        actions: reminderActions,
       );
     }
   }

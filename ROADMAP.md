@@ -139,10 +139,10 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - [x] Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
   - [x] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
   - [x] Discontinue / archive medications with reason annotations and date effective.
-- [ ] **Medication Adherence Tracking & Proportion of Days Covered (PDC)** ([#161](https://github.com/Aymeric/ClinicalAssistant/issues/161)):
-  - [ ] Actionable 'Taken' / 'Skipped' logging integrated with scheduled dose notifications and dose cards.
-  - [ ] Monthly visual adherence calendars and clinical Proportion of Days Covered (PDC) score computation (benchmark $\ge 80\%$).
-  - [ ] Adherence reporting incorporated into Doctor Visit consultation summaries.
+- [x] **Medication Adherence Tracking & Proportion of Days Covered (PDC)** ([#161](https://github.com/Aymeric/ClinicalAssistant/issues/161)):
+  - [x] Actionable 'Taken' / 'Skipped' logging integrated with scheduled dose notifications and dose cards.
+  - [x] Monthly visual adherence calendars and clinical Proportion of Days Covered (PDC) score computation (benchmark $\ge 80\%$).
+  - [x] Adherence reporting incorporated into Doctor Visit consultation summaries.
 - [x] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
   - [x] **Cross-Provider Record Reconciliation**:
     - [x] Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
