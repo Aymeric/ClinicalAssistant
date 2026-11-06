@@ -15,6 +15,7 @@ import '../../notifications/result_notification_settings.dart';
 import '../../sync/foreground_sync_state.dart';
 import '../../sync/import_progress.dart';
 import '../../sync/source_import_history.dart';
+import '../../terminology/clinical_unit_converter.dart';
 import '../overview/overview_page.dart';
 import '../security/privacy_policy_page.dart';
 import '../security/vault_security_card.dart';
@@ -56,6 +57,8 @@ class ConnectionsPage extends StatelessWidget {
     this.onResetHealthSyncAnchor,
     this.restingHeartRateProfile = RestingHeartRateProfile.athletic,
     this.onRestingHeartRateProfileChanged,
+    this.preferredUnitSystem = ClinicalUnitSystem.usConventional,
+    this.onPreferredUnitSystemChanged,
   });
 
   final bool busy;
@@ -92,6 +95,8 @@ class ConnectionsPage extends StatelessWidget {
   final VoidCallback? onResetHealthSyncAnchor;
   final RestingHeartRateProfile restingHeartRateProfile;
   final ValueChanged<RestingHeartRateProfile>? onRestingHeartRateProfileChanged;
+  final ClinicalUnitSystem preferredUnitSystem;
+  final ValueChanged<ClinicalUnitSystem>? onPreferredUnitSystemChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -310,6 +315,73 @@ class ConnectionsPage extends StatelessWidget {
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontStyle: FontStyle.italic,
                   ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Card(
+          key: const ValueKey('preferred-unit-system-card'),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.straighten_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Preferred Lab Unit System',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Choose the standard clinical unit system for trend charts and lab summaries. Secondary equivalent units remain visible on inspection sheets and raw source records are never altered.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SegmentedButton<ClinicalUnitSystem>(
+                  key: const ValueKey('preferred-unit-system-selector'),
+                  showSelectedIcon: true,
+                  segments: const [
+                    ButtonSegment(
+                      value: ClinicalUnitSystem.usConventional,
+                      label: Text(
+                        'US Conventional\n(mg/dL, g/dL, mEq/L)',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    ButtonSegment(
+                      value: ClinicalUnitSystem.internationalSi,
+                      label: Text(
+                        'International SI\n(mmol/L, µmol/L, g/L)',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                  selected: {preferredUnitSystem},
+                  onSelectionChanged: onPreferredUnitSystemChanged == null
+                      ? null
+                      : (newSelection) {
+                          if (newSelection.isNotEmpty) {
+                            onPreferredUnitSystemChanged!(newSelection.first);
+                          }
+                        },
                 ),
               ],
             ),

@@ -128,7 +128,10 @@ class _FakeNotificationDispatcher implements LocalNotificationDispatcher {
   VoidCallback? onNotificationTap;
 
   @override
-  Future<void> initialize({required VoidCallback? onNotificationTap}) async {
+  Future<void> initialize({
+    required VoidCallback? onNotificationTap,
+    NotificationActionCallback? onNotificationAction,
+  }) async {
     initialized = true;
     this.onNotificationTap = onNotificationTap;
   }
@@ -141,6 +144,8 @@ class _FakeNotificationDispatcher implements LocalNotificationDispatcher {
     required int id,
     required String title,
     required String body,
+    String? payload,
+    List<LocalNotificationAction> actions = const [],
   }) async {
     notifications.add(_ShownNotification(id, title, body));
   }

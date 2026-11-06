@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/health_record.dart';
+import '../terminology/clinical_unit_converter.dart';
 import '../ui/shared/record_widgets.dart';
 import 'health_trend.dart';
 
@@ -18,14 +19,52 @@ class SelectedReadingHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final latest = summary.latest.record;
+    final numericVal = parseHealthRecordValue(latest.value);
+    final secondaryEquiv = numericVal != null
+        ? ClinicalUnitConverter.formatDualUnitEquivalent(
+            value: numericVal,
+            fromUnit: latest.unit,
+            code: latest.code,
+            name: latest.name,
+          )
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          series.name,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                series.name,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (series.hasSecondaryUnit)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Text(
+                  '${series.unit} · ${series.secondaryUnit}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         Wrap(
@@ -33,7 +72,9 @@ class SelectedReadingHeading extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
-              latest.displayValue,
+              secondaryEquiv != null
+                  ? '${latest.displayValue} ($secondaryEquiv)'
+                  : latest.displayValue,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.7,
@@ -80,15 +121,39 @@ class TrendIndicators extends StatelessWidget {
     final changeLabel = summary.previous == null
         ? 'Need another reading'
         : 'Since previous reading';
+    final changeDirection = change == null
+        ? ''
+        : change > 0
+        ? ', Trending up'
+        : change < 0
+        ? ', Trending down'
+        : ', Trending flat';
+
     final fields = [
-      ('Change', changeValue, changeLabel),
-      ('Average', formatSensibleNumber(summary.average), 'In this range'),
+      (
+        'Change',
+        changeValue,
+        changeLabel,
+        'Change: $changeValue, $changeLabel$changeDirection',
+      ),
+      (
+        'Average',
+        formatSensibleNumber(summary.average),
+        'In this range',
+        'Average: ${formatSensibleNumber(summary.average)}, In this range',
+      ),
       (
         'Observed range',
         '${formatSensibleNumber(summary.minimum)}–${formatSensibleNumber(summary.maximum)}',
         'Lowest to highest',
+        'Observed range: ${formatSensibleNumber(summary.minimum)}–${formatSensibleNumber(summary.maximum)}, Lowest to highest',
       ),
-      ('Readings', '$count', 'In this range'),
+      (
+        'Readings',
+        '$count',
+        'In this range',
+        'Readings: $count, In this range',
+      ),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -101,77 +166,87 @@ class TrendIndicators extends StatelessWidget {
           runSpacing: spacing,
           children: [
             for (var index = 0; index < fields.length; index++)
-              Container(
-                width: width,
-                constraints: const BoxConstraints(minHeight: 84),
-                padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.outlineVariant.withValues(alpha: 0.6),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              Tooltip(
+                message:
+                    '${fields[index].$1}: ${fields[index].$2} (${fields[index].$3})',
+                child: Semantics(
+                  label: fields[index].$4,
+                  excludeSemantics: true,
+                  child: Container(
+                    width: width,
+                    constraints: const BoxConstraints(minHeight: 84),
+                    padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outlineVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            fields[index].$1,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelMedium
-                                ?.copyWith(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                fields[index].$1,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelMedium
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ),
+                            if (index == 0 && change != null) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                change > 0
+                                    ? Icons.trending_up
+                                    : change < 0
+                                    ? Icons.trending_down
+                                    : Icons.trending_flat,
+                                size: 16,
+                                color: change > 0
+                                    ? Theme.of(context).colorScheme.primary
+                                    : change < 0
+                                    ? Theme.of(context).colorScheme.secondary
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                              ),
+                            ],
+                          ],
                         ),
-                        if (index == 0 && change != null) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            change > 0
-                                ? Icons.trending_up
-                                : change < 0
-                                ? Icons.trending_down
-                                : Icons.trending_flat,
-                            size: 16,
-                            color: change > 0
-                                ? Theme.of(context).colorScheme.primary
-                                : change < 0
-                                ? Theme.of(context).colorScheme.secondary
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                          ),
-                        ],
+                        const SizedBox(height: 5),
+                        Text(
+                          fields[index].$2,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          fields[index].$3,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      fields[index].$2,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      fields[index].$3,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
           ],

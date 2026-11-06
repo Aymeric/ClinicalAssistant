@@ -12,6 +12,7 @@ import '../models/coverage_details.dart';
 import '../models/doctor_visit_preparation.dart';
 import '../models/health_record.dart';
 import '../models/manual_medication_details.dart';
+import '../models/medication_adherence_log.dart';
 import '../models/prom_details.dart';
 import '../safety/critical_safety_evaluator.dart';
 import '../trends/health_trend.dart';
@@ -65,10 +66,14 @@ class HealthExportService {
     );
   }
 
-  static final _csvFormulaTrigger = RegExp(r'^\s*[=+\-@\t\r]');
+  // Security: Trigger characters that could initiate formula or command/DDE execution
+  // in spreadsheet engines (Excel, Calc, Google Sheets) per OWASP CSV Injection guidelines (CWE-1236).
+  // Includes `=`, `+`, `-`, `@`, `|`, tab (`\t`), and carriage return (`\r`).
+  static final _csvFormulaTrigger = RegExp(r'^\s*[=+\-@|\t\r]');
 
-  /// Sanitizes CSV cell values to prevent CSV / Formula Injection attacks when exported
-  /// data is opened in spreadsheet software (e.g. Excel, Calc, Google Sheets).
+  /// Sanitizes CSV cell values to prevent CSV / Formula Injection attacks (CWE-1236)
+  /// when exported data is opened in spreadsheet software (e.g. Excel, Calc, Google Sheets).
+  /// Formula trigger characters at the start of any cell are escaped with a leading single quote `'`.
   static String _sanitizeCsvCell(String value) {
     if (value.isEmpty) return value;
     final trimmed = value.trimLeft();
@@ -709,14 +714,15 @@ class HealthExportService {
       );
     }
 
-    // Helper to render medications table
+    // Helper to render medications table with Proportion of Days Covered (PDC) adherence summary
     pw.Widget buildMedicationsTable() {
       if (medications.isEmpty) return pw.SizedBox();
+      final referenceDate = config?.visitDate ?? DateTime.now();
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'Reported Medications (${medications.take(12).length})',
+            'Reported Medications & Adherence Summary (${medications.take(12).length})',
             style: pw.TextStyle(
               fontSize: 12,
               fontWeight: pw.FontWeight.bold,
@@ -728,14 +734,16 @@ class HealthExportService {
             headers: const [
               'Medication',
               'Dosage & Schedule',
-              'Status / Adherence',
+              'Status / Adherence (30-Day PDC)',
               'Date / Source',
             ],
             data: medications.take(12).map((record) {
-              final details = record.isManual
-                  ? ManualMedicationDetails.fromRecord(record)
-                  : null;
-              var dosageSchedule = details != null
+              final details = ManualMedicationDetails.fromRecord(record);
+              final hasManualDetails =
+                  record.isManual ||
+                  details.frequency.isNotEmpty ||
+                  details.adherenceLogs.isNotEmpty;
+              var dosageSchedule = hasManualDetails
                   ? [
                       record.value,
                       details.frequency,
@@ -752,10 +760,27 @@ class HealthExportService {
                     '$dosageSchedule\n[Patient Note: ${patientNote.trim()}]';
               }
 
-              final adherenceInfo =
-                  details != null && details.adherenceLogs.isNotEmpty
-                  ? '${record.status ?? "active"} (${details.adherenceLogs.length} doses logged)'
-                  : (record.status ?? 'active');
+              String adherenceInfo;
+              if (details.adherenceLogs.isNotEmpty) {
+                final pdc = MedicationPdcEvaluation.evaluate(
+                  record,
+                  windowDays: 30,
+                  referenceDate: referenceDate,
+                );
+                if (pdc.isPrn) {
+                  adherenceInfo =
+                      '${record.status ?? "active"}\nPRN (${pdc.takenDoses} taken)';
+                } else {
+                  final benchmarkFlag = pdc.meetsClinicalBenchmark
+                      ? '>=80% benchmark'
+                      : '<80% benchmark';
+                  adherenceInfo =
+                      '${record.status ?? "active"} · 30d PDC: ${pdc.pdcPercentRounded}% ($benchmarkFlag)\n'
+                      '${pdc.coveredDays}/${pdc.eligibleDays} days covered (${pdc.takenDoses} taken, ${pdc.skippedDoses} skipped)';
+                }
+              } else {
+                adherenceInfo = record.status ?? 'active';
+              }
               final dateSource =
                   '${_formatDate(record.recordedAt)}\n${record.source}';
               return [record.name, dosageSchedule, adherenceInfo, dateSource];
@@ -1578,15 +1603,31 @@ class HealthExportService {
   }
 
   String _medicationInstructions(HealthRecord record) {
-    if (!record.isManual || record.category != RecordCategory.medication) {
+    if (record.category != RecordCategory.medication) {
       return record.displayValue;
     }
     final details = ManualMedicationDetails.fromRecord(record);
+    if (!record.isManual &&
+        details.frequency.isEmpty &&
+        details.adherenceLogs.isEmpty) {
+      return record.displayValue;
+    }
+    String? pdcSummary;
+    if (details.adherenceLogs.isNotEmpty) {
+      final pdc = MedicationPdcEvaluation.evaluate(record, windowDays: 30);
+      if (pdc.isPrn) {
+        pdcSummary = 'PRN (${pdc.takenDoses} taken)';
+      } else if (pdc.eligibleDays > 0) {
+        pdcSummary =
+            '30d PDC: ${pdc.pdcPercentRounded}% (${pdc.coveredDays}/${pdc.eligibleDays} days)';
+      }
+    }
     return [
       record.value,
       if (details.frequency.isNotEmpty) details.frequency,
       if (details.route != null) details.route,
       if (record.status != null) record.status,
+      ?pdcSummary,
     ].join(' · ');
   }
 

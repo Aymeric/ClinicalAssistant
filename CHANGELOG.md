@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.6.0 - 2026-11-06
+
+### Added
+
+- **Medication Adherence Tracking & Proportion of Days Covered (PDC)**:
+  - Support 'taken' and 'skipped' adherence statuses with quick-log actions directly on reminder notifications and medication cards ([#161](https://github.com/CIInc/ClinicalAssistant/issues/161)).
+  - Proportion of Days Covered (PDC) engine evaluated across 30-, 60-, and 90-day rolling observation windows against the clinical benchmark (>=80% threshold) ([#161](https://github.com/CIInc/ClinicalAssistant/issues/161)).
+  - Interactive monthly adherence calendar and detailed PDC breakdown sheet for each active medication ([#161](https://github.com/CIInc/ClinicalAssistant/issues/161)).
+  - Integrated 30-day PDC adherence metrics into Doctor Visit Preparation smart suggestions, wizard step 3, and PDF consultation export summaries ([#161](https://github.com/CIInc/ClinicalAssistant/issues/161)).
+- **Dual-Unit Lab Normalization (US Conventional vs. International SI Units)**:
+  - High-precision bidirectional UCUM unit conversion for core clinical analytes: Blood Glucose (`mg/dL` ↔ `mmol/L`), Total/HDL/LDL Cholesterol & Triglycerides (`mg/dL` ↔ `mmol/L`), Serum Creatinine (`mg/dL` ↔ `µmol/L`), Total Bilirubin (`mg/dL` ↔ `µmol/L`), Calcium (`mg/dL` ↔ `mmol/L`), BUN (`mg/dL` ↔ `mmol/L`), Albumin & Total Protein (`g/dL` ↔ `g/L`), and Serum Electrolytes (`mEq/L` ↔ `mmol/L`) ([#160](https://github.com/CIInc/ClinicalAssistant/issues/160)).
+  - Persistent user preference for Preferred Lab Unit System (`US Conventional` vs. `International SI`) configurable via Connections settings and saved securely in `SyncValueStore` ([#160](https://github.com/CIInc/ClinicalAssistant/issues/160)).
+  - Unification of disjointed multi-unit records into a single continuous longitudinal trend chart normalized to the user's preferred unit system, preserving raw underlying source payloads and provenance ([#160](https://github.com/CIInc/ClinicalAssistant/issues/160)).
+  - Dual-unit tooltips, calculated secondary equivalents, and converted reference ranges on chart scrubbing banners, reading headings, and record details sheets ([#160](https://github.com/CIInc/ClinicalAssistant/issues/160)).
+
+### Changed
+
+- Enhanced Google Play release pipeline to default release distribution to all non-production tracks (`internal,alpha,beta`) simultaneously for comprehensive pre-release validation.
+
+### Performance and reliability
+
+- Optimized cardiac rhythm metric aggregation (`Bolt`): replaced repeated `RegExp` pattern instantiations with fast-path numeric parsing and a hoisted pattern, and replaced intermediate allocations with single-pass metric accumulation ([#171](https://github.com/CIInc/ClinicalAssistant/issues/171)).
+- Safely guarded notification platform initialization in headless and test environments to prevent unhandled late initialization errors.
+
 ## 0.5.0 - 2026-11-01
 
 ### Added

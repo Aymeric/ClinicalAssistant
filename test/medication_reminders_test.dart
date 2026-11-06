@@ -57,9 +57,17 @@ class _RecordingNotificationDispatcher implements LocalNotificationDispatcher {
   bool requestPermissionResult = true;
   final List<Map<String, Object?>> shownNotifications = [];
   final List<int> cancelledNotificationIds = [];
+  VoidCallback? lastOnNotificationTap;
+  NotificationActionCallback? lastOnNotificationAction;
 
   @override
-  Future<void> initialize({VoidCallback? onNotificationTap}) async {}
+  Future<void> initialize({
+    VoidCallback? onNotificationTap,
+    NotificationActionCallback? onNotificationAction,
+  }) async {
+    lastOnNotificationTap = onNotificationTap;
+    lastOnNotificationAction = onNotificationAction;
+  }
 
   @override
   Future<bool> requestPermission() async => requestPermissionResult;
@@ -69,8 +77,16 @@ class _RecordingNotificationDispatcher implements LocalNotificationDispatcher {
     required int id,
     required String title,
     required String body,
+    String? payload,
+    List<LocalNotificationAction> actions = const [],
   }) async {
-    shownNotifications.add({'id': id, 'title': title, 'body': body});
+    shownNotifications.add({
+      'id': id,
+      'title': title,
+      'body': body,
+      'payload': payload,
+      'actions': actions,
+    });
   }
 
   @override
@@ -197,7 +213,7 @@ void main() {
     });
 
     test(
-      'scheduleReminder schedules notifications for each effective time',
+      'scheduleReminder schedules notifications for each effective time with Taken and Skipped actions',
       () async {
         const reminder = MedicationReminder(
           medicationId: 'med-1',
@@ -214,6 +230,39 @@ void main() {
         expect(alert['title'], 'Medication Reminder');
         expect((alert['body'] as String).contains('Atorvastatin'), isTrue);
         expect((alert['body'] as String).contains('21:00'), isTrue);
+        expect(alert['payload'], 'medication:med-1');
+        final actions = alert['actions'] as List<LocalNotificationAction>;
+        expect(actions.map((a) => a.id), [
+          MedicationReminderService.actionMarkTaken,
+          MedicationReminderService.actionMarkSkipped,
+        ]);
+        expect(actions.map((a) => a.label), ['Taken', 'Skipped']);
+      },
+    );
+
+    test(
+      'handleNotificationResponse invokes onDoseAction for Taken and Skipped actions',
+      () async {
+        final recordedActions = <String>[];
+        final actionService = MedicationReminderService(
+          dispatcher: dispatcher,
+          syncValueStore: syncStore,
+          onDoseAction: (medId, status) async {
+            recordedActions.add('$medId:${status.name}');
+          },
+        );
+
+        await actionService.initialize();
+        await actionService.handleNotificationResponse(
+          MedicationReminderService.actionMarkTaken,
+          'medication:med-101',
+        );
+        await actionService.handleNotificationResponse(
+          MedicationReminderService.actionMarkSkipped,
+          'medication:med-202',
+        );
+
+        expect(recordedActions, ['med-101:taken', 'med-202:skipped']);
       },
     );
 

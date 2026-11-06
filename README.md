@@ -20,14 +20,18 @@ or CSV.
   analyte relationships, reference ranges, and diagnostic performer details, while supporting
   rapid multi-analyte entry. Bundles an offline LOINC dictionary with UCUM conversion and
   cross-provider record deduplication.
+- Normalizes laboratory results across US Conventional and International SI units (e.g., blood glucose
+  `mg/dL` ↔ `mmol/L`, cholesterol `mg/dL` ↔ `mmol/L`, creatinine `mg/dL` ↔ `µmol/L`) with persistent user unit
+  preferences, dual-unit tooltips, converted reference ranges, and continuous unified trend graph timelines.
 - Visualizes cardiovascular health trends with ACC/AHA 2017 blood pressure clinical staging
   (Normal, Elevated, Stage 1, Stage 2, Hypertensive Crisis) and contextual protocol tracking
   (posture, arm, cuff, resting interval), diurnal morning vs. evening surge comparisons,
   and longitudinal heart rhythm analysis (resting, walking, workout peak, HRV / SDNN, and irregular
   rhythm history).
 - Offers comprehensive medication management with customizable recurring local dose reminders,
-  an offline drug-drug and food-drug interaction checker, and support for recording discontinuations
-  with clinical reasons.
+  an offline drug-drug and food-drug interaction checker, support for recording discontinuations
+  with clinical reasons, and longitudinal adherence tracking with Proportion of Days Covered (PDC)
+  evaluated against the >=80% clinical benchmark across 30-, 60-, and 90-day windows.
 - Captures Patient-Reported Outcome Measures (PROMs) including validated clinical survey instruments
   (PHQ-9, GAD-7, CAT COPD, HAQ-DI) and a structured symptom log with interactive timeline overlays
   on measurement trend charts.

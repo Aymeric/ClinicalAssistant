@@ -139,20 +139,20 @@ Focus: Expanding beyond lab observations to encompass broader clinical history, 
     - [x] Descriptive safety prompts instructing patients to discuss warnings with their pharmacist or physician.
   - [x] Schedule recurring local medication reminders (with customizable schedules: daily, bid, tid, qid, PRN).
   - [x] Discontinue / archive medications with reason annotations and date effective.
-- [ ] **Medication Adherence Tracking & Proportion of Days Covered (PDC)** ([#161](https://github.com/Aymeric/ClinicalAssistant/issues/161)):
-  - [ ] Actionable 'Taken' / 'Skipped' logging integrated with scheduled dose notifications and dose cards.
-  - [ ] Monthly visual adherence calendars and clinical Proportion of Days Covered (PDC) score computation (benchmark $\ge 80\%$).
-  - [ ] Adherence reporting incorporated into Doctor Visit consultation summaries.
+- [x] **Medication Adherence Tracking & Proportion of Days Covered (PDC)** ([#161](https://github.com/Aymeric/ClinicalAssistant/issues/161)):
+  - [x] Actionable 'Taken' / 'Skipped' logging integrated with scheduled dose notifications and dose cards.
+  - [x] Monthly visual adherence calendars and clinical Proportion of Days Covered (PDC) score computation (benchmark $\ge 80\%$).
+  - [x] Adherence reporting incorporated into Doctor Visit consultation summaries.
 - [x] **Standardized Terminology, Mapping & Deduplication** ([#78](https://github.com/Aymeric/ClinicalAssistant/issues/78)):
   - [x] **Cross-Provider Record Reconciliation**:
     - [x] Intelligently detects duplicate tests across multiple provider portals (e.g., same lipid panel reported by both hospital portal and lab service on the same date).
     - [x] Groups equivalent readings into a unified longitudinal timeline while retaining all original source document links and provenance.
   - [x] Offline LOINC (Logical Observation Identifiers Names and Codes) dictionary to map obscure lab analyte codes to clear, patient-friendly test names.
   - [x] UCUM (Unified Code for Units of Measure) standard normalization to allow clean comparison between equivalent units (e.g., `mg/dL` vs. `mmol/L` for blood glucose or cholesterol).
-- [ ] **Dual-Unit Lab Normalization (US Conventional vs. International SI Units)** ([#160](https://github.com/Aymeric/ClinicalAssistant/issues/160)):
-  - [ ] UCUM unit conversion logic for core clinical lab analytes (glucose, cholesterol, creatinine, bilirubin, electrolytes).
-  - [ ] User preference for Preferred Unit System with secondary unit display on inspection sheets and trend charts.
-  - [ ] Unify compatible UCUM unit series into a single longitudinal chart timeline without modifying raw underlying source record payloads.
+- [x] **Dual-Unit Lab Normalization (US Conventional vs. International SI Units)** ([#160](https://github.com/Aymeric/ClinicalAssistant/issues/160)):
+  - [x] UCUM unit conversion logic for core clinical lab analytes (glucose, cholesterol, creatinine, bilirubin, electrolytes).
+  - [x] User preference for Preferred Unit System with secondary unit display on inspection sheets and trend charts.
+  - [x] Unify compatible UCUM unit series into a single longitudinal chart timeline without modifying raw underlying source record payloads.
 - [ ] **Demographic Lab Reference Range Baselines & Age/Sex Normalization** ([#166](https://github.com/Aymeric/ClinicalAssistant/issues/166)):
   - [ ] Bundled offline demographic reference range catalog based on consensus clinical standards (IFCC, AACC/ADLM, CDC) for common routine analytes.
   - [ ] Optional local profile fields (birth year/age, biological sex) stored in encrypted vault to display secondary demographic baselines when source bounds are missing.

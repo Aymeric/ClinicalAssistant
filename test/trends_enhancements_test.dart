@@ -1,5 +1,6 @@
 import 'package:clinical_assistant/models/health_record.dart';
 import 'package:clinical_assistant/trends/health_trend.dart';
+import 'package:clinical_assistant/trends/health_trends_page.dart';
 import 'package:clinical_assistant/trends/trend_chart_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -188,6 +189,57 @@ void main() {
         expect(
           tooltipWidget.message,
           'Requires at least 3 readings to compute moving average',
+        );
+      },
+    );
+
+    testWidgets(
+      'HealthTrendsPage time range ChoiceChips display informative tooltips',
+      (tester) async {
+        final record = HealthRecord(
+          id: 'hr-1',
+          name: 'Heart Rate',
+          value: '72',
+          unit: 'bpm',
+          recordedAt: DateTime.now(),
+          category: RecordCategory.vital,
+          source: 'Manual',
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: HealthTrendsPage(records: [record])),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final days30Chip = tester.widget<ChoiceChip>(
+          find.byKey(const ValueKey('trend-range-days30')),
+        );
+        expect(
+          days30Chip.tooltip,
+          equals('Chart readings from the last 30 days'),
+        );
+
+        final days90Chip = tester.widget<ChoiceChip>(
+          find.byKey(const ValueKey('trend-range-days90')),
+        );
+        expect(
+          days90Chip.tooltip,
+          equals('Chart readings from the last 90 days'),
+        );
+
+        final yearChip = tester.widget<ChoiceChip>(
+          find.byKey(const ValueKey('trend-range-year')),
+        );
+        expect(yearChip.tooltip, equals('Chart readings from the last 1 year'));
+
+        final allChip = tester.widget<ChoiceChip>(
+          find.byKey(const ValueKey('trend-range-all')),
+        );
+        expect(
+          allChip.tooltip,
+          equals('Chart readings from all recorded time'),
         );
       },
     );

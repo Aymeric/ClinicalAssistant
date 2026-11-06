@@ -1,3 +1,8 @@
+## 2026-09-22 - CSV Formula and DDE Injection Sanitization on Health Exports
+**Vulnerability:** In `HealthExportService`, CSV formula injection protection checked for `=`, `+`, `-`, `@`, `\t`, and `\r`, but omitted pipe (`|`) character sanitization.
+**Learning:** Spreadsheets and terminal/DDE engines (e.g. Excel, Calc) can interpret pipe `|` commands as command/formula injection triggers per OWASP CSV injection guidelines (CWE-1236).
+**Prevention:** Include pipe `|` in `_csvFormulaTrigger` so that any health record field starting with a pipe is escaped with a leading single quote `'`.
+
 ## 2026-09-21 - OAuth Credential Redaction in Local Import Error History
 **Vulnerability:** When SMART-on-FHIR or provider sync attempts failed, exception messages could contain raw Bearer tokens, refresh tokens, access tokens, or authorization codes, which were saved unredacted in local sync history storage (`source_import_history_v1`).
 **Learning:** `sanitizeImportErrorSummary` redacted full URLs (`https://...`), but failed to sanitize standalone `Authorization: Bearer <token>` headers or individual query parameter pairs (`access_token=...`, `refresh_token=...`, `client_secret=...`, `code=...`).

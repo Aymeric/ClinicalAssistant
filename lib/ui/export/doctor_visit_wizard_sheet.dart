@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../models/clinical_panel.dart';
 import '../../models/doctor_visit_preparation.dart';
 import '../../models/health_record.dart';
+import '../../models/manual_medication_details.dart';
+import '../../models/medication_adherence_log.dart';
 import '../../safety/critical_safety_evaluator.dart';
 import '../../trends/health_trend.dart';
 import '../shared/record_widgets.dart';
@@ -704,6 +706,10 @@ class _DoctorVisitWizardSheetState extends State<DoctorVisitWizardSheet> {
       med.name,
       () => TextEditingController(),
     );
+    final details = ManualMedicationDetails.fromRecord(med);
+    final pdc = details.adherenceLogs.isNotEmpty
+        ? MedicationPdcEvaluation.evaluate(med, windowDays: 30)
+        : null;
 
     return Card(
       elevation: 0,
@@ -740,6 +746,34 @@ class _DoctorVisitWizardSheetState extends State<DoctorVisitWizardSheet> {
                 ),
               ],
             ),
+            if (pdc != null && !pdc.isPrn && pdc.eligibleDays > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    pdc.meetsClinicalBenchmark
+                        ? Icons.verified_outlined
+                        : Icons.pie_chart_outline,
+                    size: 14,
+                    color: pdc.meetsClinicalBenchmark
+                        ? colors.primary
+                        : colors.tertiary,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '30-day adherence: ${pdc.descriptiveLabel} (${pdc.takenDoses} taken, ${pdc.skippedDoses} skipped)',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: pdc.meetsClinicalBenchmark
+                            ? colors.primary
+                            : colors.tertiary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             TextField(
               key: ValueKey('wizard-med-note-input-${med.name}'),

@@ -216,9 +216,87 @@ void main() {
       await tester.tap(find.text('1 dose logged'));
       await tester.pumpAndSettle();
 
-      // Verify adherence sheet opens
+      // Verify adherence sheet opens with PDC card and Monthly Adherence Calendar
       expect(find.text('Metformin Adherence'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('medication-pdc-summary-card')),
+        findsOneWidget,
+      );
+      expect(find.text('Proportion of Days Covered (PDC)'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('medication-adherence-calendar')),
+        findsOneWidget,
+      );
+      expect(find.text('Monthly Adherence Calendar'), findsOneWidget);
       expect(find.text('Taken with breakfast'), findsOneWidget);
+
+      // Switch PDC evaluation window from 30d to 60d and 90d
+      await tester.tap(find.text('60d'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('90d'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('pdc-percentage-value')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'MedicationsPage supports Mark Skipped quick-log button and displays skipped status',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final now = DateTime.now();
+      final medRecord = HealthRecord(
+        id: 'med-789',
+        name: 'Atorvastatin',
+        category: RecordCategory.medication,
+        value: '20mg',
+        unit: 'daily',
+        recordedAt: now.subtract(const Duration(days: 10)),
+        source: 'Manual Entry',
+        status: 'active',
+        referenceRange: 'active',
+        sourceData: const ManualMedicationDetails(
+          frequency: 'Once daily',
+          route: 'Oral',
+        ).withSourceData(null),
+      );
+
+      final store = _FakeRecordStore([medRecord]);
+      final controller = HealthDataController(
+        store: store,
+        syncValueStore: _MemorySyncValueStore(),
+      );
+      await controller.load();
+
+      await tester.pumpWidget(
+        MaterialApp(home: MedicationsPage(controller: controller)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('skip-dose-Atorvastatin')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('skip-dose-Atorvastatin')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Logged skipped dose for Atorvastatin'), findsOneWidget);
+      final updatedDetails = ManualMedicationDetails.fromRecord(
+        controller.activeMedications.first,
+      );
+      expect(updatedDetails.adherenceLogs, hasLength(1));
+      expect(updatedDetails.adherenceLogs.first.isSkipped, isTrue);
+      expect(
+        find.byKey(const ValueKey('pdc-chip-Atorvastatin')),
+        findsOneWidget,
+      );
     },
   );
 }

@@ -12,6 +12,7 @@ import '../../models/health_record.dart';
 import '../../models/manual_medication_details.dart';
 import '../../models/procedure_details.dart';
 import '../../safety/critical_safety_evaluator.dart';
+import '../../terminology/clinical_unit_converter.dart';
 import '../../terminology/cross_provider_reconciler.dart';
 import '../../terminology/loinc_dictionary.dart';
 import '../../trends/health_trend.dart';
@@ -679,33 +680,74 @@ class _RecordDetailsSheetState extends State<RecordDetailsSheet> {
             Builder(
               builder: (context) {
                 final loincConcept = LoincDictionary.lookup(record.code);
-                if (loincConcept == null) return const SizedBox.shrink();
                 final numericVal = parseHealthRecordValue(record.value);
                 final descriptiveUnit = numericVal != null
-                    ? LoincDictionary.computeDescriptiveEquivalent(
+                    ? ClinicalUnitConverter.formatDualUnitEquivalent(
                         value: numericVal,
                         fromUnit: record.unit,
                         code: record.code,
+                        name: record.name,
                       )
                     : null;
+
+                String? refRangeEquiv;
+                if (record.referenceRange != null &&
+                    record.referenceRange!.isNotEmpty) {
+                  final parsedRange = parseHealthReferenceRange(
+                    record.referenceRange,
+                    expectedUnit: record.unit,
+                  );
+                  final conv = ClinicalUnitConverter.findConversion(
+                    code: record.code,
+                    name: record.name,
+                    unit: record.unit,
+                  );
+                  if (parsedRange != null && conv != null) {
+                    final targetUnit = conv.isUsUnit(record.unit)
+                        ? conv.siUnit
+                        : conv.usUnit;
+                    final convertedRange =
+                        ClinicalUnitConverter.convertReferenceRange(
+                          parsedRange,
+                          fromUnit: record.unit,
+                          targetUnit: targetUnit,
+                          code: record.code,
+                          name: record.name,
+                        );
+                    if (convertedRange != null) {
+                      refRangeEquiv = convertedRange.sourceText;
+                    }
+                  }
+                }
+
+                if (loincConcept == null && descriptiveUnit == null) {
+                  return const SizedBox.shrink();
+                }
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (loincConcept.patientFriendlyName.toLowerCase() !=
-                        record.name.toLowerCase())
+                    if (loincConcept != null &&
+                        loincConcept.patientFriendlyName.toLowerCase() !=
+                            record.name.toLowerCase())
                       DetailLine(
                         label: 'Standardized name',
                         value: loincConcept.patientFriendlyName,
                       ),
-                    DetailLine(
-                      label: 'About this test',
-                      value: loincConcept.description,
-                    ),
+                    if (loincConcept != null)
+                      DetailLine(
+                        label: 'About this test',
+                        value: loincConcept.description,
+                      ),
                     if (descriptiveUnit != null)
                       DetailLine(
-                        label: 'Unit equivalent',
+                        label: 'Secondary unit equivalent',
                         value: '$descriptiveUnit (calculated equivalent)',
+                      ),
+                    if (refRangeEquiv != null)
+                      DetailLine(
+                        label: 'Reference range equivalent',
+                        value: '$refRangeEquiv (calculated)',
                       ),
                   ],
                 );

@@ -263,5 +263,216 @@ void main() {
       expect(controller.activeMedications.length, 2);
       expect(controller.pastMedications.length, 0);
     });
+
+    test(
+      'logs skipped doses and preserves existing reminder schedule',
+      () async {
+        final testTime = DateTime.utc(2026, 10, 1, 9, 0);
+        final med = controller.records.firstWhere(
+          (r) => r.id == 'med-atorvastatin',
+        );
+        await controller.logMedicationDose(
+          med,
+          takenAt: testTime,
+          status: MedicationAdherenceStatus.skipped,
+          note: 'Fasting for morning blood draw',
+        );
+
+        final updated = controller.records.firstWhere(
+          (r) => r.id == 'med-atorvastatin',
+        );
+        final details = ManualMedicationDetails.fromRecord(updated);
+        expect(details.adherenceLogs, hasLength(1));
+        expect(details.adherenceLogs.first.isSkipped, isTrue);
+        expect(details.adherenceLogs.first.isTaken, isFalse);
+        expect(
+          details.adherenceLogs.first.status,
+          MedicationAdherenceStatus.skipped,
+        );
+        expect(
+          details.adherenceLogs.first.notes,
+          'Fasting for morning blood draw',
+        );
+      },
+    );
+  });
+
+  group('MedicationPdcEvaluation & Monthly Adherence Calendar', () {
+    test(
+      'computes 30-, 60-, and 90-day PDC and evaluates >= 80% clinical benchmark',
+      () {
+        final referenceDate = DateTime(2026, 10, 30, 12, 0);
+        // Prescribed 30 days ago (Oct 1 to Oct 30 = 30 eligible days), once daily
+        final logs = <MedicationAdherenceLog>[];
+        // Log taken on 25 of the 30 days (25 / 30 = 83.3% -> 83% >= 80% benchmark)
+        for (var i = 0; i < 25; i++) {
+          logs.add(
+            MedicationAdherenceLog(
+              id: 'log-taken-$i',
+              medicationId: 'med-lisinopril',
+              medicationName: 'Lisinopril',
+              takenAt: DateTime(2026, 10, 1 + i, 9, 0),
+              status: MedicationAdherenceStatus.taken,
+            ),
+          );
+        }
+        // Log skipped on 2 days (Oct 26 and Oct 27)
+        logs.add(
+          MedicationAdherenceLog(
+            id: 'log-skip-1',
+            medicationId: 'med-lisinopril',
+            medicationName: 'Lisinopril',
+            takenAt: DateTime(2026, 10, 26, 9, 0),
+            status: MedicationAdherenceStatus.skipped,
+          ),
+        );
+        logs.add(
+          MedicationAdherenceLog(
+            id: 'log-skip-2',
+            medicationId: 'med-lisinopril',
+            medicationName: 'Lisinopril',
+            takenAt: DateTime(2026, 10, 27, 9, 0),
+            status: MedicationAdherenceStatus.skipped,
+          ),
+        );
+
+        final record = HealthRecord(
+          id: 'med-lisinopril',
+          name: 'Lisinopril',
+          value: '10 mg',
+          unit: '',
+          recordedAt: DateTime(2026, 10, 1),
+          category: RecordCategory.medication,
+          source: 'Manual Entry',
+          status: 'active',
+          sourceData: ManualMedicationDetails(
+            frequency: 'Once daily',
+            route: 'Oral',
+            adherenceLogs: logs,
+          ).withSourceData(null),
+        );
+
+        final pdc30 = MedicationPdcEvaluation.evaluate(
+          record,
+          windowDays: 30,
+          referenceDate: referenceDate,
+        );
+
+        expect(pdc30.windowDays, 30);
+        expect(pdc30.eligibleDays, 30);
+        expect(pdc30.coveredDays, 25);
+        expect(pdc30.skippedDays, 2);
+        expect(pdc30.takenDoses, 25);
+        expect(pdc30.skippedDoses, 2);
+        expect(pdc30.pdcPercentRounded, 83);
+        expect(pdc30.meetsClinicalBenchmark, isTrue);
+        expect(pdc30.descriptiveLabel, contains('83% PDC'));
+        expect(pdc30.descriptiveLabel, contains('≥80% benchmark'));
+
+        // Over 60-day window, since prescription started Oct 1, eligibleDays is still 30
+        final pdc60 = MedicationPdcEvaluation.evaluate(
+          record,
+          windowDays: 60,
+          referenceDate: referenceDate,
+        );
+        expect(pdc60.eligibleDays, 30);
+        expect(pdc60.coveredDays, 25);
+        expect(pdc60.pdcPercentRounded, 83);
+
+        // If prescription started 90 days ago, eligibleDays is 90 and 25/90 = 28% (< 80% benchmark)
+        final olderRecord = record.copyWith(recordedAt: DateTime(2026, 8, 1));
+        final pdc90 = MedicationPdcEvaluation.evaluate(
+          olderRecord,
+          windowDays: 90,
+          referenceDate: referenceDate,
+        );
+        expect(pdc90.eligibleDays, 90);
+        expect(pdc90.coveredDays, 25);
+        expect(pdc90.pdcPercentRounded, 28);
+        expect(pdc90.meetsClinicalBenchmark, isFalse);
+        expect(pdc90.descriptiveLabel, contains('<80% benchmark'));
+      },
+    );
+
+    test(
+      'handles BID (twice daily) partial vs covered days and builds monthly calendar',
+      () {
+        final logs = <MedicationAdherenceLog>[
+          // Oct 10: 2 taken -> covered
+          MedicationAdherenceLog(
+            id: 'l1',
+            medicationId: 'med-metformin',
+            medicationName: 'Metformin',
+            takenAt: DateTime(2026, 10, 10, 8, 0),
+          ),
+          MedicationAdherenceLog(
+            id: 'l2',
+            medicationId: 'med-metformin',
+            medicationName: 'Metformin',
+            takenAt: DateTime(2026, 10, 10, 20, 0),
+          ),
+          // Oct 11: 1 taken, 1 skipped -> partial
+          MedicationAdherenceLog(
+            id: 'l3',
+            medicationId: 'med-metformin',
+            medicationName: 'Metformin',
+            takenAt: DateTime(2026, 10, 11, 8, 0),
+          ),
+          MedicationAdherenceLog(
+            id: 'l4',
+            medicationId: 'med-metformin',
+            medicationName: 'Metformin',
+            takenAt: DateTime(2026, 10, 11, 20, 0),
+            status: MedicationAdherenceStatus.skipped,
+          ),
+          // Oct 12: 1 skipped -> skipped
+          MedicationAdherenceLog(
+            id: 'l5',
+            medicationId: 'med-metformin',
+            medicationName: 'Metformin',
+            takenAt: DateTime(2026, 10, 12, 8, 0),
+            status: MedicationAdherenceStatus.skipped,
+          ),
+        ];
+
+        final record = HealthRecord(
+          id: 'med-metformin',
+          name: 'Metformin',
+          value: '500 mg',
+          unit: '',
+          recordedAt: DateTime(2026, 10, 10),
+          category: RecordCategory.medication,
+          source: 'Manual Entry',
+          status: 'active',
+          sourceData: ManualMedicationDetails(
+            frequency: 'Twice daily (BID)',
+            route: 'Oral',
+            adherenceLogs: logs,
+          ).withSourceData(null),
+        );
+
+        final calendar = MedicationPdcEvaluation.buildMonthCalendar(
+          record,
+          year: 2026,
+          month: 10,
+        );
+
+        expect(calendar, hasLength(31));
+        // Oct 9 (before prescription start) -> notPrescribed
+        expect(calendar[8].state, MedicationDayAdherenceState.notPrescribed);
+        // Oct 10 -> covered
+        expect(calendar[9].state, MedicationDayAdherenceState.covered);
+        expect(calendar[9].takenCount, 2);
+        // Oct 11 -> partial
+        expect(calendar[10].state, MedicationDayAdherenceState.partial);
+        expect(calendar[10].takenCount, 1);
+        expect(calendar[10].skippedCount, 1);
+        // Oct 12 -> skipped
+        expect(calendar[11].state, MedicationDayAdherenceState.skipped);
+        expect(calendar[11].skippedCount, 1);
+        // Oct 13 -> noLog
+        expect(calendar[12].state, MedicationDayAdherenceState.noLog);
+      },
+    );
   });
 }
