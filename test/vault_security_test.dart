@@ -231,6 +231,16 @@ void main() {
         expect(service.constantTimeCompare([], []), isTrue);
         expect(service.constantTimeCompare([1], []), isFalse);
         expect(service.constantTimeCompare([], [1]), isFalse);
+        expect(
+          service.constantTimeCompare([1, 2, 3], [1, 2, 3, 0]),
+          isFalse,
+          reason: 'Trailing zero must not fool length-padded comparison',
+        );
+        expect(
+          service.constantTimeCompare([1, 2, 3, 0], [1, 2, 3]),
+          isFalse,
+          reason: 'Trailing zero must not fool length-padded comparison',
+        );
       },
     );
   });

@@ -1,3 +1,8 @@
+## 2026-09-23 - Constant-Time Buffer Comparison Timing Discrepancy on Differing Lengths
+**Vulnerability:** `VaultSecurityService.constantTimeCompare` looped only up to `min(a.length, b.length)`, creating an execution timing discrepancy that leaked the length of the shorter buffer (CWE-208).
+**Learning:** Even when length difference is accumulated into a bitwise result flag, bounding comparison iterations by the minimum buffer length allows an attacker to deduce buffer lengths via execution time measurements.
+**Prevention:** In constant-time comparison helpers, iterate across the maximum buffer length with index bounds checks and dummy zero-sampling, ensuring execution duration does not vary with shorter buffer lengths.
+
 ## 2026-09-22 - CSV Formula and DDE Injection Sanitization on Health Exports
 **Vulnerability:** In `HealthExportService`, CSV formula injection protection checked for `=`, `+`, `-`, `@`, `\t`, and `\r`, but omitted pipe (`|`) character sanitization.
 **Learning:** Spreadsheets and terminal/DDE engines (e.g. Excel, Calc) can interpret pipe `|` commands as command/formula injection triggers per OWASP CSV injection guidelines (CWE-1236).
