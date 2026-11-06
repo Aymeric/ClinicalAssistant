@@ -59,6 +59,9 @@ class RecordsPageState extends State<RecordsPage> {
   // on every UI build (e.g. per keystroke during search typing).
   List<DateTime> _availableDates = const [];
   List<String> _availableSources = const [];
+  // Memoized cross-provider reconciled groups to avoid scanning and grouping
+  // all records on every search keystroke, filter toggle, or sort order change.
+  Map<String, ReconciledRecordGroup> _reconciledGroups = const {};
 
   @override
   void initState() {
@@ -79,6 +82,10 @@ class RecordsPageState extends State<RecordsPage> {
 
     _availableSources = widget.records.map((r) => r.source).toSet().toList()
       ..sort();
+
+    _reconciledGroups = CrossProviderReconciler.findReconciledGroups(
+      widget.records,
+    );
   }
 
   @override
@@ -541,8 +548,7 @@ class RecordsPageState extends State<RecordsPage> {
             padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
             sliver: () {
               final listItems = groupRecordsIntoListItems(filtered);
-              final reconciledGroups =
-                  CrossProviderReconciler.findReconciledGroups(widget.records);
+              final reconciledGroups = _reconciledGroups;
               return SliverList.builder(
                 itemCount: listItems.length,
                 itemBuilder: (context, index) {
