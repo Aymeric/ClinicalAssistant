@@ -293,10 +293,23 @@ void main() {
       );
       expect(updatedDetails.adherenceLogs, hasLength(1));
       expect(updatedDetails.adherenceLogs.first.isSkipped, isTrue);
-      expect(
-        find.byKey(const ValueKey('pdc-chip-Atorvastatin')),
-        findsOneWidget,
-      );
+      final pdcChipFinder = find.byKey(const ValueKey('pdc-chip-Atorvastatin'));
+      expect(pdcChipFinder, findsOneWidget);
+
+      final pdcSemantics = tester
+          .widgetList<Semantics>(
+            find.ancestor(of: pdcChipFinder, matching: find.byType(Semantics)),
+          )
+          .where(
+            (s) =>
+                s.properties.label != null &&
+                s.properties.label!.contains(
+                  '30-day Proportion of Days Covered',
+                ),
+          );
+      expect(pdcSemantics, hasLength(1));
+      expect(pdcSemantics.first.properties.button, isTrue);
+      expect(pdcSemantics.first.excludeSemantics, isTrue);
     },
   );
 }
